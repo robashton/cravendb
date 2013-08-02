@@ -5,5 +5,6 @@
                  [ring "1.2.0"]
                  [compojure "1.1.5"]
                  [org.clojure/tools.nrepl "0.2.3"]
-                 [org.fusesource.leveldbjni/leveldbjni-all "1.7"]]
+                 [org.fusesource.leveldbjni/leveldbjni-all "1.7"]
+                 [me.raynes/fs "1.4.4"]]
   :main cravendb.server)
