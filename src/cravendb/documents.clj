@@ -24,7 +24,8 @@
     (.put db (to-db id) (to-db document)))
   (-get [this id] 
     (from-db (.get db (to-db id))))
-  (-delete [this id] )
+  (-delete [this id]
+    (.delete db (to-db id)))
   (close [this] 
     (println "Closing")
     (.close db)))
