@@ -25,7 +25,9 @@
   (-get [this id] 
     (from-db (.get db (to-db id))))
   (-delete [this id] )
-  (close [this] (.close db)))
+  (close [this] 
+    (println "Closing")
+    (.close db)))
 
 (defn opendb [file]
   (let [options (Options.)]
