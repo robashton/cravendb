@@ -16,18 +16,21 @@
 
 (defn from-db [input]
   (println "fromdb" (String. input "UTF-8"))
-  (String. input "UTF-8"))
+  (if (= input nil)
+    nil
+    (String. input "UTF-8")))
 
 (defrecord LevelDocuments [db]
   DocumentStorage
   (-put [this id document] 
     (.put db (to-db id) (to-db document)))
   (-get [this id] 
-    (from-db (.get db (to-db id))))
+    (try
+      (from-db (.get db (to-db id)))
+      (catch Exception e nil)))
   (-delete [this id]
     (.delete db (to-db id)))
   (close [this] 
-    (println "Closing")
     (.close db)))
 
 (defn opendb [file]

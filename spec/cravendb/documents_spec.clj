@@ -9,21 +9,28 @@
 (defn open-test-db []
   (docs/db "testdir"))
 
+(defn with-db [testfn]
+  (clear-test-data)
+  (let [db (open-test-db)]
+    (try 
+      (testfn db)
+      (finally
+        (.close db)
+        (clear-test-data)))))
+
 (describe "Various db operations"
-  (before (clear-test-data))
-  (after (clear-test-data))
   (it "can put and get a document"
-    (let [db (open-test-db)]
+    (with-db (fn [db]
       (.-put db "1" "hello")
-      (should (= (.-get db "1") "hello"))
-      (.close db)))
+      (should (= (.-get db "1") "hello")))))
   (it "returns nil for a non-existent document"
-    (let [db (open-test-db)]
+    (with-db (fn [db]
+      (println "zomg")
       (should (= (.-get db "1337") nil))
-      (.close db)))
+      (.close db))))
   (it "can delete a document"
-    (let [db (open-test-db)]
+    (with-db (fn [db]
       (.-put db "1" "hello")
       (.-delete db "1")
       (should (= (.-get db "1") nil))
-      (.close db))))
+      (.close db)))))
