@@ -6,9 +6,11 @@
                  [compojure "1.1.5"]
                  [org.clojure/tools.nrepl "0.2.3"]
                  [org.fusesource.leveldbjni/leveldbjni-all "1.7"]
-                 [me.raynes/fs "1.4.4"]
-                 [speclj "2.5.0"]]
+                 [me.raynes/fs "1.4.4"]]
+  :profiles {:dev {
+                   :dependencies [[speclj "2.7.0"]
+                                  [speclj-growl "2.1.0"]]}}
   :plugins [[speclj "2.5.0"]]
-  :test-path "spec/"
+  :test-paths ["spec/"]
   :main cravendb.server)
 

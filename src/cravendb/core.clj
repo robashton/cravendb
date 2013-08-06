@@ -1,4 +1,14 @@
 (ns cravendb.core
-  (:require [clojure.java.io :as io]
-            [clojure.string :as s]))
+  (:require [cravendb.documents :as docs]))
+
+(def db (atom nil))
+
+(defn open []
+  (reset! db (docs/db "test")))
+
+(defn close []
+  (.close db)
+  (reset! db nil))
+
+(defn instance [] @db)
 

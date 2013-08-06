@@ -25,7 +25,6 @@
       (should (= (.-get db "1") "hello")))))
   (it "returns nil for a non-existent document"
     (with-db (fn [db]
-      (println "zomg")
       (should (= (.-get db "1337") nil))
       (.close db))))
   (it "can delete a document"

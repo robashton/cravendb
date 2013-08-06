@@ -1,11 +1,24 @@
 (ns cravendb.server
   (:require [ring.adapter.jetty :refer [run-jetty]]
-            [clojure.tools.nrepl.server :as nrepl]
-            [cravendb.core :as core]
-            [ring.util.response :refer [response]]))
+            [cravendb.core :as db]
+            [compojure.route :as route]
+            [compojure.handler :as handler])
+  (:use compojure.core))
 
-(defn handler [req]
-  (response "Hello world"))
+(defroutes app-routes
+  (PUT "/doc/:id" { id :id body :body } (slurp body)) 
+  (GET "/doc/:id" [id] 
+    (.-get (db/instance) id))
+  (DELETE "/doc/:id" [id])
+
+  (route/not-found "<h1>Page not found</h1>"))
+
+(def app
+  (handler/api app-routes))
 
 (defn -main []
-  (run-jetty #'handler {:port (Integer/parseInt (System/getenv "PORT"))}))
+  (db/open)
+  (run-jetty app {:port (Integer/parseInt (System/getenv "PORT")) :join? true})
+  (db/close))
+
+

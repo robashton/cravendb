@@ -11,11 +11,9 @@
   (close [this] "Closes the storage"))
 
 (defn to-db [input]
-  (println "todb" input)
   (.getBytes input "UTF-8"))
 
 (defn from-db [input]
-  (println "fromdb" (String. input "UTF-8"))
   (if (= input nil)
     nil
     (String. input "UTF-8")))
