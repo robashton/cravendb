@@ -27,4 +27,16 @@
     (with-test-server (fn []
       (client/put-document "http://localhost:9000" "1" { :id 1 :text "hello world" })
       (-> (client/load-document "http://localhost:9000" "1")
-          (should== { :id 1 :text "hello world"}))))))
+          (should== { :id 1 :text "hello world"})))))
+
+  (it "should be able to put a sequence and retrieve it"
+    (with-test-server (fn []
+      (client/put-document "http://localhost:9000" "1" '(1 2 3 4))
+      (-> (client/load-document "http://localhost:9000" "1")
+          (should== '(1 2 3 4))))))
+
+  (it "should be able to put a vector and retrieve it"
+    (with-test-server (fn []
+      (client/put-document "http://localhost:9000" "1" [1 2 3 4])
+      (-> (client/load-document "http://localhost:9000" "1")
+          (should== [1 2 3 4]))))))
