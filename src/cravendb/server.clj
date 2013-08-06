@@ -3,21 +3,24 @@
             [cravendb.core :as db]
             [compojure.route :as route]
             [compojure.handler :as handler])
-  (:use compojure.core))
+  (:use compojure.core
+        [clojure.tools.logging :only (info error)]))
 
 (defroutes app-routes
-  (PUT "/doc/:id" { id :id body :body } (slurp body)) 
+  (PUT "/doc/:id" { id :id body :body }
+    (info "putting a document in with id " id)
+    (.-put (db/instance) id body)) 
   (GET "/doc/:id" [id] 
-    (.-get (db/instance) id))
+    (info "getting a document with id " id)
+    (or (.-get (db/instance) id) { :status 404 }))
   (DELETE "/doc/:id" [id])
-
   (route/not-found "<h1>Page not found</h1>"))
 
 (def app
   (handler/api app-routes))
 
 (defn -main []
-  (db/open)
+  (db/open "testdb")
   (run-jetty app {:port (Integer/parseInt (System/getenv "PORT")) :join? true})
   (db/close))
 

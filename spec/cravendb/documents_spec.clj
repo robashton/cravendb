@@ -1,22 +1,6 @@
 (ns cravendb.documents-spec
-  (:use [speclj.core])
-  (:require [me.raynes.fs :as fs] 
-            [cravendb.documents :as docs]))
-
-(defn clear-test-data []
-  (fs/delete-dir "testdir"))
-
-(defn open-test-db []
-  (docs/db "testdir"))
-
-(defn with-db [testfn]
-  (clear-test-data)
-  (let [db (open-test-db)]
-    (try 
-      (testfn db)
-      (finally
-        (.close db)
-        (clear-test-data)))))
+  (:use [speclj.core]
+        [cravendb.testing]))
 
 (describe "Various db operations"
   (it "can put and get a document"

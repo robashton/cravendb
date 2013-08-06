@@ -3,12 +3,11 @@
 
 (def db (atom nil))
 
-(defn open []
-  (reset! db (docs/db "test")))
+(defn open [dir]
+  (reset! db (docs/db dir)))
 
 (defn close []
-  (.close db)
+  (.close @db)
   (reset! db nil))
 
 (defn instance [] @db)
-

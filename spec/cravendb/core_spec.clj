@@ -1,6 +1,6 @@
 (ns cravendb.documents-spec
   (:use [speclj.core])
-  (require [cravendb.documents :as documents]
+  (:require [cravendb.documents :as documents]
            [me.raynes.fs :as fs]))
 
 (describe "Opening a database"
