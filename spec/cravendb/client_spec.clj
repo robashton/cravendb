@@ -10,5 +10,10 @@
   (it "should be able to PUT and GET a document"
     (with-test-server (fn [] 
       (client/put-document "http://localhost:9000" "1" "hello world")
-      (should (= (client/load-document "http://localhost:9000" "1") "hello world"))))))
+      (should (= (client/load-document "http://localhost:9000" "1") "hello world")))))
+  (it "be able to DELETE a document"
+    (with-test-server (fn [] 
+      (client/put-document "http://localhost:9000" "1" "hello world")
+      (client/delete-document "http://localhost:9000" "1")
+      (should (= (client/load-document "http://localhost:9000" "1") nil))))))
 

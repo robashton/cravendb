@@ -17,6 +17,13 @@
       (-> response
           http/await
           http/string))))
+
+(defn delete-document [url id]
+  (with-open [client (http/create-client)]
+    (let [response (http/DELETE client (url-for-id url id))]
+      (-> response
+          http/await
+          http/string))))
   
 
 

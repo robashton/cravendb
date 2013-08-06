@@ -11,10 +11,15 @@
       (let [id (params :id) body (slurp body)]
         (info "putting a document in with id " id " and body " body)
         (.-put (db/instance) id body)))
+
   (GET "/doc/:id" [id] 
     (info "getting a document with id " id)
     (or (.-get (db/instance) id) { :status 404 }))
-  (DELETE "/doc/:id" [id])
+
+  (DELETE "/doc/:id" [id]
+    (info "deleting a document with id " id)
+    (.-delete (db/instance) id))
+
   (route/not-found "<h1>Page not found</h1>"))
 
 (def app
