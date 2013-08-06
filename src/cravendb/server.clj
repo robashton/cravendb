@@ -7,9 +7,10 @@
         [clojure.tools.logging :only (info error)]))
 
 (defroutes app-routes
-  (PUT "/doc/:id" { id :id body :body }
-    (info "putting a document in with id " id)
-    (.-put (db/instance) id body)) 
+  (PUT "/doc/:id" { params :params body :body }
+      (let [id (params :id) body (slurp body)]
+        (info "putting a document in with id " id " and body " body)
+        (.-put (db/instance) id body)))
   (GET "/doc/:id" [id] 
     (info "getting a document with id " id)
     (or (.-get (db/instance) id) { :status 404 }))
