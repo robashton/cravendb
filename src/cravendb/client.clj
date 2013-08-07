@@ -20,17 +20,16 @@
 
 (defn load-document [url id]
   (with-open [client (http/create-client)]
-    (process-response (http/GET client (url-for-id url id)))))
+    (process-response 
+      (http/GET client (url-for-id url id)))))
 
 (defn put-document [url id doc]
   (with-open [client (http/create-client)]
-    (process-response (http/PUT client (url-for-id url id) :body (to-db doc)))))
+    (process-response 
+      (http/PUT client (url-for-id url id) :body (to-db doc)))))
 
 (defn delete-document [url id]
   (with-open [client (http/create-client)]
-    (process-response (http/DELETE client (url-for-id url id)))))
-  
-
-
-
+    (process-response 
+      (http/DELETE client (url-for-id url id)))))
 

@@ -17,7 +17,7 @@
     (try 
       (testfn db)
       (finally
-        (.close db)
+        (.close db) 
         (clear-test-data)))))
 
 (defn with-test-server [testfn]

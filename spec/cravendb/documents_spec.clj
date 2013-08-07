@@ -17,3 +17,8 @@
       (.-delete db "1")
       (should (= (.-get db "1") nil))
       (.close db)))))
+
+(describe "Etags"
+  (it "will have an etag starting at zero before anything is written"
+    (with-db (fn [db]
+      (should= (.next-etag db) 0)))))
