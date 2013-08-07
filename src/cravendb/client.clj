@@ -12,28 +12,25 @@
     nil
     (read-string data)))
 
+(defn process-response [response]
+  (-> response
+      http/await
+      http/string
+      from-db))
+
 (defn load-document [url id]
   (with-open [client (http/create-client)]
-    (let [response (http/GET client (url-for-id url id))]
-      (-> response
-          http/await
-          http/string
-          from-db))))
+    (process-response (http/GET client (url-for-id url id)))))
 
 (defn put-document [url id doc]
   (with-open [client (http/create-client)]
-    (let [response (http/PUT client (url-for-id url id) :body (to-db doc))]
-      (-> response
-          http/await
-          http/string))))
+    (process-response (http/PUT client (url-for-id url id) :body (to-db doc)))))
 
 (defn delete-document [url id]
   (with-open [client (http/create-client)]
-    (let [response (http/DELETE client (url-for-id url id))]
-      (-> response
-          http/await
-          http/string))))
+    (process-response (http/DELETE client (url-for-id url id)))))
   
+
 
 
 
