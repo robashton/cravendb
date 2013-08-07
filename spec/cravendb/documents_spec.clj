@@ -22,3 +22,7 @@
   (it "will have an etag starting at zero before anything is written"
     (with-db (fn [db]
       (should= (.next-etag db) 0)))))
+  (it "Will have an etag greater than zero after committing a single document"
+    (with-db (fn [db]
+      (.-put db "1" "hello")
+      (should> (.next-etag db) 0))))
