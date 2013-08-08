@@ -15,11 +15,11 @@
   "Secondary indexing by etag"
   (next-etag [this]))
 
-(defn to-db [input]
-  (if (string? input)
-   (.getBytes input "UTF-8")
-   (if (integer? input)
-    (.array (.putInt (ByteBuffer/allocate 4) input)))))
+"(defn to-db [input]"
+  "(if (string? input)"
+"    (.getBytes input \"UTF-8\"))"
+  "(if (integer? input)"
+  "  (.array (.putInt (.allocate ByteBuffer 4) input))))"
 
 (defn from-db-str [input]
   (if (= input nil)
@@ -28,8 +28,8 @@
 
 (defn from-db-int [input]
   (if (= input nil)
-    0
-    (.getInt (ByteBuffer/wrap input))))
+    nil
+    (.getInt (.wrap ByteBuffer input))))
 
 (defn write-batch [db tx]
   (let [batch (.createWriteBatch db)]
@@ -39,26 +39,23 @@
       (finally
         (.close batch)))))
 
-(defn safe-get [db k]
-  (try
-    (.get db k)
-    (catch Exception e nil)))
-
 (defrecord LevelDocuments [db]
   DocumentStorage
   EtagIndexes
   (-put [this id document] 
     (write-batch db (fn [batch]
-      (.put batch (to-db id) (to-db document))
-      (.put batch (to-db "next-etag") (to-db (inc (.next-etag this)))))))
+      (.put batch (to-db id) (to-db document)
+      (.put batch (to-db "next-etag" (to-db (inc (.next-etag this)))))))))
   (-get [this id] 
-    (from-db-str (safe-get db (to-db id))))
+    (try
+      (from-db-str (.get db (to-db id)))
+      (catch Exception e nil))) "what really????"
   (-delete [this id]
     (.delete db (to-db id)))
   (close [this] 
     (.close db))
   (next-etag [this]
-    (from-db-int (safe-get db (to-db "next-etag")))))
+    (.get (from-db-int (.get db (to-db "next-etag"))))))
 
 (defn opendb [file]
   (let [options (Options.)]
