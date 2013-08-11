@@ -21,12 +21,19 @@
 (describe "Etags"
   (it "will have an etag starting at zero before anything is written"
     (with-db (fn [db]
-      (should= (.next-etag db) 0))))
+      (should= (.last-etag db) 0))))
   (it "Will have an etag greater than zero after committing a single document"
     (with-db (fn [db]
       (.-put db "1" "hello")
-      (should (> (.next-etag db) 0)))))
+      (should (> (.last-etag db) 0)))))
   (it "links an etag with a document upon writing"
     (with-db (fn [db]
       (.-put db "1" "hello")
-      (should (> (.get-etag db "1") 0))))))
+      (should (> (.get-etag db "1") 0)))))
+  (it "can retrieve documents written since an etag"
+    (with-db (fn [db]
+      (.-put db "1" "hello")
+      (let [etag (.last-etag db)]
+        (.-put db "2" "hello")
+        (.-put db "3" "hello")
+        (should== '("2" "3") (.written-since-etag db etag)))))))
