@@ -7,9 +7,9 @@
 
 (defprotocol DocumentStorage
   "A place to store documents"
-  (-put [this id document] "Puts a document into the store")
-  (-get [this id] "Gets a document from the store")
-  (-delete [this id] "Deletes a document from the store")
+  (store [this id document] "Puts a document into the store")
+  (load [this id] "Gets a document from the store")
+  (delete [this id] "Deletes a document from the store")
   (close [this] "Closes the storage"))
 
 (defprotocol EtagIndexes
@@ -68,16 +68,16 @@
 (defrecord LevelDocuments [db]
   DocumentStorage
   EtagIndexes
-  (-put [this id document] 
+  (store [this id document] 
     (write-batch db (fn [batch]
       (.put batch (to-db id) (to-db document))
       (let [etag (inc (.last-etag this))]
         (.put batch (to-db "last-etag") (to-db etag))
         (.put batch (to-db (str "etag-docs-" etag)) (to-db id))
         (.put batch (to-db (str "doc-etags-" id)) (to-db etag))))))
-  (-get [this id] 
+  (load [this id] 
     (from-db-str (safe-get db (to-db id))))
-  (-delete [this id]
+  (delete [this id]
     (.delete db (to-db id)))
   (close [this] 
     (.close db))
