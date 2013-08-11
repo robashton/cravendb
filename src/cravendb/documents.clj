@@ -13,7 +13,8 @@
 
 (defprotocol EtagIndexes
   "Secondary indexing by etag"
-  (next-etag [this]))
+  (next-etag [this])
+  (get-etag [this doc-id]))
 
 (defn to-db [input]
   (if (string? input)
@@ -50,7 +51,9 @@
   (-put [this id document] 
     (write-batch db (fn [batch]
       (.put batch (to-db id) (to-db document))
-      (.put batch (to-db "next-etag") (to-db (inc (.next-etag this)))))))
+      (let [etag (inc (.next-etag this))]
+        (.put batch (to-db "next-etag") (to-db etag))
+        (.put batch (to-db (str "doc-etags-" id)) (to-db etag))))))
   (-get [this id] 
     (from-db-str (safe-get db (to-db id))))
   (-delete [this id]
@@ -58,7 +61,9 @@
   (close [this] 
     (.close db))
   (next-etag [this]
-    (from-db-int (safe-get db (to-db "next-etag")))))
+    (from-db-int (safe-get db (to-db "next-etag"))))
+  (get-etag [this doc-id]
+    (from-db-int (safe-get db (to-db (str "doc-etags-" doc-id))))))
 
 (defn opendb [file]
   (let [options (Options.)]

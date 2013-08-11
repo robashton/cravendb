@@ -25,4 +25,8 @@
   (it "Will have an etag greater than zero after committing a single document"
     (with-db (fn [db]
       (.-put db "1" "hello")
-      (should (> (.next-etag db) 0))))))
+      (should (> (.next-etag db) 0)))))
+  (it "links an etag with a document upon writing"
+    (with-db (fn [db]
+      (.-put db "1" "hello")
+      (should (> (.get-etag db "1") 0))))))
