@@ -51,19 +51,17 @@
   (if
     (->>
       (.peekNext iterator)
-      (.getKey)
-      (from-db-str)
-      (key-predicate)
+      .getKey
+      from-db-str
+      key-predicate
       (and (.hasNext iterator)))
     (do
       (->>
         (.next iterator)
-        (.getValue)
-        (from-db-str)
+        .getValue
+        from-db-str
         (conj (lazy-seq (read-all-matching iterator key-predicate)))))
-    (do
-      (.close iterator)
-      ())))
+    ()))
 
 (defrecord LevelDocuments [db]
   DocumentStorage
@@ -86,7 +84,7 @@
   (get-etag [this doc-id]
     (from-db-int (safe-get db (to-db (str "doc-etags-" doc-id)))))
   (written-since-etag [this etag]
-    (let [iterator (.iterator db)]
+    (with-open [iterator (.iterator db)]
       (.seek iterator (to-db (str "etag-docs-" etag)))
         (rest (read-all-matching iterator (fn [k] (.startsWith k "etag-docs-")))))))
 
