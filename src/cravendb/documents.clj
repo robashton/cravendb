@@ -16,7 +16,7 @@
   "Secondary indexing by etag"
   (last-etag [this] "Gets the etag of the last update in the store")
   (get-etag [this doc-id] "Gets the etag of a specific document")
-  (written-since-etag [this etag] "Gets a sequence of documents modified since a certain etag"))
+  (written-since-etag [this etag cb] "Gets a sequence of documents modified since a certain etag"))
 
 (defn to-db [input]
   (if (string? input)
@@ -56,12 +56,15 @@
       key-predicate
       (and (.hasNext iterator)))
     (do
-      (->>
+      (->
         (.next iterator)
         .getValue
         from-db-str
-        (conj (lazy-seq (read-all-matching iterator key-predicate)))))
+        (cons (lazy-seq (read-all-matching iterator key-predicate)))))
     ()))
+
+(defn is-etag-docs-key [k]
+  (.startsWith k "etag-docs-"))
 
 (defrecord LevelDocuments [db]
   DocumentStorage
@@ -83,10 +86,10 @@
     (from-db-int (safe-get db (to-db "last-etag"))))
   (get-etag [this doc-id]
     (from-db-int (safe-get db (to-db (str "doc-etags-" doc-id)))))
-  (written-since-etag [this etag]
+  (written-since-etag [this etag cb]
     (with-open [iterator (.iterator db)]
       (.seek iterator (to-db (str "etag-docs-" etag)))
-        (rest (read-all-matching iterator (fn [k] (.startsWith k "etag-docs-")))))))
+        (cb (rest (read-all-matching iterator is-etag-docs-key))))))
 
 (defn opendb [file]
   (let [options (Options.)]

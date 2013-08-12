@@ -10,12 +10,10 @@
                  [http.async.client "0.5.2"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]]
-                
 
   :profiles {:dev {
                    :dependencies [[speclj "2.7.0"]
                                   [speclj-growl "2.1.0"]]}}
   :plugins [[speclj "2.5.0"]]
-  :test-paths ["spec/"]
-  :main cravendb.server)
+  :test-paths ["spec/"])
 

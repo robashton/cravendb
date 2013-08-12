@@ -36,4 +36,6 @@
       (let [etag (.last-etag db)]
         (.store db "2" "hello")
         (.store db "3" "hello")
-        (should== '("2" "3") (.written-since-etag db etag)))))))
+        (.written-since-etag db etag 
+          (fn [items]
+            (should== '("2" "3") items))))))))
