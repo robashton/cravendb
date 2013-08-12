@@ -71,8 +71,8 @@
   EtagIndexes
   (store [this id document] 
     (write-batch db (fn [batch]
-      (.put batch (to-db id) (to-db document))
       (let [etag (inc (.last-etag this))]
+        (.put batch (to-db id) (to-db document))
         (.put batch (to-db "last-etag") (to-db etag))
         (.put batch (to-db (str "etag-docs-" etag)) (to-db id))
         (.put batch (to-db (str "doc-etags-" id)) (to-db etag))))))
