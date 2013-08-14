@@ -11,3 +11,4 @@
   (reset! db nil))
 
 (defn instance [] @db)
+

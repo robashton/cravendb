@@ -18,6 +18,7 @@
   (get-etag [this doc-id] "Gets the etag of a specific document")
   (written-since-etag [this etag cb] "Gets a sequence of documents modified since a certain etag"))
 
+
 (defn to-db [input]
   (if (string? input)
    (.getBytes input "UTF-8")

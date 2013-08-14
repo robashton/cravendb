@@ -1,6 +1,7 @@
 (ns cravendb.documents-spec
   (:use [speclj.core]
-        [cravendb.testing]))
+        [cravendb.testing]
+        [cravendb.indexes]))
 
 (describe "Various db operations"
   (it "can put and get a document"
@@ -39,3 +40,10 @@
         (.written-since-etag db etag 
           (fn [items]
             (should== '("2" "3") items))))))))
+
+(describe "Map indexes"
+  (it "can put and get an index"
+    (with-db (fn [db]
+      (store-map-index db "1" "(fn [item] item)") 
+      (should (= (load-map-index db "1") "(fn [item] item)"))))))
+

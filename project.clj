@@ -9,8 +9,9 @@
                  [me.raynes/fs "1.4.4"]
                  [http.async.client "0.5.2"]
                  [org.clojure/tools.logging "0.2.6"]
-                 [org.slf4j/slf4j-log4j12 "1.6.6"]]
-
+                 [org.slf4j/slf4j-log4j12 "1.6.6"]
+                 [org.clojure/core.async "0.1.0-SNAPSHOT"]]
+  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :profiles {:dev {
                    :dependencies [[speclj "2.7.0"]
                                   [speclj-growl "2.1.0"]]}}
