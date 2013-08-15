@@ -41,9 +41,3 @@
           (fn [items]
             (should== '("2" "3") items))))))))
 
-(describe "Map indexes"
-  (it "can put and get an index"
-    (with-db (fn [db]
-      (store-map-index db "1" "(fn [item] item)") 
-      (should (= (load-map-index db "1") "(fn [item] item)"))))))
-
