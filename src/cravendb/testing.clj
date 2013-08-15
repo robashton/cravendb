@@ -9,16 +9,16 @@
   (fs/delete-dir "testdir"))
 
 (defn open-test-db []
-  (docs/db "testdir"))
+  (db/open "testdir"))
 
 (defn with-db [testfn]
   (clear-test-data)
-  (let [db (open-test-db)]
-    (try 
-      (testfn db)
-      (finally
-        (.close db) 
-        (clear-test-data)))))
+  (open-test-db)
+  (try 
+    (testfn (db/instance))
+    (finally
+      (db/close) 
+      (clear-test-data))))
 
 (defn with-test-server [testfn]
   (clear-test-data)

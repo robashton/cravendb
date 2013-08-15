@@ -13,7 +13,7 @@
       (with-db 
         (fn [db]
           (store-map-index db "hello" "(fn [item] item)")
-          (should (id-for-index db "hello"))))))
+          (should (id-for-index db "hello")))))
 
 
 
