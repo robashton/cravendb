@@ -14,8 +14,7 @@
 (defn with-db [testfn]
   (clear-test-data)
   (open-test-db)
-  (try 
-    (testfn (db/instance))
+  (try (db/perform testfn)
     (finally
       (db/close) 
       (clear-test-data))))

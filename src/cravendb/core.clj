@@ -10,5 +10,8 @@
   (leveldb/close-db @db)
   (reset! db nil))
 
+(defn perform [tx]
+  (leveldb/perform-over @db tx))
+
 (defn instance [] @db)
 

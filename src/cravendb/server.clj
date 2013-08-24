@@ -11,13 +11,14 @@
   (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
         (info "putting a document in with id " id " and body " body)
-        (docs/store (db/instance) id body)))
+        (db/perform (fn [ops] (docs/store-document ops id body)))))
   (GET "/doc/:id" [id] 
     (info "getting a document with id " id)
-    (or (docs/load (db/instance) id) { :status 404 }))
+    (or (db/perform (fn [ops] (docs/load-document ops id))) 
+        { :status 404 }))
   (DELETE "/doc/:id" [id]
     (info "deleting a document with id " id)
-    (docs/delete (db/instance) id))
+    (db/perform (fn [ops] (docs/delete-document ops id))))
   (route/not-found "ZOMG NO, THIS IS NOT A VALID URL"))
 
 (def app
