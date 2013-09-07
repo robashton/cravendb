@@ -1,8 +1,6 @@
-(ns cravendb.documents-spec
+(ns cravendb.storage-spec
   (:use [speclj.core])
-  (:require [cravendb.documents :as documents]
-            [cravendb.leveldb :as db]
-           [me.raynes.fs :as fs]))
+  (:require [cravendb.storage :as storage]))
 
 (describe "Opening a database"
   (before
