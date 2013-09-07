@@ -65,9 +65,7 @@
           (if (= value :deleted)
             (.delete db (to-db id))
             (.put db (to-db id) (to-db value)))))
-      (.write db batch))
-    nil
-    ))
+      (.write db batch)) nil))
 
 
 (defrecord LevelStorage [db]

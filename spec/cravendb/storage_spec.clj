@@ -64,3 +64,14 @@
                (.store-blob "1" "hello")
                (.commit))
             (should= nil (.get-blob tx2 "1")))))))
+
+(describe "Deleting an object that does not exist"
+  (it "will achieve nothing"
+      (with-db 
+        (fn [db]
+          (with-open [tx (.ensure-transaction db)
+                      tx2 (.ensure-transaction db)]
+             (-> tx
+               (.delete-blob "1")
+               (.commit))
+            (should= nil (.get-blob tx2 "1")))))))
