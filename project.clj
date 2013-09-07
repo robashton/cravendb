@@ -10,6 +10,7 @@
                  [http.async.client "0.5.2"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]
+                 [org.clojure/core.incubator "0.1.3"]
                  [org.clojure/core.async "0.1.0-SNAPSHOT"]]
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :profiles {:dev {
