@@ -3,22 +3,6 @@
   (:require [cravendb.storage :as storage]
             [me.raynes.fs :as fs]))
    
-;;
-;;#_ ;; Should not give me the blob it it doesn't exist
-;;#_ (with-open [db (create-db "test")]
-;;  (let [storage (LevelStorage. db)
-;;        tran (.ensure-transaction storage)]
-;;    (.put db (to-db "1") (to-db "hello world")) 
-;;    (.get-blob tran "1")))
-;;
-;;#_ ;; Should give me the blob
-;;#_ (with-open [db (create-db "test")]
-;;  (let [storage (LevelStorage. db) ]
-;;    (.put db (to-db "1") (to-db "hello world")) 
-;;    (let [tran (.ensure-transaction storage)]
-;;     (.get-blob tran "1"))))
-;;
-
 (defn clear-test-data []
   (fs/delete-dir "testdir"))
 

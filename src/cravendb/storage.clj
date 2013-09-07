@@ -57,9 +57,18 @@
   (close [this]
     (.close (.snapshot options)))
   (ensure-transaction [this] this)
-  (commit [this])
-    
-  )
+  (commit [this]
+    (with-open [batch (.createWriteBatch db)]
+      (doseq [k (map #(vector  (first %) (second %)) (get this :cache))]
+        (let [id (k 0)
+              value (k 1)]
+          (if (= value :deleted)
+            (.delete db (to-db id))
+            (.put db (to-db id) (to-db value)))))
+      (.write db batch))
+    nil
+    ))
+
 
 (defrecord LevelStorage [db]
   Storage
