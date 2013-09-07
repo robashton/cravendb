@@ -7,13 +7,15 @@
 (import 'java.io.File)
 (import 'java.nio.ByteBuffer)
 
-(defprotocol Storage
+(defprotocol Transaction
   (store-blob [this id data])
   (delete-blob [this id])
-  (get-blob [this id]))
+  (get-blob [this id])
+  (commit [this])
+  (ensure-transaction [this]))
 
-(defrecord LevelStorage []
-  Storage
+(defrecord LevelTransaction []
+  Transaction
   (store-blob [this id data]
     (-> this
       (dissoc-in [:records-to-remove id])
@@ -21,15 +23,24 @@
   (delete-blob [this id]
     (assoc-in this [:records-to-remove id] true))
   (get-blob [this id]
-    (if (get-in this [:records-to-remove id])
-      nil
-      (get-in this [:records-to-put id]))))
+    (if (get-in this [:records-to-remove id]) nil
+        (get-in this [:records-to-put id])))
+  (ensure-transaction [this] this)
+  (commit [this]))
 
-#_ (def mymap {})
-#_ (get (assoc mymap "id" 2) )
+(defprotocol Storage 
+  (close [this]) 
+  (ensure-transaction [this]))
 
-(defn create-storage []
-  (LevelStorage. {} {}))
+(defrecord LevelStorage [db]
+  (close [this] (.close db) nil) 
+  (ensure-transaction [this] (LevelTransaction.)))
+
+(defn create-storage [file]
+  (let [options (Options.)]
+    (.createIfMissing options true)
+      (LevelStorage.
+        (.open (JniDBFactory/factory) (File. file) options))))
 
 #_ ;; Having a play innit
 
@@ -50,6 +61,3 @@
     (.delete-blob "1")
     (.store-blob "1" "hello again")
     (.get-blob "1"))
-
-
-
