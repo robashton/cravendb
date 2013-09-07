@@ -8,8 +8,6 @@
 (import 'java.io.File)
 (import 'java.nio.ByteBuffer)
 
-#_ ;; Low level methods over the top of LevelDB
-
 (defn to-db [input]
   (if (string? input)
    (.getBytes input "UTF-8")
@@ -49,15 +47,19 @@
   (store-blob [this id data]
     (assoc-in this [:cache id] data))
   (delete-blob [this id]
-    (assoc-in [:cache id] "__deleted"))
+    (assoc-in this [:cache id] :deleted))
   (get-blob [this id]
     (let [cached (get-in this [:cache id])]
-      (if (= cached "__deleted") nil
-        (from-db-str (.get db (to-db id) options)))))
+      (if (= cached :deleted) nil
+        (or 
+          cached
+          (from-db-str (.get db (to-db id) options))))))
   (close [this]
-    (.close options))
+    (.close (.snapshot options)))
   (ensure-transaction [this] this)
-  (commit [this]))
+  (commit [this])
+    
+  )
 
 (defrecord LevelStorage [db]
   Storage
@@ -76,50 +78,3 @@
 (defn create-storage [file]
   (LevelStorage. (create-db file)))
 
-#_ ;; Should not give me the blob it it doesn't exist
-(with-open [db (create-db "test")]
-  (let [storage (LevelStorage. db)
-        tran (.ensure-transaction storage)]
-    (.put db (to-db "1") (to-db "hello world")) 
-    (.get-blob tran "1")))
-
-#_ ;; Should give me the blob
-(with-open [db (create-db "test")]
-  (let [storage (LevelStorage. db) ]
-    (.put db (to-db "1") (to-db "hello world")) 
-    (let [tran (.ensure-transaction storage)]
-     (.get-blob tran "1"))))
-
-#_ ;; Basic levelDB operations
-
-(with-open [db (create-db "test")]
-  (.put db (to-db "1") (to-db "hello world")))
-
-(with-open [db (create-db "test")]
-  (from-db-str (.get db (to-db "1"))))
-
-(with-open [db (create-db "test")]
-  (.delete db (to-db "1")))
-
-#_ ;; Having a play innit
-
-(defn create-test-transaction []
- (LevelTransaction.))
-
-;; Putting and retrieving an object
-#_(-> (create-test-transaction)
-    (.store-blob "1" "hello")
-    (.get-blob "1"))
-
-;; Deleting an object that exists
-#_(-> (create-test-transaction)
-    (.store-blob "1" "hello")
-    (.delete-blob "1")
-    (.get-blob "1"))
-;;
-;; Deleting an object that exists then re-creating it
-#_(-> (create-test-transaction)
-    (.store-blob "1" "hello")
-    (.delete-blob "1")
-    (.store-blob "1" "hello again")
-    (.get-blob "1"))
