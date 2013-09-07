@@ -47,18 +47,12 @@
   Transaction
   Storage
   (store-blob [this id data]
-    (-> this
-      (dissoc-in [:records-to-remove id])
-      (assoc-in [:records-to-put id] data)))
+    (assoc-in this [:cache id] data))
   (delete-blob [this id]
-    (-> this
-      (dissoc-in [:records-to-put id])
-      (assoc-in this [:records-to-remove id] true)))
+    (assoc-in [:cache id] "__deleted"))
   (get-blob [this id]
-    (if (get-in this [:records-to-remove id])
-      nil
-      (or
-        (get-in this [:records-to-put id])
+    (let [cached (get-in this [:cache id])]
+      (if (= cached "__deleted") nil
         (from-db-str (.get db (to-db id) options)))))
   (close [this]
     (.close options))
