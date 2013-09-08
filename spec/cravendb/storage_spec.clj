@@ -1,15 +1,9 @@
 (ns cravendb.storage-spec
-  (:use [speclj.core])
+  (:use [speclj.core]
+        [cravendb.testing])
   (:require [cravendb.storage :as storage]
             [me.raynes.fs :as fs]))
    
-(defn clear-test-data []
-  (fs/delete-dir "testdir"))
-
-(defn with-db [testfn]
-  (clear-test-data)
-  (with-open [db (storage/create-storage "testdir")]
-    (testfn db)))
 
 (describe "Putting and retrieving an object during a transaction"
   (it "will be able to retrieve the object"
@@ -27,7 +21,7 @@
         (should= nil
           (-> tx
             (.store "1" "hello")
-            (.delete-blob "1")
+            (.delete "1")
             (.get-string "1"))))))))
 
 (describe "Storing, deleting, storing and getting an object during a transaction"
@@ -37,7 +31,7 @@
         (should= "hello again"
           (-> tx
             (.store "1" "hello")
-            (.delete-blob "1")
+            (.delete "1")
             (.store "1" "hello again")
             (.get-string "1"))))))))
 
@@ -72,6 +66,6 @@
           (with-open [tx (.ensure-transaction db)
                       tx2 (.ensure-transaction db)]
              (-> tx
-               (.delete-blob "1")
+               (.delete "1")
                (.commit))
             (should= nil (.get-string tx2 "1")))))))

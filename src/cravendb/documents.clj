@@ -1,5 +1,5 @@
 (ns cravendb.documents
-  (require [cravendb.storage]))
+  (use [cravendb.storage]))
 
 (defn is-etag-docs-key [k]
   (.startsWith k "etag-docs-"))
@@ -20,15 +20,19 @@
       (.store (str "doc-etags-" id) etag))))
 
 (defn load-document [session id] 
-  (.get-string ops (str "doc-" id)))
+  (.get-string session (str "doc-" id)))
 
 (defn delete-document [session id]
-  (.delete ops (str "doc-" id)))
+  (.delete session (str "doc-" id)))
 
-(defn delete-document [ops id]
-  (.delete ops (str "doc-" id)))
+(defn delete-document [session id]
+  (.delete session (str "doc-" id)))
 
-(defn documents-written-since-etag [ops etag cb]
-  (with-open [iterator (.get-iterator ops)]
-    (.seek iterator (to-db (str "etag-docs-" etag)))
-      (cb (rest (read-all-matching iterator is-etag-docs-key)))))
+(defn documents-written-since-etag [session etag cb]
+  (.read-range session (str "etag-docs" etag) is-etag-docs-key cb))
+
+#_ (def storage (create-storage "test")) 
+#_ (.close storage)
+#_ (def tx (.ensure-transaction storage))
+#_ (store-document tx "1" "document")
+
