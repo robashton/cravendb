@@ -9,6 +9,7 @@
   {
    :doc (read-string (docs/load-document tx id))
    :id id
+   :etag (docs/etag-for-doc tx id)
    })
 
 (defn index-docs [tx indexes ids]
@@ -16,12 +17,28 @@
         index indexes]
     {
      :id (item :id)
+     :etag (item :etag)
      :index (index :name)
      :mapped ((index :map) (item :doc)) 
     }))
 
-(defn process-mapped-documents [tx docs]
-  (doall docs))
+(defn process-mapped-documents [tx results]
+  (loop [tx tx remaining results max-etag 0]
+    (if (empty? remaining)
+      (do
+          (.store tx "last-indexed-etag" max-etag))
+      (do
+        (let [ 
+              result (first remaining)
+              id  (result :id)
+              etag (result :etag)
+              index (result :index)
+              mapped (result :mapped)
+              max-etag (max etag max-etag)
+              tx (.store tx (str "index-result-" index "-" id) (pr-str mapped))]
+            (println index id) ;; TODO: Plough into Lucene
+            (recur tx (rest remaining) max-etag)))))) 
+
 
 (defn index-documents [db indexes]
   (with-open [tx (.ensure-transaction db)]
@@ -29,9 +46,10 @@
       (->> (last-indexed-etag tx)
            (docs/iterate-etags-after iter)
            (index-docs tx indexes)
-           (process-mapped-documents tx)))))
+           (process-mapped-documents tx)
+           (.commit)))))
 
-#_ (def storage (storage/create-storage "testdir"))
+#_ (def storage (storage/create-storage "testdb"))
 #_ (.close storage)
 #_ (with-open [tx (.ensure-transaction storage)]
      (-> tx
@@ -39,7 +57,6 @@
        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
        (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
        (.commit)))
-
 
 #_ (defn get-indexes []
      [{
@@ -52,12 +69,12 @@
        }
       ])
 
-#_ (bindex-documents storage (get-indexes))
+#_ (index-documents storage (get-indexes))
 
 #_ (with-open [tx (.ensure-transaction storage)]
     (last-indexed-etag tx))
 
-#_ (defn print-doc [doc]
+#_ (defn print-doc [tx doc]
      (println "zomg" doc))
 
 #_ (with-open [tx (.ensure-transaction storage)]
@@ -66,6 +83,8 @@
 #_ (with-open [tx (.ensure-transaction storage)]
      (docs/last-etag tx))
 
+#_ (with-open [tx (.ensure-transaction storage)]
+     (docs/etag-for-doc tx "1")) 
 
 #_ (with-open [tx (.ensure-transaction storage)]
      (with-open [iter (.get-iterator tx)]
@@ -73,7 +92,7 @@
 
 #_ (with-open [tx (.ensure-transaction storage)]
      (with-open [iter (.get-iterator tx)]
-      (index-docs tx (docs/iterate-etags-after iter 0))))
+      (print-doc tx (docs/iterate-etags-after iter 10006))))
 
 #_ (def mylist '(0 1 2 3 4 5))
 #_ (doseq [x mylist] (println x))

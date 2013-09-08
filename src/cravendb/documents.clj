@@ -1,5 +1,6 @@
 (ns cravendb.documents
-  (use [cravendb.storage]))
+  (use [cravendb.storage]
+       [cravendb.core]))
 
 (defn is-etag-docs-key [k]
   (.startsWith k "etag-docs-"))
@@ -10,7 +11,7 @@
 (defn last-etag [db]
   (.get-integer db "last-etag"))
 
-(defn get-document-etag [db doc-id]
+(defn etag-for-doc [db doc-id]
   (.get-integer db (str "doc-etags-" doc-id)))
 
 (defn store-document [db id document] 
@@ -31,11 +32,6 @@
 (defn delete-document [session id]
   (.delete session (str "doc-" id)))
 
-(defn expand-iterator-str [i]
-  { :k (from-db-str (.getKey i))
-    :v (from-db-str (.getValue i)) })
-
-(defn extract-value-from-expanded-iterator [m] (m :v))
 
 (defn iterate-etags-after [iter etag]
   (.seek iter (to-db (str "etag-docs-" (inc etag))))
