@@ -22,6 +22,15 @@
         (docs/delete-document "1")
         (docs/load-document "1")))))))
 
+(describe "Transactions"
+  (it "will load a document from a committed transaction"
+      (with-db 
+        (fn [db]
+          (with-open [tx (.ensure-transaction db)]
+            (.commit (docs/store-document tx "1" "hello")))
+          (with-open [tx (.ensure-transaction db)]
+            (should= "hello" (docs/load-document tx "1")))))))
+
 (describe "Etags"
   (it "will have an etag starting at zero before anything is written"
     (inside-tx (fn [db]
@@ -40,17 +49,16 @@
           (docs/store-document "1" "hello")
           (docs/get-document-etag "1")) 
         0)))))
-  #_ ;; Note: This doesn't currently include un-flushed docs and we might want that 
+
   (it "can retrieve documents written since an etag"
     (with-db (fn [db]
       (with-open [tx (.ensure-transaction db)] 
         (let [tx (docs/store-document tx "1" "hello")
-             etag (docs/last-etag tx2) ]
+             etag (docs/last-etag tx) ]
           (-> tx
             (docs/store-document "2" "hello")
             (docs/store-document "3" "hello")
             (.commit))
-          (with-open [tx2 (.ensure-transaction db)]
-            (docs/documents-written-since-etag tx2 etag 
-              (fn [items] (should== '("2" "3") items))))))))))
-
+          (with-open [tx (.ensure-transaction db)]
+            (with-open [iter (.get-iterator tx)]
+              (should== '("2" "3") (docs/iterate-etags-after iter etag))))))))))

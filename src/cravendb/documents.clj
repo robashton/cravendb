@@ -4,6 +4,9 @@
 (defn is-etag-docs-key [k]
   (.startsWith k "etag-docs-"))
 
+(defn is-etag-docs-entry [m]
+  (is-etag-docs-key (m :k)))
+
 (defn last-etag [db]
   (.get-integer db "last-etag"))
 
@@ -28,8 +31,20 @@
 (defn delete-document [session id]
   (.delete session (str "doc-" id)))
 
-(defn documents-written-since-etag [session etag cb]
-  (.read-range session (str "etag-docs" etag) is-etag-docs-key cb))
+(defn expand-iterator-str [i]
+  { :k (from-db-str (.getKey i))
+    :v (from-db-str (.getValue i)) })
+
+(defn extract-value-from-expanded-iterator [m] (m :v))
+
+(defn iterate-etags-after [iter etag]
+  (.seek iter (to-db (str "etag-docs-" (inc etag))))
+  (->> 
+    (iterator-seq iter)
+    (map expand-iterator-str)
+    (take-while is-etag-docs-entry)
+    (map extract-value-from-expanded-iterator)
+    (distinct)))
 
 #_ (def storage (create-storage "test")) 
 #_ (.close storage)

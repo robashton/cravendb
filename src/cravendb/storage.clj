@@ -31,29 +31,13 @@
       (println e) 
       nil)))
 
-(defn read-all-matching [iterator key-predicate]
-  (if
-    (->>
-      (.peekNext iterator)
-      .getKey
-      from-db-str
-      key-predicate
-      (and (.hasNext iterator)))
-    (do
-      (->
-        (.next iterator)
-        .getValue
-        from-db-str
-        (cons (lazy-seq (read-all-matching iterator key-predicate)))))
-    ()))
-
 (defprotocol Transaction
   (store [this id data])
   (delete [this id])
   (get-blob [this id])
   (get-integer [this id])
   (get-string [this id])
-  (read-range [this start-key while-predicate cb])
+  (get-iterator [this])
   (commit [this]))
 
 (defprotocol Storage 
@@ -80,10 +64,7 @@
   (close [this]
     (.close (.snapshot options)))
   (ensure-transaction [this] this)
-  (read-range [this start-key while-predicate cb]
-    (with-open [iterator (.get-iterator db)]
-      (.seek iterator (to-db start-key))
-        (cb (rest (read-all-matching iterator while-predicate)))))
+  (get-iterator [this] (.iterator db))
   (commit [this]
     (with-open [batch (.createWriteBatch db)]
       (doseq [k (map #(vector  (first %) (second %)) (get this :cache))]
