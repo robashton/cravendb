@@ -32,9 +32,11 @@
       nil)))
 
 (defprotocol Transaction
-  (store-blob [this id data])
+  (store [this id data])
   (delete-blob [this id])
   (get-blob [this id])
+  (get-integer [this id])
+  (get-string [this id])
   (commit [this]))
 
 (defprotocol Storage 
@@ -44,16 +46,20 @@
 (defrecord LevelTransaction [db options]
   Transaction
   Storage
-  (store-blob [this id data]
-    (assoc-in this [:cache id] data))
+  (store [this id data]
+    (assoc-in this [:cache id] (to-db data)))
   (delete-blob [this id]
     (assoc-in this [:cache id] :deleted))
+  (get-integer [this id]
+    (from-db-int (.get-blob this id)))
+  (get-string [this id]
+    (from-db-str (.get-blob this id)))
   (get-blob [this id]
     (let [cached (get-in this [:cache id])]
       (if (= cached :deleted) nil
         (or 
           cached
-          (from-db-str (.get db (to-db id) options))))))
+          (.get db (to-db id) options)))))
   (close [this]
     (.close (.snapshot options)))
   (ensure-transaction [this] this)
@@ -64,7 +70,7 @@
               value (k 1)]
           (if (= value :deleted)
             (.delete db (to-db id))
-            (.put db (to-db id) (to-db value)))))
+            (.put db (to-db id) value))))
       (.write db batch)) nil))
 
 
