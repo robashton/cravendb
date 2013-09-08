@@ -17,5 +17,6 @@
                    :dependencies [[speclj "2.7.0"]
                                   [speclj-growl "2.1.0"]]}}
   :plugins [[speclj "2.5.0"]]
+  :main cravendb.http
   :test-paths ["spec/"])
 
