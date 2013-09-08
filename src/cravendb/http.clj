@@ -33,4 +33,6 @@
 
 (defn -main []
   (with-open [db (storage/create-storage "testdb")]
-   (run-jetty (create-http-server db) {:port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})))
+   (run-jetty (create-http-server db) 
+              {:port (Integer/parseInt 
+                (or (System/getenv "PORT") "8080")) :join? true})))

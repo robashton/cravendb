@@ -20,6 +20,9 @@
      :mapped ((index :map) (item :doc)) 
     }))
 
+(defn process-mapped-documents [tx docs]
+  (doall docs))
+
 (defn index-documents [db indexes]
   (with-open [tx (.ensure-transaction db)]
     (with-open [iter (.get-iterator tx)]
