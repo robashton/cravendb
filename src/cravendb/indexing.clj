@@ -16,15 +16,19 @@
         index indexes]
     {
      :id (item :id)
+     :index (index :name)
      :mapped ((index :map) (item :doc)) 
     }))
 
 (defn index-documents [db indexes]
   (with-open [tx (.ensure-transaction db)]
     (with-open [iter (.get-iterator tx)]
-      (doall (index-docs tx indexes (docs/iterate-etags-after iter (last-indexed-etag tx)))))))
+      (->> (last-indexed-etag tx)
+           (docs/iterate-etags-after iter)
+           (index-docs tx indexes)
+           (process-mapped-documents tx)))))
 
-#_ (def storage (storage/create-storage "testdb"))
+#_ (def storage (storage/create-storage "testdir"))
 #_ (.close storage)
 #_ (with-open [tx (.ensure-transaction storage)]
      (-> tx
@@ -38,9 +42,14 @@
      [{
        :name "by_author"
        :map (fn [doc] (doc :author))
-       }])
+       }
+      {
+       :name "by_title"
+       :map (fn [doc] (doc :title))
+       }
+      ])
 
-#_ (index-documents storage (get-indexes))
+#_ (bindex-documents storage (get-indexes))
 
 #_ (with-open [tx (.ensure-transaction storage)]
     (last-indexed-etag tx))
