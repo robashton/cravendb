@@ -6,3 +6,8 @@
 - It is just exploring the notion of doing something tangible in Clojure
 
 
+# Instructions
+
+- Use the repl to explore
+- Use the tests to verify (lein specs)
+- Run the http server with 'lein run'
