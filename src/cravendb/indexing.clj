@@ -1,9 +1,13 @@
 (ns cravendb.indexing
+  (use [cravendb.core])
   (:require [cravendb.storage :as storage]
-            [cravendb.documents :as docs]))os 
-(defn last-indexed-etag [db]
-  (or (.get-string db "last-indexed-etag") (docs/zero-etag)))
+            [cravendb.documents :as docs])) 
 
+(defn last-indexed-etag [db]
+  (or (.get-string db "last-indexed-etag") (zero-etag)))
+
+(defn last-index-doc-count [db]
+    (.get-integer db "last-index-doc-count"))
 
 (defn load-document-for-indexing [tx id] {
    :doc (read-string (docs/load-document tx id))
@@ -22,12 +26,12 @@
 
 (defn process-mapped-document [{:keys [max-etag tx doc-count] :as output} {:keys [etag index id mapped]}] 
   (-> output
-      (assoc :max-etag (docs/max-etag max-etag etag))
-      (assoc :doc-count (inc doc-count))
-      (assoc :tx (.store tx (str "index-result-" index id) (pr-str mapped)))))
+    (assoc :max-etag (newest-etag max-etag etag))
+    (assoc :doc-count (inc doc-count))
+    (assoc :tx (.store tx (str "index-result-" index id) (pr-str mapped)))))
 
 (defn process-mapped-documents [tx results] 
-  (reduce process-mapped-document {:max-etag (docs/zero-etag) :tx tx :doc-count 0} results))
+  (reduce process-mapped-document {:max-etag (zero-etag) :tx tx :doc-count 0} results))
 
 (defn finish-map-process! [{:keys [max-etag tx doc-count]}]
   (-> tx
@@ -35,7 +39,7 @@
     (.store "last-index-doc-count" doc-count)
     (.commit!)))
 
-(defn index-documents [db indexes]
+(defn index-documents! [db indexes]
   (with-open [tx (.ensure-transaction db)]
     (with-open [iter (.get-iterator tx)]
       (->> (last-indexed-etag tx)
@@ -70,7 +74,7 @@
         (println (storage/from-db-str (.getKey (.peekNext iter))))))
 
 
-#_ (index-documents storage (get-indexes))
+#_ (index-documents! storage (get-indexes))
 
 #_ (with-open [tx (.ensure-transaction storage)]
     (last-indexed-etag tx))
@@ -97,7 +101,7 @@
 
 #_ (with-open [tx (.ensure-transaction storage)]
      (with-open [iter (.get-iterator tx)]
-      (print-doc tx (docs/iterate-etags-after iter (docs/integer-to-etag 5)))))
+      (print-doc tx (docs/iterate-etags-after iter (integer-to-etag 5)))))
 
 #_ (def mylist '(0 1 2 3 4 5))
 #_ (doseq [x mylist] (println x))

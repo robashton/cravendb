@@ -2,7 +2,9 @@
   (:require [cravendb.documents :as docs])
   (:require [cravendb.storage :as storage])
   (:use [speclj.core]
-        [cravendb.testing]))
+        [cravendb.testing]
+        [cravendb.core]))
+
 
 (describe "Various db operations"
   (it "can put and get a document"
@@ -34,14 +36,14 @@
 (describe "Etags"
   (it "will have an etag starting at zero before anything is written"
     (inside-tx (fn [db]
-      (should= (docs/etag-to-integer (docs/last-etag db)) 0))))
+      (should= (etag-to-integer (docs/last-etag db)) 0))))
   (it "Will have an etag greater than zero after committing a single document"
     (inside-tx (fn [tx]
       (should (>
         (-> tx
           (docs/store-document "1" "hello")
           (docs/last-etag)
-          (docs/etag-to-integer)
+          (etag-to-integer)
           )
         0)))))
   (it "links an etag with a document upon writing"
@@ -50,7 +52,7 @@
         (-> tx
           (docs/store-document "1" "hello")
           (docs/etag-for-doc "1")
-          (docs/etag-to-integer)) 
+          (etag-to-integer)) 
         0)))))
 
   (it "can retrieve documents written since an etag"

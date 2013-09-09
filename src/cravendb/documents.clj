@@ -8,22 +8,8 @@
 (defn is-etag-docs-entry [m]
   (is-etag-docs-key (m :k)))
 
-(defn integer-to-etag [integer]
-  (format "%030d" integer))
-
-(defn zero-etag [] (integer-to-etag 0))
-
-(defn max-etag [one two]
-  (integer-to-etag (max (etag-to-integer one) (etag-to-integer two))))
-
-(defn etag-to-integer [etag]
-  (Integer/parseInt etag))
-
 (defn last-etag [db]
   (or (.get-string db "last-etag") (zero-etag)))
-
-(defn next-etag [etag]
-  (integer-to-etag (inc (etag-to-integer etag))))
 
 (defn etag-for-doc [db doc-id]
   (.get-string db (str "doc-etags-" doc-id)))
