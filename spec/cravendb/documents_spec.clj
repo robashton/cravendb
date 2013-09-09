@@ -27,27 +27,30 @@
       (with-db 
         (fn [db]
           (with-open [tx (.ensure-transaction db)]
-            (.commit (docs/store-document tx "1" "hello")))
+            (.commit! (docs/store-document tx "1" "hello")))
           (with-open [tx (.ensure-transaction db)]
             (should= "hello" (docs/load-document tx "1")))))))
 
 (describe "Etags"
   (it "will have an etag starting at zero before anything is written"
     (inside-tx (fn [db]
-      (should= (docs/last-etag db) 0))))
+      (should= (docs/etag-to-integer (docs/last-etag db)) 0))))
   (it "Will have an etag greater than zero after committing a single document"
     (inside-tx (fn [tx]
       (should (>
         (-> tx
           (docs/store-document "1" "hello")
-          (docs/last-etag))
+          (docs/last-etag)
+          (docs/etag-to-integer)
+          )
         0)))))
   (it "links an etag with a document upon writing"
     (inside-tx (fn [tx]
       (should (> 
         (-> tx
           (docs/store-document "1" "hello")
-          (docs/get-document-etag "1")) 
+          (docs/etag-for-doc "1")
+          (docs/etag-to-integer)) 
         0)))))
 
   (it "can retrieve documents written since an etag"
@@ -58,7 +61,7 @@
           (-> tx
             (docs/store-document "2" "hello")
             (docs/store-document "3" "hello")
-            (.commit))
+            (.commit!))
           (with-open [tx (.ensure-transaction db)]
             (with-open [iter (.get-iterator tx)]
               (should== '("2" "3") (docs/iterate-etags-after iter etag))))))))))

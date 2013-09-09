@@ -3,10 +3,10 @@
             [cravendb.documents :as docs]))
 
 (defn last-indexed-etag [db]
-  (or (.get-integer db "last-indexed-etag") 0))
+  (or (.get-string db "last-indexed-etag") (docs/integer-to-etag 0)))
 
-(defn load-document-for-indexing [tx id]
-  {
+
+(defn load-document-for-indexing [tx id] {
    :doc (read-string (docs/load-document tx id))
    :id id
    :etag (docs/etag-for-doc tx id)
@@ -14,21 +14,27 @@
 
 (defn index-docs [tx indexes ids]
   (for [item (map (partial load-document-for-indexing tx) ids)
-        index indexes]
-    {
+        index indexes] {
      :id (item :id)
      :etag (item :etag)
      :index (index :name)
      :mapped ((index :map) (item :doc)) 
     }))
 
-(defn process-mapped-document [{:keys [max-etag tx] :as output} {:keys [etag index id mapped]}]
+(defn process-mapped-document [{:keys [max-etag tx doc-count] :as output} {:keys [etag index id mapped]}] 
   (-> output
       (assoc :max-etag (max max-etag etag))
+      (assoc :doc-count (inc doc-count))
       (assoc :tx (.store tx (str "index-result-" index id) (pr-str mapped)))))
 
-(defn process-mapped-documents [tx results]
-  ((reduce process-mapped-document {:max-etag 0 :tx tx} results) :tx))
+(defn process-mapped-documents [tx results] 
+  (reduce process-mapped-document {:max-etag 0 :tx tx :doc-count 0} results))
+
+(defn finish-map-process! [{:keys [max-etag tx doc-count]}]
+  (-> tx
+    (.store "last-indexed-etag" max-etag)
+    (.store "last-index-doc-count" doc-count)
+    (.commit!)))
 
 (defn index-documents [db indexes]
   (with-open [tx (.ensure-transaction db)]
@@ -37,7 +43,7 @@
            (docs/iterate-etags-after iter)
            (index-docs tx indexes)
            (process-mapped-documents tx)
-           (.commit)))))
+           (finish-map-process!)))))
 
 #_ (def storage (storage/create-storage "testdb"))
 #_ (.close storage)
@@ -46,7 +52,7 @@
        (docs/store-document "1" (pr-str { :title "hello" :author "rob"}))
        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
        (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
-       (.commit)))
+       (.commit!)))
 
 #_ (defn get-indexes []
      [{
@@ -59,13 +65,23 @@
        }
       ])
 
+#_(with-open [tx (.ensure-transaction storage)]
+    (with-open [iter (.get-iterator tx)]
+      (.seek iter (storage/to-db (str "etag-docs-")))
+        (println (storage/from-db-str (.getKey (.peekNext iter))))))
+
+
 #_ (index-documents storage (get-indexes))
 
 #_ (with-open [tx (.ensure-transaction storage)]
     (last-indexed-etag tx))
 
-#_ (defn print-doc [tx doc]
-     (println "zomg" doc))
+#_ (with-open [tx (.ensure-transaction storage)]
+    (.get-integer tx "last-index-doc-count"))
+
+#_ (defn print-doc [tx docs]
+     (doseq [i docs]
+       (println i)))
 
 #_ (with-open [tx (.ensure-transaction storage)]
      (docs/load-document tx "1"))
@@ -78,12 +94,14 @@
 
 #_ (with-open [tx (.ensure-transaction storage)]
      (with-open [iter (.get-iterator tx)]
-       (index-docs tx (docs/iterate-etags-after 0 iter)))) 
+       (index-docs tx (docs/iterate-etags-after "1" iter)))) 
 
 #_ (with-open [tx (.ensure-transaction storage)]
      (with-open [iter (.get-iterator tx)]
-      (print-doc tx (docs/iterate-etags-after iter 10006))))
+      (print-doc tx (docs/iterate-etags-after iter (docs/integer-to-etag 5)))))
 
 #_ (def mylist '(0 1 2 3 4 5))
 #_ (doseq [x mylist] (println x))
+
+(Integer/parseInt (format "%030d" 1))
 

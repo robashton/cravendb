@@ -38,7 +38,7 @@
   (get-integer [this id])
   (get-string [this id])
   (get-iterator [this])
-  (commit [this]))
+  (commit! [this]))
 
 (defprotocol Storage 
   (close [this]) 
@@ -65,7 +65,7 @@
     (.close (.snapshot options)))
   (ensure-transaction [this] this)
   (get-iterator [this] (.iterator db))
-  (commit [this]
+  (commit! [this]
     (with-open [batch (.createWriteBatch db)]
       (doseq [k (map #(vector  (first %) (second %)) (get this :cache))]
         (let [id (k 0)

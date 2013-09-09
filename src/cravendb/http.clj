@@ -15,7 +15,7 @@
       (let [id (params :id) body (slurp body)]
         (info "putting a document in with id " id " and body " body)
         (with-open [tx (.ensure-transaction db)]
-          (.commit (docs/store-document tx id body)))))
+          (.commit! (docs/store-document tx id body)))))
 
     (GET "/doc/:id" [id] 
       (info "getting a document with id " id)
@@ -25,7 +25,7 @@
     (DELETE "/doc/:id" [id]
       (info "deleting a document with id " id)
         (with-open [tx (.ensure-transaction db)]
-          (.commit (docs/delete-document tx id))))
+          (.commit! (docs/delete-document tx id))))
 
     (route/not-found "ZOMG NO, THIS IS NOT A VALID URL"))
 

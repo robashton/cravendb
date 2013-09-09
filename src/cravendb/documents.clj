@@ -8,14 +8,23 @@
 (defn is-etag-docs-entry [m]
   (is-etag-docs-key (m :k)))
 
+(defn integer-to-etag [integer]
+  (format "%030d" integer))
+
+(defn etag-to-integer [etag]
+  (Integer/parseInt etag))
+
 (defn last-etag [db]
-  (.get-integer db "last-etag"))
+  (or (.get-string db "last-etag") (integer-to-etag 0)))
+
+(defn next-etag [etag]
+  (integer-to-etag (inc (etag-to-integer etag))))
 
 (defn etag-for-doc [db doc-id]
-  (.get-integer db (str "doc-etags-" doc-id)))
+  (.get-string db (str "doc-etags-" doc-id)))
 
 (defn store-document [db id document] 
-  (let [etag (inc (last-etag db))]
+  (let [etag (next-etag (last-etag db))]
     (-> db
       (.store (str "doc-" id) document)
       (.store "last-etag" etag)
@@ -29,7 +38,7 @@
   (.delete session (str "doc-" id)))
 
 (defn iterate-etags-after [iter etag]
-  (.seek iter (to-db (str "etag-docs-" (inc etag))))
+  (.seek iter (to-db (str "etag-docs-" (next-etag etag))))
   (->> 
     (iterator-seq iter)
     (map expand-iterator-str)
@@ -41,4 +50,3 @@
 #_ (.close storage)
 #_ (def tx (.ensure-transaction storage))
 #_ (store-document tx "1" "document")
-

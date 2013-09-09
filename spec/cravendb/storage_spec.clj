@@ -42,7 +42,7 @@
           (with-open [tx (.ensure-transaction db)]
              (-> tx
                (.store "1" "hello")
-               (.commit)))
+               (.commit!)))
           (with-open [tx (.ensure-transaction db)]
              (should= "hello"
               (-> tx
@@ -56,7 +56,7 @@
                       tx2 (.ensure-transaction db)]
              (-> tx
                (.store "1" "hello")
-               (.commit))
+               (.commit!))
             (should= nil (.get-string tx2 "1")))))))
 
 (describe "Deleting an object that does not exist"
@@ -67,5 +67,5 @@
                       tx2 (.ensure-transaction db)]
              (-> tx
                (.delete "1")
-               (.commit))
+               (.commit!))
             (should= nil (.get-string tx2 "1")))))))
