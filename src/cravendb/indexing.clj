@@ -1,9 +1,8 @@
 (ns cravendb.indexing
   (:require [cravendb.storage :as storage]
-            [cravendb.documents :as docs]))
-
+            [cravendb.documents :as docs]))os 
 (defn last-indexed-etag [db]
-  (or (.get-string db "last-indexed-etag") (docs/integer-to-etag 0)))
+  (or (.get-string db "last-indexed-etag") (docs/zero-etag)))
 
 
 (defn load-document-for-indexing [tx id] {
@@ -23,12 +22,12 @@
 
 (defn process-mapped-document [{:keys [max-etag tx doc-count] :as output} {:keys [etag index id mapped]}] 
   (-> output
-      (assoc :max-etag (max max-etag etag))
+      (assoc :max-etag (docs/max-etag max-etag etag))
       (assoc :doc-count (inc doc-count))
       (assoc :tx (.store tx (str "index-result-" index id) (pr-str mapped)))))
 
 (defn process-mapped-documents [tx results] 
-  (reduce process-mapped-document {:max-etag 0 :tx tx :doc-count 0} results))
+  (reduce process-mapped-document {:max-etag (docs/zero-etag) :tx tx :doc-count 0} results))
 
 (defn finish-map-process! [{:keys [max-etag tx doc-count]}]
   (-> tx
