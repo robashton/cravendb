@@ -22,23 +22,13 @@
      :mapped ((index :map) (item :doc)) 
     }))
 
-(defn process-mapped-documents [tx results]
-  (loop [tx tx remaining results max-etag 0]
-    (if (empty? remaining)
-      (do
-          (.store tx "last-indexed-etag" max-etag))
-      (do
-        (let [ 
-              result (first remaining)
-              id  (result :id)
-              etag (result :etag)
-              index (result :index)
-              mapped (result :mapped)
-              max-etag (max etag max-etag)
-              tx (.store tx (str "index-result-" index "-" id) (pr-str mapped))]
-            (println index id) ;; TODO: Plough into Lucene
-            (recur tx (rest remaining) max-etag)))))) 
+(defn process-mapped-document [{:keys [max-etag tx] :as output} {:keys [etag index id mapped]}]
+  (-> output
+      (assoc :max-etag (max max-etag etag))
+      (assoc :tx (.store tx (str "index-result-" index id) (pr-str mapped)))))
 
+(defn process-mapped-documents [tx results]
+  ((reduce process-mapped-document {:max-etag 0 :tx tx} results) :tx))
 
 (defn index-documents [db indexes]
   (with-open [tx (.ensure-transaction db)]

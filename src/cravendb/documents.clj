@@ -18,7 +18,6 @@
   (let [etag (inc (last-etag db))]
     (-> db
       (.store (str "doc-" id) document)
-      (.store (str "doc-" id) document)
       (.store "last-etag" etag)
       (.store (str "etag-docs-" etag) id)
       (.store (str "doc-etags-" id) etag))))
@@ -28,10 +27,6 @@
 
 (defn delete-document [session id]
   (.delete session (str "doc-" id)))
-
-(defn delete-document [session id]
-  (.delete session (str "doc-" id)))
-
 
 (defn iterate-etags-after [iter etag]
   (.seek iter (to-db (str "etag-docs-" (inc etag))))
