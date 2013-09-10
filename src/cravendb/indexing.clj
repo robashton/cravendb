@@ -3,11 +3,14 @@
   (:require [cravendb.storage :as storage]
             [cravendb.documents :as docs])) 
 
+(def last-indexed-etag-key "last-indexed-etag")
+(def last-index-doc-count-key "last-index-doc-count")
+
 (defn last-indexed-etag [db]
-  (or (.get-string db "last-indexed-etag") (zero-etag)))
+  (or (.get-string db last-indexed-etag-key) (zero-etag)))
 
 (defn last-index-doc-count [db]
-    (.get-integer db "last-index-doc-count"))
+    (.get-integer db last-index-doc-count-key))
 
 (defn load-document-for-indexing [tx id] {
    :doc (read-string (docs/load-document tx id))
@@ -35,8 +38,8 @@
 
 (defn finish-map-process! [{:keys [max-etag tx doc-count]}]
   (-> tx
-    (.store "last-indexed-etag" max-etag)
-    (.store "last-index-doc-count" doc-count)
+    (.store last-indexed-etag-key max-etag)
+    (.store last-index-doc-count-key doc-count)
     (.commit!)))
 
 (defn index-documents! [db indexes]
@@ -80,7 +83,7 @@
     (last-indexed-etag tx))
 
 #_ (with-open [tx (.ensure-transaction storage)]
-    (.get-integer tx "last-index-doc-count"))
+    (.get-integer tx last-index-doc-count))
 
 #_ (defn print-doc [tx docs]
      (doseq [i docs]
