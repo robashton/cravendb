@@ -12,7 +12,11 @@
                  [org.slf4j/slf4j-log4j12 "1.6.6"]
                  [org.clojure/core.incubator "0.1.3"]
                  [org.clojure/core.async "0.1.0-SNAPSHOT"]
-                 [org.apache.lucene/lucene-core "4.4.0"]]
+                 [org.apache.lucene/lucene-core "4.4.0"]
+                 [org.apache.lucene/lucene-queryparser "4.4.0"]
+                 [org.apache.lucene/lucene-analyzers-common "4.4.0"]
+                 [org.apache.lucene/lucene-highlighter "4.4.0"]]
+
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
             
   :profiles {:dev {

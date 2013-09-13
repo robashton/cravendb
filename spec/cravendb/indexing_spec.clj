@@ -3,6 +3,7 @@
         [cravendb.testing])
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
+            [cravendb.indexes :as indexes]
             [cravendb.storage :as storage]))
 
 (def test-index {:name "test" :map (fn [doc] (doc :author))})
@@ -42,3 +43,15 @@
         (with-open [tx (.ensure-transaction db)]
           (should= (docs/last-etag tx) (indexing/last-indexed-etag tx))
           (should= 1 (indexing/last-index-doc-count tx)))))))
+
+(describe "loading indexes from the database and indexing using them"
+  (it "will index all the documents"
+    (with-db (fn [db]
+        (write-three-documents db)
+        (with-open [tx (.ensure-transaction db)]
+          (.commit! (indexes/put-index tx "1" { :name "by_author" :map "(fn [doc] (doc :author))"})))
+        (with-open [tx (.ensure-transaction db)]
+          (indexing/index-documents! db (indexes/load-compiled-indexes tx)))
+        (with-open [tx (.ensure-transaction db)]
+          (should= 4 (indexing/last-index-doc-count tx)) ;; The index counts
+          (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))

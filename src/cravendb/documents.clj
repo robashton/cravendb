@@ -10,8 +10,8 @@
 (defn is-document-key [k]
   (.startsWith k document-prefix))
 
-(defn is-document-key-prefixed-with [prefix k]
-  (.startsWith k (str document-prefix prefix)))
+(defn is-document-key-prefixed-with [prefix entry]
+  (.startsWith (entry :k) (str document-prefix prefix)))
 
 (defn is-etags-to-docs-key [k]
   (.startsWith k etags-to-docs-prefix))

@@ -1,22 +1,29 @@
 (ns cravendb.lucene
-  (:import (org.apache.lucene.index IndexReader$FieldOption IndexReader IndexWriter
-                                    IndexWriter$MaxFieldLength Term CorruptIndexException)
-           (org.apache.lucene.search IndexSearcher BooleanQuery
-                                     PhraseQuery BooleanClause$Occur TermQuery)
-           (org.apache.lucene.document Document Field Field$Store
-                                       Field$Index DateTools
-                                       DateTools$Resolution)
-           (org.apache.lucene.analysis SimpleAnalyzer)
+  (:import 
            (org.apache.lucene.analysis.standard StandardAnalyzer)
-           (org.apache.lucene.search.highlight QueryTermExtractor)
            (org.apache.lucene.store FSDirectory)
-           (org.apache.lucene.queryParser QueryParser$Operator
-                                          MultiFieldQueryParser)
+           (org.apache.lucene.store RAMDirectory)
            (org.apache.lucene.util Version)
+           (org.apache.lucene.index IndexWriterConfig)
            (java.util Collection Random)
            (java.io File File PushbackReader IOException FileNotFoundException )))
 
+(defprotocol IndexingSession
+  (add-document! [this fields]) 
+  (close [this]))
 
+(defrecord LuceneIndexing [analyzer directory config]
+  IndexingSession
+  (add-document! [this fields])
+  (close [this]))
+
+(defn create-index []
+  (let [
+        analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
+        directory (RAMDirectory.)
+        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]))
+
+(create-index)
 
 
 ;;    Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_CURRENT);
