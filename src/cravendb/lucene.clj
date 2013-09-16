@@ -82,22 +82,3 @@
         directory (RAMDirectory.)
         config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]
     (LuceneIndex. analyzer directory config)))
-
-#_ (def index (create-index (File. "foo")))
-#_ (.close index)
-
-#_ (with-open [writer (.open-writer index)]
-      (-> writer
-        (.put-entry! "1" { "foo" "blah"})
-        (.put-entry! "2" { "foo" "cray"})
-        (.put-entry! "3" { "foo" "sneak"})
-        (.put-entry! "4" { "foo" "vlga"})
-        (.put-entry! "5" { "foo" "vlga"})
-        (.put-entry! "6" { "foo" "vlga"})
-        (.put-entry! "7" { "foo" "vlga"})
-        (.put-entry! "8" { "foo" "vlga"})
-        (.commit!)
-        (.close)))
-
-#_ (with-open [reader (.open-reader index)]
-      (doall (.query reader { :query "foo:vlga"})))

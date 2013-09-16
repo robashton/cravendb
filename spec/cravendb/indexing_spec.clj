@@ -57,6 +57,7 @@
         (with-open [reader (.open-reader ((first @test-indexes) :storage))]
             (should== '("2") (.query reader { :query "author:vicky"})))))))
 
+
 (describe "querying an index with content in it"
   (with test-indexes (create-test-indexes))
   (it "will return the right document ids"
