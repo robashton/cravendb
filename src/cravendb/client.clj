@@ -45,4 +45,3 @@
   (with-open [client (http/create-client)]
     (process-response 
       (http/GET client (url-for-index-id url id)))))
-

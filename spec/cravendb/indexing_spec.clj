@@ -49,7 +49,7 @@
     (with-db (fn [db]
         (write-three-documents db)
         (with-open [tx (.ensure-transaction db)]
-          (.commit! (indexes/put-index tx "1" { :name "by_author" :map "(fn [doc] (doc :author))"})))
+          (.commit! (indexes/put-index tx { :id "by_author" :map "(fn [doc] (doc :author))"})))
         (indexing/index-documents! db (indexes/load-compiled-indexes db))
         (with-open [tx (.ensure-transaction db)]
           (should= 4 (indexing/last-index-doc-count tx)) ;; The index counts

@@ -4,6 +4,7 @@
             [compojure.handler :as handler]
             [cravendb.storage :as storage]
             [cravendb.indexing :as indexing] 
+            [cravendb.indexes :as indexes] 
             [cravendb.documents :as docs])
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
@@ -27,6 +28,25 @@
       (info "deleting a document with id " id)
         (with-open [tx (.ensure-transaction db)]
           (.commit! (docs/delete-document tx id))))
+
+    (PUT "/index/:id" { params :params body :body }
+      (let [id (params :id) body ((comp read-string slurp) body)]
+        (info "putting an in with id " id " and body " body)
+        (with-open [tx (.ensure-transaction db)]
+          (.commit! 
+            (indexes/put-index 
+              tx {
+                  :id id
+                  :map (body :map)
+                 })))))
+
+    (GET "/index/:id" [id] 
+      (info "getting an index with id " id)
+         (with-open [tx (.ensure-transaction db)]
+           (let [index (indexes/load-index tx id)]
+             (if index
+               (pr-str index)
+               { :status 404 }))))
 
     (route/not-found "ZOMG NO, THIS IS NOT A VALID URL"))
 

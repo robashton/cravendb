@@ -49,5 +49,9 @@
         (client/put-index 
           "http://localhost:9000" 
           "by_username" 
-          (s/fn [doc] (doc :username))))
-      (should== "(fn [doc] (doc :username)" ((client/get-index "http://localhost:9000" "by_username") :map)))))
+          "(fn [doc] (doc :username))")
+        (should=
+          "(fn [doc] (doc :username))" 
+          ((client/get-index "http://localhost:9000" "by_username") :map))))))
+
+

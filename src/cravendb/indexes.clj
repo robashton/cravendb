@@ -9,11 +9,12 @@
 (defn index-doc-id [id]
   (str index-prefix id))
 
-(defn put-index [tx id index]
-  (docs/store-document tx (index-doc-id id) (pr-str index)))
+(defn put-index [tx index]
+  (docs/store-document tx (index-doc-id (index :id)) (pr-str index)))
 
 (defn load-index [tx id]
-  (read-string (docs/load-document tx (index-doc-id id))))
+  (let [doc (docs/load-document tx (index-doc-id id))]
+    (if doc (read-string doc) nil)))
 
 (defn iterate-indexes [iter]
   (docs/iterate-documents-prefixed-with iter index-prefix))
@@ -22,8 +23,7 @@
   (docs/delete-document (index-doc-id id)))
 
 (defn compile-index [index]
-  (assoc index :map
-    (load-string (index :map))))
+  (assoc index :map (load-string (index :map))))
 
 (defn load-compiled-indexes [tx]
   (with-open [iter (.get-iterator tx)]
