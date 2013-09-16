@@ -52,8 +52,7 @@
     (let [doc (Document.)
           fields (for [[k v] content] 
                    (do
-                     (println k v)
-                     (Field. (pr-str k) (pr-str v) TextField/TYPE_STORED)))]
+                     (Field. k v TextField/TYPE_STORED)))]
       (doseq [f fields] (.add doc f))
       (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
       (.addDocument writer doc))
@@ -96,42 +95,5 @@
         (.close)))
 
 #_ (with-open [reader (.open-reader index)]
-      (doall (.query reader { :query "foo:[vlga]"})))
+      (doall (.query reader { :query "foo:sneak"})))
 
-;; ;; Putting stuff into the index
-;; #_ (def analyzer (StandardAnalyzer. Version/LUCENE_CURRENT))
-;; #_ (def directory (RAMDirectory.))
-;; #_ (.close directory)
-;; #_ (def config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer))
-;; #_ (def writer (IndexWriter. directory config))
-;; #_ (.close writer)
-;; #_ 
-;; #_ (def doc (Document.))
-;; #_ (.add doc (Field. "foo" "searchtext", TextField/TYPE_STORED))
-;; #_ (.add doc (Field. "__document_id" "1", TextField/TYPE_STORED))
-;; #_ (.addDocument writer doc)
-;; #_ 
-;; #_ 
-;; #_ ;; Querying the index
-;; #_ (def reader (DirectoryReader/open directory))
-;; #_ (.close reader)
-;; #_ (def searcher (IndexSearcher. reader))
-;; #_ 
-;; #_ (def parser (QueryParser. Version/LUCENE_CURRENT "" analyzer))
-;; #_ (def query (.parse parser "foo:searchtext"))
-;; #_ 
-;; #_ (def result (.search searcher query nil 1000))
-;; #_ (count (.scoreDocs result))
-;; 
-;; 
-;; 
-;; #_ 
-;; #_ (def indexed-documents (for [x (range 0 (count (.scoreDocs result)))] 
-;;   (.doc searcher (.doc (aget (.scoreDocs result) x)))))
-;; #_ 
-;; #_ (def document-ids (map (fn [d] (.get d "__document_id")) indexed-documents))
-;; #_ 
-;; #_ (doall document-ids)
-;; 
-;; 
-;; 
