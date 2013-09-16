@@ -1,7 +1,9 @@
 (ns cravendb.indexes
   (:require [cravendb.core]
             [cravendb.storage :as storage]
+            [cravendb.lucene :as lucene]
             [cravendb.documents :as docs])
+  (:import (java.io File File))
   (use [cravendb.core]))
 
 (def index-prefix "index-")
@@ -25,6 +27,18 @@
 (defn compile-index [index]
   (assoc index :map (load-string (index :map))))
 
-(defn load-compiled-indexes [tx]
-  (with-open [iter (.get-iterator tx)]
-    (doall (map (comp compile-index read-string) (iterate-indexes iter)))))
+(defn open-index [db index]
+  (assoc index :storage (lucene/create-index 
+                          (File. (.path db) (index :id)))))
+
+(defn open-writer-for-index [index]
+  (.open-writer (index :storage)))
+
+(defn load-compiled-indexes [db]
+  (with-open [iter (.get-iterator db)]
+    (doall (map 
+             (comp 
+               (partial open-index db) 
+                compile-index 
+                read-string) 
+              (iterate-indexes iter)))))

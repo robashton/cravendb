@@ -24,13 +24,13 @@
   (open-reader [this]))
 
 (defprotocol IndexWriting
-   (put-entry [this ref-id content])
+   (put-entry! [this ref-id content])
    (commit! [this]))
 
 (defprotocol IndexReading
   (query [this options]))
 
-(defrecord LuceneIndexReading [reader]
+(defrecord LuceneIndexReading [reader analyzer]
   IndexReading
   Closeable
   (query [this options]
@@ -48,12 +48,13 @@
 (defrecord LuceneIndexWriting [writer]
   IndexWriting
   Closeable
-  (put-entry [this ref-id content]
+  (put-entry! [this ref-id content]
     (let [doc (Document.)
           fields (for [[k v] content] 
-                   (do
-                     (Field. k v TextField/TYPE_STORED)))]
-      (doseq [f fields] (.add doc f))
+                   (if v
+                     (Field. k v TextField/TYPE_STORED) 
+                     nil))]
+      (doseq [f (filter boolean fields)] (.add doc f))
       (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
       (.addDocument writer doc))
       this)
@@ -67,33 +68,36 @@
   IndexStore
   Closeable
   (open-writer [this] (LuceneIndexWriting. (IndexWriter. directory config)))
-  (open-reader [this] (LuceneIndexReading. (DirectoryReader/open directory)))
-  (close [this]
-    (.close writer)
-    (.close directory)))
+  (open-reader [this] (LuceneIndexReading. (DirectoryReader/open directory) analyzer))
+  (close [this] (.close directory)))
 
-(defn create-index [index-path]
+(defn create-index [file]
+  (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
+        directory (FSDirectory/open file)
+        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]
+    (LuceneIndex. analyzer directory config)))
+
+(defn create-memory-index []
   (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
         directory (RAMDirectory.)
         config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]
     (LuceneIndex. analyzer directory config)))
 
-#_ (def index (create-index "foo"))
+#_ (def index (create-index (File. "foo")))
 #_ (.close index)
 
 #_ (with-open [writer (.open-writer index)]
       (-> writer
-        (.put-entry "1" { "foo" "blah"})
-        (.put-entry "2" { "foo" "cray"})
-        (.put-entry "3" { "foo" "sneak"})
-        (.put-entry "4" { "foo" "vlga"})
-        (.put-entry "5" { "foo" "vlga"})
-        (.put-entry "6" { "foo" "vlga"})
-        (.put-entry "7" { "foo" "vlga"})
-        (.put-entry "8" { "foo" "vlga"})
+        (.put-entry! "1" { "foo" "blah"})
+        (.put-entry! "2" { "foo" "cray"})
+        (.put-entry! "3" { "foo" "sneak"})
+        (.put-entry! "4" { "foo" "vlga"})
+        (.put-entry! "5" { "foo" "vlga"})
+        (.put-entry! "6" { "foo" "vlga"})
+        (.put-entry! "7" { "foo" "vlga"})
+        (.put-entry! "8" { "foo" "vlga"})
         (.commit!)
         (.close)))
 
 #_ (with-open [reader (.open-reader index)]
-      (doall (.query reader { :query "foo:sneak"})))
-
+      (doall (.query reader { :query "foo:vlga"})))

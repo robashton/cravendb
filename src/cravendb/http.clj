@@ -9,7 +9,6 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
 
-
 (defn create-http-server [db]
   (defroutes app-routes
 

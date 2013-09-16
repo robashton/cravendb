@@ -40,6 +40,7 @@
   (commit! [this]))
 
 (defprotocol Storage 
+  (path [this])
   (get-iterator [this])
   (close [this]) 
   (ensure-transaction [this]))
@@ -47,6 +48,7 @@
 (defrecord LevelTransaction [db options]
   Transaction
   Storage
+  (path [this] (.path db))
   (store [this id data]
     (assoc-in this [:cache id] (to-db data)))
   (delete [this id]
@@ -76,8 +78,9 @@
       (.write db batch)) nil))
 
 
-(defrecord LevelStorage [db]
+(defrecord LevelStorage [path db]
   Storage
+  (path [this] path)
   (close [this] (.close db) nil) 
   (get-iterator [this] (.iterator db))
   (ensure-transaction [this] 
@@ -86,11 +89,11 @@
       (.snapshot options snapshot)
       (LevelTransaction. db options))))
 
-(defn create-db [file]
+(defn create-db [dir]
   (let [options (Options.)]
     (.createIfMissing options true)
-    (.open (JniDBFactory/factory) (File. file) options)))
+    (.open (JniDBFactory/factory) (File. dir) options)))
 
-(defn create-storage [file]
-  (LevelStorage. (create-db file)))
+(defn create-storage [dir]
+  (LevelStorage. dir (create-db dir)))
 
