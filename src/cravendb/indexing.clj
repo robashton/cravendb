@@ -1,6 +1,8 @@
 (ns cravendb.indexing
-  (use [cravendb.core])
+  (use [cravendb.core]
+       [clojure.tools.logging :only (info error)])
   (:require [cravendb.storage :as storage]
+            [cravendb.indexes :as indexes]
             [cravendb.documents :as docs])) 
 
 (def last-indexed-etag-key "last-indexed-etag")
@@ -21,11 +23,11 @@
 (defn index-docs [tx indexes ids]
   (for [item (map (partial load-document-for-indexing tx) ids)
         index indexes] {
-     :id (item :id)
-     :etag (item :etag)
-     :index (index :name)
-     :mapped ((index :map) (item :doc)) 
-    }))
+                        :id (item :id)
+                        :etag (item :etag)
+                        :index (index :name)
+                        :mapped ((index :map) (item :doc)) 
+                        }))
 
 (defn process-mapped-document [{:keys [max-etag tx doc-count] :as output} {:keys [etag index id mapped]}] 
   (-> output
@@ -50,3 +52,15 @@
            (index-docs tx indexes)
            (process-mapped-documents tx)
            (finish-map-process!)))))
+
+(defn start-background-indexing [db]
+  (future 
+    (loop []
+      (Thread/sleep 100)
+      (info "Checking for stale indexes")
+      (try
+        (let [indexes (indexes/load-compiled-indexes db)]
+          ((index-documents! db indexes)))
+        (catch Exception e
+          (error e)))
+      (recur))))

@@ -3,6 +3,7 @@
             [compojure.route :as route]
             [compojure.handler :as handler]
             [cravendb.storage :as storage]
+            [cravendb.indexing :as indexing] 
             [cravendb.documents :as docs])
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
@@ -33,6 +34,9 @@
 
 (defn -main []
   (with-open [db (storage/create-storage "testdb")]
-   (run-jetty (create-http-server db) 
-              {:port (Integer/parseInt 
-                (or (System/getenv "PORT") "8080")) :join? true})))
+    (let [indexing-task (indexing/start-background-indexing db)]
+     (run-jetty 
+       (create-http-server db) {
+          :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})  
+      (info "Shutting down")
+      (future-cancel indexing-task))))

@@ -37,10 +37,10 @@
   (get-blob [this id])
   (get-integer [this id])
   (get-string [this id])
-  (get-iterator [this])
   (commit! [this]))
 
 (defprotocol Storage 
+  (get-iterator [this])
   (close [this]) 
   (ensure-transaction [this]))
 
@@ -64,7 +64,7 @@
   (close [this]
     (.close (.snapshot options)))
   (ensure-transaction [this] this)
-  (get-iterator [this] (.iterator db))
+  (get-iterator [this] (.iterator db options))
   (commit! [this]
     (with-open [batch (.createWriteBatch db)]
       (doseq [k (map #(vector  (first %) (second %)) (get this :cache))]
@@ -79,6 +79,7 @@
 (defrecord LevelStorage [db]
   Storage
   (close [this] (.close db) nil) 
+  (get-iterator [this] (.iterator db))
   (ensure-transaction [this] 
     (let [options (ReadOptions.)
           snapshot (.getSnapshot db)]
