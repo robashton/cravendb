@@ -50,8 +50,12 @@
         (write-three-documents db)
         (with-open [tx (.ensure-transaction db)]
           (.commit! (indexes/put-index tx "1" { :name "by_author" :map "(fn [doc] (doc :author))"})))
-        (with-open [tx (.ensure-transaction db)]
-          (indexing/index-documents! db (indexes/load-compiled-indexes tx)))
+        (indexing/index-documents! db (indexes/load-compiled-indexes db))
         (with-open [tx (.ensure-transaction db)]
           (should= 4 (indexing/last-index-doc-count tx)) ;; The index counts
           (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
+
+(describe "Running indexing with no documents or indexes"
+  (it "will not fall over in a heap, crying with a bottle of whisky"
+    (with-db (fn [db]
+      (should-not-throw (indexing/index-documents! db (indexes/load-compiled-indexes db)))))))

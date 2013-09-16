@@ -21,13 +21,17 @@
    })
 
 (defn index-docs [tx indexes ids]
-  (for [item (map (partial load-document-for-indexing tx) ids)
-        index indexes] {
-                        :id (item :id)
-                        :etag (item :etag)
-                        :index (index :name)
-                        :mapped ((index :map) (item :doc)) 
-                        }))
+  (if (empty? ids)
+    ()
+    (do
+      (info "Performing indexing task on stale documents")
+      (for [item (map (partial load-document-for-indexing tx) ids)
+          index indexes] {
+                          :id (item :id)
+                          :etag (item :etag)
+                          :index (index :name)
+                          :mapped ((index :map) (item :doc)) 
+                          }))))
 
 (defn process-mapped-document [{:keys [max-etag tx doc-count] :as output} {:keys [etag index id mapped]}] 
   (-> output
@@ -57,10 +61,8 @@
   (future 
     (loop []
       (Thread/sleep 100)
-      (info "Checking for stale indexes")
       (try
-        (let [indexes (indexes/load-compiled-indexes db)]
-          ((index-documents! db indexes)))
+        (index-documents! db (indexes/load-compiled-indexes db)) 
         (catch Exception e
           (error e)))
       (recur))))
