@@ -37,6 +37,9 @@
 (defn load-document [session id] 
   (.get-string session (str document-prefix id)))
 
+(defn query [session opts] 
+  (.get-string session (str document-prefix id)))
+
 (defn delete-document [session id]
   (.delete session (str document-prefix id)))
 

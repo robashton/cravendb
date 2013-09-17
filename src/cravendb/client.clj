@@ -7,6 +7,9 @@
 (defn url-for-index-id [url id]
   (str url "/index/" id))
 
+(defn url-for-query [url opts]
+  (str url "/query/" "?q=" (opts :query)))
+
 (defn to-db [data]
   (pr-str data))
 
@@ -45,3 +48,8 @@
   (with-open [client (http/create-client)]
     (process-response 
       (http/GET client (url-for-index-id url id)))))
+
+(defn query [url opts]
+  (with-open [client (http/create-client)]
+    (process-response
+      (http/GET client (url-for-query url opts)))))

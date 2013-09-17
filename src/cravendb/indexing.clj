@@ -52,20 +52,20 @@
     {:keys [etag index-id id mapped]}] 
   (if mapped
     (-> output
-      (update-in [:indexes index-id :storage] put-into-index! id mapped)
+      (update-in [:indexes index-id :writer] put-into-index! id mapped)
       (assoc :max-etag (newest-etag max-etag etag))
       (assoc :doc-count (inc doc-count)))  
     output))
 
 (defn process-mapped-documents! [tx indexes results] 
   (reduce process-mapped-document! 
-          {:indexes (into {} (for [i indexes] [ (i :id) i])) 
+          {:indexes  (into {} (for [i indexes] [ (i :id) i])) 
            :max-etag (zero-etag) 
            :tx tx 
            :doc-count 0} results))
 
 (defn finish-map-process! [{:keys [indexes max-etag tx doc-count]}]
-  (doseq [[k v] indexes] (update-in v [:storage] flush-index!))
+  (doseq [[k v] indexes] (update-in v [:writer] flush-index!))
   (-> tx
     (.store last-indexed-etag-key max-etag)
     (.store last-index-doc-count-key doc-count)
@@ -74,19 +74,31 @@
 (defn index-documents! [db indexes]
   (with-open [tx (.ensure-transaction db)]
     (with-open [iter (.get-iterator tx)]
-      (->> 
-        (last-indexed-etag tx)
-        (docs/iterate-etags-after iter)
-        (index-docs tx indexes)
-        (process-mapped-documents! tx indexes)
-        (finish-map-process!)))))
+      (let [compiled-indexes (prepare-indexes indexes)] ;; This needs handing MUCH better
+        (try
+          (->> 
+            (last-indexed-etag tx)
+            (docs/iterate-etags-after iter)
+            (index-docs tx indexes)
+            (process-mapped-documents! tx compiled-indexes)
+            (finish-map-process!))
+          (finally (destroy-indexes compiled-indexes)))))))
+
+(defn prepare-indexes [indexes]
+ (for [index indexes] (do
+      (assoc index :writer (.open-writer (index :storage))))))
+
+(defn destroy-indexes [indexes]
+   (doseq [index indexes]
+     (do
+       (.close (index :writer)))))
 
 (defn start-background-indexing [db]
   (future 
     (loop []
       (Thread/sleep 100)
       (try
-        (index-documents! db (indexes/load-compiled-indexes db)) 
+        (index-documents! db (indexes/load-compiled-indexes db))
         (catch Exception e
           (error e)))
       (recur))))

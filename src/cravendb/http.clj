@@ -4,6 +4,7 @@
             [compojure.handler :as handler]
             [cravendb.storage :as storage]
             [cravendb.indexing :as indexing] 
+            [cravendb.query :as query] 
             [cravendb.indexes :as indexes] 
             [cravendb.documents :as docs])
   (:use compojure.core
@@ -11,6 +12,12 @@
 
 (defn create-http-server [db]
   (defroutes app-routes
+
+    (GET "/query/?q=:q" { params :params }
+      (let [q (params :q)]
+        (info "Querying for " q)
+        (with-open [tx (.ensure-transaction db)]
+          (query/execute tx params))))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]

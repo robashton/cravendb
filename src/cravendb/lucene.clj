@@ -20,12 +20,33 @@
   (close [this]))
 
 (defprotocol IndexStore
-  (put-entry! [this ref-id content])
-  (flush! [this]) 
+  (open-writer [this])
   (open-reader [this]))
 
 (defprotocol IndexReading
   (query [this options]))
+
+(defprotocol IndexWriting
+  (flush! [this]) 
+  (put-entry! [this ref-id content]))
+
+(defrecord LuceneIndexWriting [writer]
+  IndexWriting
+  Closeable
+  (put-entry! [this ref-id content]
+    (let [doc (Document.)
+          fields (for [[k v] content] 
+                   (if v
+                     (Field. k v TextField/TYPE_STORED) 
+                     nil))]
+      (doseq [f (filter boolean fields)] (.add doc f))
+      (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
+      (.addDocument writer doc))
+      this) 
+  (flush! [this]
+    (.commit writer) this)
+  (close [this] 
+    (.close writer)))
 
 (defrecord LuceneIndexReading [reader analyzer]
   IndexReading
@@ -42,37 +63,24 @@
   (close [this]
     (.close reader)))
 
-(defrecord LuceneIndex [analyzer directory config writer]
+(defrecord LuceneIndex [analyzer directory config]
   IndexStore
   Closeable
-  (put-entry! [this ref-id content]
-    (let [doc (Document.)
-          fields (for [[k v] content] 
-                   (if v
-                     (Field. k v TextField/TYPE_STORED) 
-                     nil))]
-      (doseq [f (filter boolean fields)] (.add doc f))
-      (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
-      (.addDocument writer doc))
-      this)
-  (flush! [this]
-    (.commit writer)
-    this)
-  (open-reader [this] (LuceneIndexReading. (DirectoryReader/open directory) analyzer))
+  (open-writer [this] (LuceneIndexWriting. 
+                        (IndexWriter. directory config)))
+  (open-reader [this] (LuceneIndexReading. 
+                        (DirectoryReader/open directory) analyzer))
   (close [this] 
-    (.close writer)
     (.close directory)))
 
 (defn create-index [file]
   (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
         directory (FSDirectory/open file)
-        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)
-        writer (IndexWriter. directory config) ]
-    (LuceneIndex. analyzer directory config writer)))
+        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer) ]
+    (LuceneIndex. analyzer directory config)))
 
 (defn create-memory-index []
   (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
         directory (RAMDirectory.)
-        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)
-        writer (IndexWriter. directory config) ]
-    (LuceneIndex. analyzer directory config writer)))
+        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]
+    (LuceneIndex. analyzer directory config)))
