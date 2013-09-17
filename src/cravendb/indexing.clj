@@ -41,33 +41,31 @@
             )
           )))))
 
-(defn open-writers-for-indexes
-  [indexes]
-  (into {} (for [i indexes] 
-             [(i :id) (.open-writer (i :storage))])))
+(defn put-into-index! [index doc-id mapped]
+  (.put-entry! index doc-id mapped))
 
-(defn process-mapped-document 
+(defn flush-index! [index]
+  (.flush! index))
+
+(defn process-mapped-document! 
   [ {:keys [max-etag tx doc-count] :as output} 
     {:keys [etag index-id id mapped]}] 
   (if mapped
-    (-> (assoc-in 
-          output 
-          [:writers index-id] 
-          (.put-entry! (get-in output [:writers index-id]) id mapped))
+    (-> output
+      (update-in [:indexes index-id :storage] put-into-index! id mapped)
       (assoc :max-etag (newest-etag max-etag etag))
       (assoc :doc-count (inc doc-count)))  
     output))
 
-(defn process-mapped-documents [tx indexes results] 
-  (reduce process-mapped-document 
-          {:writers (open-writers-for-indexes indexes) 
+(defn process-mapped-documents! [tx indexes results] 
+  (reduce process-mapped-document! 
+          {:indexes (into {} (for [i indexes] [ (i :id) i])) 
            :max-etag (zero-etag) 
            :tx tx 
            :doc-count 0} results))
 
-(defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
-  (doseq [[k v] writers] 
-    (.close (.commit! v)))
+(defn finish-map-process! [{:keys [indexes max-etag tx doc-count]}]
+  (doseq [[k v] indexes] (update-in v [:storage] flush-index!))
   (-> tx
     (.store last-indexed-etag-key max-etag)
     (.store last-index-doc-count-key doc-count)
@@ -76,11 +74,12 @@
 (defn index-documents! [db indexes]
   (with-open [tx (.ensure-transaction db)]
     (with-open [iter (.get-iterator tx)]
-      (->> (last-indexed-etag tx)
-           (docs/iterate-etags-after iter)
-           (index-docs tx indexes)
-           (process-mapped-documents tx indexes)
-           (finish-map-process!)))))
+      (->> 
+        (last-indexed-etag tx)
+        (docs/iterate-etags-after iter)
+        (index-docs tx indexes)
+        (process-mapped-documents! tx indexes)
+        (finish-map-process!)))))
 
 (defn start-background-indexing [db]
   (future 

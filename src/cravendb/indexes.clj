@@ -31,9 +31,6 @@
   (assoc index :storage (lucene/create-index 
                           (File. (.path db) (index :id)))))
 
-(defn open-writer-for-index [index]
-  (.open-writer (index :storage)))
-
 (defn load-compiled-indexes [db]
   (with-open [iter (.get-iterator db)]
     (doall (map 

@@ -20,12 +20,9 @@
   (close [this]))
 
 (defprotocol IndexStore
-  (open-writer [this])
+  (put-entry! [this ref-id content])
+  (flush! [this]) 
   (open-reader [this]))
-
-(defprotocol IndexWriting
-   (put-entry! [this ref-id content])
-   (commit! [this]))
 
 (defprotocol IndexReading
   (query [this options]))
@@ -45,8 +42,8 @@
   (close [this]
     (.close reader)))
 
-(defrecord LuceneIndexWriting [writer]
-  IndexWriting
+(defrecord LuceneIndex [analyzer directory config writer]
+  IndexStore
   Closeable
   (put-entry! [this ref-id content]
     (let [doc (Document.)
@@ -58,27 +55,24 @@
       (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
       (.addDocument writer doc))
       this)
-   (commit! [this] 
-     (.commit writer)
-     this)
-   (close [this]
-     (.close writer)))
-
-(defrecord LuceneIndex [analyzer directory config]
-  IndexStore
-  Closeable
-  (open-writer [this] (LuceneIndexWriting. (IndexWriter. directory config)))
+  (flush! [this]
+    (.commit writer)
+    this)
   (open-reader [this] (LuceneIndexReading. (DirectoryReader/open directory) analyzer))
-  (close [this] (.close directory)))
+  (close [this] 
+    (.close writer)
+    (.close directory)))
 
 (defn create-index [file]
   (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
         directory (FSDirectory/open file)
-        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]
-    (LuceneIndex. analyzer directory config)))
+        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)
+        writer (IndexWriter. directory config) ]
+    (LuceneIndex. analyzer directory config writer)))
 
 (defn create-memory-index []
   (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)
         directory (RAMDirectory.)
-        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)]
-    (LuceneIndex. analyzer directory config)))
+        config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer)
+        writer (IndexWriter. directory config) ]
+    (LuceneIndex. analyzer directory config writer)))
