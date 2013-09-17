@@ -71,6 +71,15 @@
     (.store last-index-doc-count-key doc-count)
     (.commit!)))
 
+(defn prepare-indexes [indexes]
+ (for [index indexes] (do
+      (assoc index :writer (.open-writer (index :storage))))))
+
+(defn destroy-indexes [indexes]
+   (doseq [index indexes]
+     (do
+       (.close (index :writer)))))
+
 (defn index-documents! [db indexes]
   (with-open [tx (.ensure-transaction db)]
     (with-open [iter (.get-iterator tx)]
@@ -84,14 +93,6 @@
             (finish-map-process!))
           (finally (destroy-indexes compiled-indexes)))))))
 
-(defn prepare-indexes [indexes]
- (for [index indexes] (do
-      (assoc index :writer (.open-writer (index :storage))))))
-
-(defn destroy-indexes [indexes]
-   (doseq [index indexes]
-     (do
-       (.close (index :writer)))))
 
 (defn start-background-indexing [db]
   (future 

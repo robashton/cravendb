@@ -96,4 +96,3 @@
 
 (defn create-storage [dir]
   (LevelStorage. dir (create-db dir)))
-

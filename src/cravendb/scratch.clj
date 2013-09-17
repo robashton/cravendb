@@ -13,7 +13,7 @@
 
 
 
-#_ (def db (storage/create-storage "testdb"))
+#_ (def db (indexes/load-compiled-indexes (storage/create-storage "testdb")))
 #_ (.close db)
 #_ (fs/delete-dir "testdb")
 
