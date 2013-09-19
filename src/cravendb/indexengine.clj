@@ -8,8 +8,8 @@
            [cravendb.indexstore :as indexes]
            [cravendb.indexing :as indexing]))
 
-(defn open-storage-for-index [index]
-  (let [storage (lucene/create-index (File. (index :id)))]
+(defn open-storage-for-index [path index]
+  (let [storage (lucene/create-index (File. path (index :id)))]
     (-> index
       (assoc :storage storage)
       (assoc :writer (.open-writer storage)))))
@@ -21,7 +21,7 @@
   (with-open [iter (.get-iterator db)]
     (doall (map 
              (comp 
-                open-storage-for-index
+                (partial open-storage-for-index (.path db))
                 compile-index 
                 read-string) 
               (indexes/iterate-indexes iter)))))
