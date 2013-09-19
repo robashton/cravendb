@@ -1,7 +1,7 @@
 (ns cravendb.query
   (require    
     [cravendb.documents :as docs]
-    [cravendb.indexes :as indexes]))
+    [cravendb.indexstore :as indexes]))
 
 
 (defn execute [tx ops] tx)

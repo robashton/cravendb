@@ -3,11 +3,19 @@
         [cravendb.testing])
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
-            [cravendb.indexes :as indexes]
+            [cravendb.indexstore :as indexes]
+            [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
             [cravendb.lucene :as lucene]))
 
-(defn create-test-index []  {:id "test" :map (fn [doc] {"author" (doc :author)}) :storage (lucene/create-memory-index) })
+(defn create-test-index []  
+  (let [storage (lucene/create-memory-index)]
+                    {
+                    :id "test" 
+                    :map (fn [doc] {"author" (doc :author)})
+                    :storage storage
+                    :writer (.open-writer storage) }))
+
 (defn create-test-indexes [] [ (create-test-index) ])
 
 (def write-three-documents 
@@ -67,7 +75,10 @@
           (.commit! 
             (indexes/put-index tx 
                 { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
-        (indexing/index-documents! db (indexes/load-compiled-indexes db))
+
+        (with-open [ie (indexengine/load-from db)]
+          (indexing/index-documents! db (:compiled-indexes ie)))
+
         (with-open [tx (.ensure-transaction db)]
           (should= 4 (indexing/last-index-doc-count tx)) ;; The index counts
           (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
@@ -75,4 +86,5 @@
 (describe "Running indexing with no documents or indexes"
   (it "will not fall over in a heap, crying with a bottle of whisky"
     (with-db (fn [db]
-      (should-not-throw (indexing/index-documents! db (indexes/load-compiled-indexes db)))))))
+      (with-open [ie (indexengine/load-from db)]
+        (should-not-throw (indexing/index-documents! db (:compiled-indexes ie))))))))

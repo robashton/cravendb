@@ -4,7 +4,8 @@
             [cravendb.documents :as docs]
             [cravendb.client :as client]
             [cravendb.query :as query]
-            [cravendb.indexes :as indexes]
+            [cravendb.indexstore :as indexes]
+            [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
             [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
@@ -12,11 +13,9 @@
             [cravendb.lucene :as lucene]))
 
 
-
-#_ (def db (indexes/load-compiled-indexes (storage/create-storage "testdb")))
+#_ (def db (storage/create-storage "testdb"))
 #_ (.close db)
 #_ (fs/delete-dir "testdb")
-
 
 #_ (def server (run-jetty (http/create-http-server db) { :port 9000 :join? false}))
 #_ (.stop server)
@@ -30,7 +29,20 @@
         (.commit!)))  
 
 
-#_ (def test-index {:id "test" :map (fn [doc] {"author" (doc :author)}) :storage (lucene/create-memory-index) })
+#_ (with-open [tx (.ensure-transaction db)]
+     (-> tx
+       (indexes/put-index { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})
+       (.commit!)))
+
+#_ (indexing/index-documents! db (indexes/load-compiled-indexes db)) ;; This will not work (yet)
+
+#_ (def test-index (let [storage (lucene/create-memory-index)]
+                    {
+                    :id "test" 
+                    :map (fn [doc] {"author" (doc :author)})
+                    :storage storage
+                    :writer (.open-writer storage) }))
+
 #_ (def test-indexes [ test-index ])
 
 #_ (indexing/index-documents! db test-indexes)

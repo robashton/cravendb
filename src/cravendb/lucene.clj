@@ -15,10 +15,6 @@
            (java.util Collection Random)
            (java.io File File PushbackReader IOException FileNotFoundException )))
 
-;; Question: Is there a default one of these?
-(defprotocol Closeable
-  (close [this]))
-
 (defprotocol IndexStore
   (open-writer [this])
   (open-reader [this]))
@@ -29,6 +25,9 @@
 (defprotocol IndexWriting
   (flush! [this]) 
   (put-entry! [this ref-id content]))
+
+(defprotocol Closeable ;; How do I even??
+  (close [this]))
 
 (defrecord LuceneIndexWriting [writer]
   IndexWriting

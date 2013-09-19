@@ -1,1 +1,19 @@
-TODO: Look at parsing output/or clojure itself to determine pureness
+- We have the following constructs thus far
+
+  - Storage = Transactional key/value storage and iteration over that key value storage
+  - Documents = Functions over the top of storage for storing documents/etags
+  - Indexes - Functions over the top of Documents for storing indexes
+
+  - Indexing - Functions that interpret those indexes
+  
+  - IndexStorage
+
+      - for lack of a better name, this is where the state of indexes ends up
+      - Every time a new index is added, this needs to load that index
+      - Every time an index is modified, this needs to re-load that index
+      - Every time an index is removed, this needs to drop that index
+
+      - This needs to watch for changes to documents and plough them into the storage
+
+      - This needs to be modelled as a separate process effectively
+

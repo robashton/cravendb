@@ -5,7 +5,8 @@
             [cravendb.storage :as storage]
             [cravendb.indexing :as indexing] 
             [cravendb.query :as query] 
-            [cravendb.indexes :as indexes] 
+            [cravendb.indexstore :as indexes] 
+            [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs])
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
@@ -60,7 +61,7 @@
 
 (defn -main []
   (with-open [db (storage/create-storage "testdb")]
-    (let [indexing-task (indexing/start-background-indexing db)]
+    (let [indexing-task (indexengine/start-background-indexing db)]
      (run-jetty 
        (create-http-server db) {
           :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})  
