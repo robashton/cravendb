@@ -57,6 +57,9 @@
 (defn load-into [db]
   (assoc db :index-engine (atom (load-from db))))
 
+(defn reader-for-index [db index]
+ (.open-reader (get-engine db) index))
+
 (defn get-engine [db] @(get db :index-engine))
 (defn get-compiled-indexes [db] (get (get-engine db) :compiled-indexes) )
 
@@ -64,6 +67,7 @@
   (.close (get-engine db)))
 
 ;; I need to use an agent for this as it's not thread safe
+;; First, remove the crappy records/protocols from above
 (defn refresh-indexes [db]
   (.close (get-engine db))
   (let [new-engine (load-from db)]
@@ -75,7 +79,7 @@
     (loop []
       (Thread/sleep 100)
       (refresh-indexes loaded-db)
-      (try        
+      (try
         (indexing/index-documents! loaded-db (get-compiled-indexes loaded-db) )
         (catch Exception e
           (error e)))
