@@ -13,10 +13,7 @@
             [cravendb.lucene :as lucene]))
 
 
-#_ (def db (storage/create-storage "testdb"))
-#_ (.close db)
-#_ (fs/delete-dir "testdb")
-
+#_ (def db (indexengine/start (storage/create-storage "testdb3")))
 
 
 #_ (with-open [tx (.ensure-transaction db)]
@@ -31,10 +28,14 @@
        (indexes/put-index { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})
        (.commit!)))
 
+#_ (def server 
+     (run-jetty 
+       (http/create-http-server db) { :port 9001 :join? false}))
 
-#_ (def loaded-indexes (indexengine/load-from db))
-#_ (.close loaded-indexes)
-
+#_ (indexengine/teardown db) 
+#_ (.stop server)
+#_ (.close db)
+#_ (fs/delete-dir "testdb3")
 
 #_ (def test-index (let [storage (lucene/create-memory-index)]
                     {
@@ -44,21 +45,6 @@
                     :writer (.open-writer storage) }))
 
 #_ (def test-indexes [ test-index ])
-
-#_ (def server 
-     (run-jetty 
-       (http/create-http-server db loaded-indexes) { :port 9001 :join? false}))
-
-#_ (.stop server)
-
-#_ (indexing/index-documents! db (.all loaded-indexes)) 
-
-#_ (indexing/index-documents! db test-indexes)
-
-#_ (with-open [tx (.ensure-transaction db)]
-     (with-open [reader (.open-reader ((first test-indexes) :storage))]
-       (doall (map (partial docs/load-document tx) (.query reader { :query "author:vicky"})))))
-
 
 #_  (with-open [tx (.ensure-transaction db)]
       (query/execute tx loaded-indexes { :index "by_author" :query "author:vicky"}))

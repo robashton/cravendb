@@ -12,14 +12,15 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
 
-(defn create-http-server [db loaded-indexes]
+(defn create-http-server [db]
+
   (defroutes app-routes
 
     (GET "/query/:index/:query" { params :params }
-      (let [q (params :q)]
+      (let [q (params :query)]
         (info "Querying for " q)
         (with-open [tx (.ensure-transaction db)]
-          (query/execute tx loaded-indexes params))))
+          (query/execute tx (indexengine/get-engine db) params))))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
@@ -61,7 +62,7 @@
   (handler/api app-routes))
 
 (defn -main []
-  (with-open [db (indexengine/setup 
+  (with-open [db (indexengine/start 
                    (storage/create-storage "testdb"))]
     (try
       (run-jetty 

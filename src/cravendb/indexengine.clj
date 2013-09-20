@@ -57,13 +57,15 @@
 (defn load-into [db]
   (assoc db :index-engine (atom (load-from db))))
 
+(defn get-engine [db] @(get db :index-engine))
+
 (defn reader-for-index [db index]
  (.open-reader (get-engine db) index))
 
-(defn get-engine [db] @(get db :index-engine))
 (defn get-compiled-indexes [db] (get (get-engine db) :compiled-indexes) )
 
 (defn teardown [db]
+  (future-cancel (get db :index-engine-worker))
   (.close (get-engine db)))
 
 ;; I need to use an agent for this as it's not thread safe
@@ -71,19 +73,19 @@
 (defn refresh-indexes [db]
   (.close (get-engine db))
   (let [new-engine (load-from db)]
-      (swap! (get db :index-engine) (fn [] new-engine))))
+      (swap! (get db :index-engine) (fn [e] new-engine))))
 
-(defn setup [db]
-  (let [loaded-db (load-into db)]
-   (future 
-    (loop []
-      (Thread/sleep 100)
-      (refresh-indexes loaded-db)
-      (try
-        (indexing/index-documents! loaded-db (get-compiled-indexes loaded-db) )
+(defn start [db]
+  (let [loaded-db (load-into db)] 
+    (assoc loaded-db :index-engine-worker
+      (future 
+      (loop []
+        (Thread/sleep 100)
+        (refresh-indexes db)
+        (try
+          (indexing/index-documents! loaded-db (get-compiled-indexes loaded-db) )
         (catch Exception e
-          (error e)))
-      (recur)))
-    loaded-db))
+            (println e)))
+        (recur))))))
 
 

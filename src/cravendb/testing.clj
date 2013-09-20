@@ -23,11 +23,12 @@
 
 (defn with-test-server [testfn]
   (clear-test-data)
-  (with-open [db (storage/create-storage "testdir")
+  (with-open [db (indexengine/start (storage/create-storage "testdir"))
               loaded-indexes (indexengine/load-from db) ]
-    (let [server (run-jetty (http/create-http-server db loaded-indexes) { :port 9000 :join? false} )]
+    (let [server (run-jetty (http/create-http-server db) { :port 9000 :join? false} )]
       (try
         (testfn)
         (finally
+          (indexengine/teardown db)
           (.stop server)))))
   (clear-test-data))
