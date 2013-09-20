@@ -20,6 +20,11 @@
    :etag (docs/etag-for-doc tx id)
    })
 
+(defn wait-for-index-catch-up [tx]
+  (let [last-etag (etag-to-integer (docs/last-etag tx))]
+   (while (> last-etag (etag-to-integer (last-indexed-etag tx)))
+     (Thread/sleep 100))))
+
 (defn index-docs [tx indexes ids]
   (if (empty? ids)
     ()

@@ -8,6 +8,7 @@
             [cravendb.indexstore :as indexes] 
             [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs])
+
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
 
@@ -47,7 +48,6 @@
                   :map (body :map)
                  })))))
 
-
     (GET "/index/:id" [id] 
       (info "getting an index with id " id)
          (with-open [tx (.ensure-transaction db)]
@@ -61,11 +61,14 @@
   (handler/api app-routes))
 
 (defn -main []
-  (with-open [db (storage/create-storage "testdb")
-              loaded-indexes (indexengine/load-from db)]
-    (let [indexing-task (indexengine/start-background-indexing db)]
-     (run-jetty 
-       (create-http-server db loaded-indexes) {
-          :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})  
-      (info "Shutting down")
-      (future-cancel indexing-task))))
+  (with-open [db (indexengine/setup 
+                   (storage/create-storage "testdb"))]
+    (try
+      (run-jetty 
+        (create-http-server db) {
+                                 :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})
+      (finally
+        (indexengine/teardown db)))  
+
+    (info "Shutting down")))
+

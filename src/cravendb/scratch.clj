@@ -47,7 +47,7 @@
 
 #_ (def server 
      (run-jetty 
-       (http/create-http-server db loaded-indexes) { :port 9000 :join? false}))
+       (http/create-http-server db loaded-indexes) { :port 9001 :join? false}))
 
 #_ (.stop server)
 
@@ -63,9 +63,9 @@
 #_  (with-open [tx (.ensure-transaction db)]
       (query/execute tx loaded-indexes { :index "by_author" :query "author:vicky"}))
 
-#_ (client/get-document "http://localhost:9000" "1")
+#_ (client/get-document "http://localhost:9001" "1")
 
-#_ (client/query "http://localhost:9000" {
+#_ (client/query "http://localhost:9001" {
                                           :index "by_author"
                                           :query "author:vicky"
                                           })

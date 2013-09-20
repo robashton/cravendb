@@ -54,4 +54,24 @@
           "(fn [doc] (doc :username))" 
           ((client/get-index "http://localhost:9000" "by_username") :map))))))
 
+(describe "Querying an index on the server", 
+  (it "will return documents matching the query"
+    (with-test-server 
+      (fn []
+        (client/put-index 
+          "http://localhost:9000" 
+          "by_username" 
+          "(fn [doc] {\"username\" (doc :username)})")
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "alice"})
+        (should== 
+          '({:username "bob"}) 
+          (client/query 
+            "http://localhost:9000" 
+            { :query "username:bob" :index "by_username" :wait true}))))))
+
 

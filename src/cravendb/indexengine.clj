@@ -27,6 +27,7 @@
 (defprotocol Indexes
   (index [this id])
   (all [this])
+  (refresh [this])
   (open-reader-for [this index])
   (setup [this compiled-indexes])
   (close [this]))
@@ -35,6 +36,7 @@
   Indexes
   (all [this] (get this :compiled-indexes))
   (index [this id] (get this id))
+  (refresh [this])
   (open-reader-for [this index]
     (.open-reader ((get this index) :storage)))
   (setup [this compiled-indexes]
@@ -52,14 +54,32 @@
     (IndexInstance. )
     (load-compiled-indexes db)))
 
-(defn start-background-indexing [db]
-  (future 
+(defn load-into [db]
+  (assoc db :index-engine (atom (load-from db))))
+
+(defn get-engine [db] @(get db :index-engine))
+(defn get-compiled-indexes [db] (get (get-engine db) :compiled-indexes) )
+
+(defn teardown [db]
+  (.close (get-engine db)))
+
+;; I need to use an agent for this as it's not thread safe
+(defn refresh-indexes [db]
+  (.close (get-engine db))
+  (let [new-engine (load-from db)]
+      (swap! (get db :index-engine) (fn [] new-engine))))
+
+(defn setup [db]
+  (let [loaded-db (load-into db)]
+   (future 
     (loop []
       (Thread/sleep 100)
-      (with-open [indexes (load-from db)]
-        (try        
-          (indexing/index-documents! db (get indexes :compiled-indexes))
-          (catch Exception e
-            (error e))))
-      (recur))))
+      (refresh-indexes loaded-db)
+      (try        
+        (indexing/index-documents! loaded-db (get-compiled-indexes loaded-db) )
+        (catch Exception e
+          (error e)))
+      (recur)))
+    loaded-db))
+
 
