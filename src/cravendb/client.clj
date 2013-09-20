@@ -8,7 +8,11 @@
   (str url "/index/" id))
 
 (defn url-for-query [url opts]
-  (str url "/query/" "?q=" (opts :query)))
+  (str 
+    url "/query/"
+    (opts :index) "/"
+    (opts :query)
+    ))
 
 (defn to-db [data]
   (pr-str data))
@@ -52,4 +56,4 @@
 (defn query [url opts]
   (with-open [client (http/create-client)]
     (process-response
-      (http/GET client (url-for-query url opts)))))
+      (http/GET client #spy/d (url-for-query url opts)))))

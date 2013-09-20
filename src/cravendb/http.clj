@@ -11,14 +11,14 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
 
-(defn create-http-server [db]
+(defn create-http-server [db loaded-indexes]
   (defroutes app-routes
 
-    (GET "/query/?q=:q" { params :params }
+    (GET "/query/:index/:query" { params :params }
       (let [q (params :q)]
         (info "Querying for " q)
         (with-open [tx (.ensure-transaction db)]
-          (query/execute tx params))))
+          (query/execute tx loaded-indexes params))))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
@@ -47,6 +47,7 @@
                   :map (body :map)
                  })))))
 
+
     (GET "/index/:id" [id] 
       (info "getting an index with id " id)
          (with-open [tx (.ensure-transaction db)]
@@ -60,10 +61,11 @@
   (handler/api app-routes))
 
 (defn -main []
-  (with-open [db (storage/create-storage "testdb")]
+  (with-open [db (storage/create-storage "testdb")
+              loaded-indexes (indexengine/load-from db)]
     (let [indexing-task (indexengine/start-background-indexing db)]
      (run-jetty 
-       (create-http-server db) {
+       (create-http-server db loaded-indexes) {
           :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})  
       (info "Shutting down")
       (future-cancel indexing-task))))

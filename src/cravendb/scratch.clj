@@ -17,8 +17,6 @@
 #_ (.close db)
 #_ (fs/delete-dir "testdb")
 
-#_ (def server (run-jetty (http/create-http-server db) { :port 9000 :join? false}))
-#_ (.stop server)
 
 
 #_ (with-open [tx (.ensure-transaction db)]
@@ -37,7 +35,6 @@
 #_ (def loaded-indexes (indexengine/load-from db))
 #_ (.close loaded-indexes)
 
-#_ (indexing/index-documents! db (.all loaded-indexes)) 
 
 #_ (def test-index (let [storage (lucene/create-memory-index)]
                     {
@@ -48,7 +45,16 @@
 
 #_ (def test-indexes [ test-index ])
 
+#_ (def server 
+     (run-jetty 
+       (http/create-http-server db loaded-indexes) { :port 9000 :join? false}))
+
+#_ (.stop server)
+
+#_ (indexing/index-documents! db (.all loaded-indexes)) 
+
 #_ (indexing/index-documents! db test-indexes)
+
 #_ (with-open [tx (.ensure-transaction db)]
      (with-open [reader (.open-reader ((first test-indexes) :storage))]
        (doall (map (partial docs/load-document tx) (.query reader { :query "author:vicky"})))))
@@ -58,6 +64,8 @@
       (query/execute tx loaded-indexes { :index "by_author" :query "author:vicky"}))
 
 #_ (client/get-document "http://localhost:9000" "1")
+
 #_ (client/query "http://localhost:9000" {
+                                          :index "by_author"
                                           :query "author:vicky"
                                           })
