@@ -28,13 +28,16 @@
         (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
         (.commit!)))  
 
-
 #_ (with-open [tx (.ensure-transaction db)]
      (-> tx
        (indexes/put-index { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})
        (.commit!)))
 
-#_ (indexing/index-documents! db (indexes/load-compiled-indexes db)) ;; This will not work (yet)
+
+#_ (def loaded-indexes (indexengine/load-from db))
+#_ (.close loaded-indexes)
+
+#_ (indexing/index-documents! db (.all loaded-indexes)) 
 
 #_ (def test-index (let [storage (lucene/create-memory-index)]
                     {
@@ -52,7 +55,7 @@
 
 
 #_  (with-open [tx (.ensure-transaction db)]
-      (query/execute tx { :query "author:vicky"}))
+      (query/execute tx loaded-indexes { :index "by_author" :query "author:vicky"}))
 
 #_ (client/get-document "http://localhost:9000" "1")
 #_ (client/query "http://localhost:9000" {
