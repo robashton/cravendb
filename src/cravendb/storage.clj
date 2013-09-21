@@ -31,12 +31,14 @@
       (println e) 
       nil)))
 
+(defprotocol Reader
+  (get-blob [this id])
+  (get-integer [this id])
+  (get-string [this id]))
+
 (defprotocol Transaction
   (store [this id data])
   (delete [this id])
-  (get-blob [this id])
-  (get-integer [this id])
-  (get-string [this id])
   (commit! [this]))
 
 (defprotocol Storage 
@@ -48,6 +50,7 @@
 (defrecord LevelTransaction [db options]
   Transaction
   Storage
+  Reader
   (path [this] (.path db))
   (store [this id data]
     (assoc-in this [:cache id] (to-db data)))
@@ -80,9 +83,16 @@
 
 (defrecord LevelStorage [path db]
   Storage
+  Reader
   (path [this] path)
   (close [this] (.close db) nil) 
   (get-iterator [this] (.iterator db))
+  (get-integer [this id]
+    (from-db-int (.get-blob this id)))
+  (get-string [this id]
+    (from-db-str (.get-blob this id)))
+  (get-blob [this id]
+    (.get db (to-db id)))
   (ensure-transaction [this] 
     (let [options (ReadOptions.)
           snapshot (.getSnapshot db)]

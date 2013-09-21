@@ -20,8 +20,7 @@
       (let [q (params :query)
             w (params :wait)]
         (info "Querying for " q  w)
-        (with-open [tx (.ensure-transaction db)]
-          (query/execute tx (indexengine/get-engine db) params))))
+        (query/execute db (indexengine/get-engine db) params)))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]

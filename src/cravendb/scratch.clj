@@ -49,8 +49,7 @@
 #_ (indexing/index-documents! db (indexengine/get-compiled-indexes db) )
 #_ (def test-indexes [ test-index ])
 
-#_  (with-open [tx (.ensure-transaction db)]
-      (query/execute tx loaded-indexes { :index "by_author" :query "author:vicky"}))
+#_ (query/execute db (indexengine/get-engine db) { :index "by_author" :query "author:vicky" :wait true}) 
 
 #_ (client/get-document "http://localhost:9001" "1")
 
