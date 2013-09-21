@@ -37,6 +37,8 @@
 #_ (.close db)
 #_ (fs/delete-dir "testdb3")
 
+#_ (indexengine/refresh-indexes db)
+
 #_ (def test-index (let [storage (lucene/create-memory-index)]
                     {
                     :id "test" 
@@ -44,12 +46,16 @@
                     :storage storage
                     :writer (.open-writer storage) }))
 
+#_ (indexing/index-documents! db (indexengine/get-compiled-indexes db) )
 #_ (def test-indexes [ test-index ])
 
 #_  (with-open [tx (.ensure-transaction db)]
       (query/execute tx loaded-indexes { :index "by_author" :query "author:vicky"}))
 
 #_ (client/get-document "http://localhost:9001" "1")
+
+#_ (indexengine/get-engine db)
+#_ (indexengine/reader-for-index db "by_author")
 
 #_ (client/query "http://localhost:9001" {
                                           :index "by_author"
