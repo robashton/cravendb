@@ -12,8 +12,8 @@
             [cravendb.http :as http]  
             [cravendb.lucene :as lucene]))
 
-
 #_ (def db (indexengine/start (storage/create-storage "testdb3")))
+#_ (def db (indexengine/load-into (storage/create-storage "testdb3")))
 
 
 #_ (with-open [tx (.ensure-transaction db)]
@@ -60,4 +60,7 @@
 #_ (client/query "http://localhost:9001" {
                                           :index "by_author"
                                           :query "author:vicky"
+                                          :wait true
                                           })
+
+

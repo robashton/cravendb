@@ -12,7 +12,7 @@
     url "/query/"
     (opts :index) "/"
     (opts :query)
-    ))
+    (if (opts :wait) "?wait=true")))
 
 (defn to-db [data]
   (pr-str data))

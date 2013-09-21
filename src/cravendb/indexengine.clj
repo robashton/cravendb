@@ -57,7 +57,8 @@
 (defn load-into [db]
   (assoc db :index-engine (atom (load-from db))))
 
-(defn get-engine [db] @(get db :index-engine))
+(defn get-engine [db] 
+  @(get db :index-engine))
 
 (defn reader-for-index [db index]
  (.open-reader-for (get-engine db) index))
@@ -75,17 +76,15 @@
   (let [new-engine (load-from db)]
       (swap! (get db :index-engine) (fn [e] new-engine))))
 
-(defn start [db]
-  (println "WTF")
+( defn start [db]
   (let [loaded-db (load-into db)] 
-    (assoc loaded-db :index-engine-worker
-      (future 
+    (let [task (future 
         (loop []
-          (println "ARSE")
-          (Thread/sleep 100)
-          (refresh-indexes db)
           (try
+            (refresh-indexes loaded-db)
             (indexing/index-documents! loaded-db (get-compiled-indexes loaded-db) )
-          (catch Exception e
+            (catch Exception e
               (println e)))
-          (recur))))))
+          (Thread/sleep 100)
+          (recur))) ]
+      (assoc loaded-db :index-engine-worker task))))

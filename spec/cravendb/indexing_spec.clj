@@ -70,12 +70,11 @@
   (with test-indexes (create-test-indexes))
   (it "will return the right document ids"
     (with-db (fn [db]
-        (write-three-documents db)
         (with-open [tx (.ensure-transaction db)]
           (.commit! 
             (indexes/put-index tx 
                 { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
-
+        (write-three-documents db)
         (with-open [ie (indexengine/load-from db)]
           (indexing/index-documents! db (:compiled-indexes ie)))
 

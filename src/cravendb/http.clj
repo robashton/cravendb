@@ -16,9 +16,10 @@
 
   (defroutes app-routes
 
-    (GET "/query/:index/:query" { params :params }
-      (let [q (params :query)]
-        (info "Querying for " q)
+    (GET "/query/:index/:query" { params :params  }
+      (let [q (params :query)
+            w (params :wait)]
+        (info "Querying for " q  w)
         (with-open [tx (.ensure-transaction db)]
           (query/execute tx (indexengine/get-engine db) params))))
 

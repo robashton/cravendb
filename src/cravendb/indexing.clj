@@ -21,6 +21,7 @@
    })
 
 (defn wait-for-index-catch-up [tx]
+  (println "WAITING FFS")
   (let [last-etag (etag-to-integer (docs/last-etag tx))]
    (while (> last-etag (etag-to-integer (last-indexed-etag tx)))
      (Thread/sleep 100))))
