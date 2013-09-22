@@ -13,56 +13,6 @@
             [cravendb.lucene :as lucene])
   (use [cravendb.testing]))
 
-#_ (def db (indexengine/start (storage/create-storage "testdb")))
-#_ (def db (indexengine/load-into (storage/create-storage "testdb")))
-
-
-#_ (with-open [tx (.ensure-transaction db)]
-      (-> tx
-        (docs/store-document "1" (pr-str { :title "hello" :author "rob"}))
-        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
-        (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
-        (.commit!)))  
-
-#_ (with-open [tx (.ensure-transaction db)]
-     (-> tx
-       (indexes/put-index { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})
-       (.commit!)))
-
-#_ (def server 
-     (run-jetty 
-       (http/create-http-server db) { :port 9001 :join? false}))
-
-#_ (indexengine/teardown db) 
-#_ (.stop server)
-#_ (.close db)
-#_ (fs/delete-dir "testdb")
-
-#_ (indexengine/refresh-indexes db)
-
-#_ (def test-index (let [storage (lucene/create-memory-index)]
-                    {
-                    :id "test" 
-                    :map (fn [doc] {"author" (doc :author)})
-                    :storage storage
-                    :writer (.open-writer storage) }))
-
-#_ (indexing/index-documents! db (indexengine/get-compiled-indexes db) )
-#_ (def test-indexes [ test-index ])
-
-#_ (query/execute db (indexengine/get-engine db) { :index "by_author" :query "author:vicky" :wait true}) 
-
-#_ (client/get-document "http://localhost:9001" "1")
-
-#_ (indexengine/get-engine db)
-#_ (indexengine/reader-for-index db "by_author")
-
-#_ (client/query "http://localhost:9001" {
-                                          :index "by_author"
-                                          :query "author:vicky"
-                                          :wait true
-                                          })
-
 #_ (with-test-server 
       (fn []
         (client/put-index 
@@ -74,7 +24,31 @@
           "1" { :username "bob"})
         (client/put-document 
           "http://localhost:9000" 
-          "2" { :username "alice"})
-       (client/query 
+          "1" { :username "alice"})
+        (client/put-document 
           "http://localhost:9000" 
-          { :query "username:bob" :index "by_username" :wait true})))  
+          "1" { :username "alice"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "alice"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "alice"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "alice"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "4" { :username "alice"})
+       (println (client/query 
+          "http://localhost:9000" 
+          { :query "username:alice" :index "by_username" :wait true}))))  
+
+#_ (client/put-index 
+    "http://localhost:8080" 
+    "by_username" 
+    "(fn [doc] {\"username\" (doc :username)})")
+
+#_ (client/put-document 
+          "http://localhost:8080" 
+          "1" { :username "alice"})

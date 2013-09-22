@@ -44,6 +44,17 @@
           (should= 3 (indexing/last-index-doc-count tx))
           (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
 
+(describe "Repeated indexing with no new documents"
+  (with test-indexes (create-test-indexes))
+  (it "will not try to index documents twice"
+    (with-db (fn [db]
+        (write-three-documents db)
+        (indexing/index-documents! db @test-indexes)
+        (indexing/index-documents! db @test-indexes)
+        (with-open [tx (.ensure-transaction db)]
+          (should= 0 (indexing/last-index-doc-count tx))
+          (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
+
 (describe "indexing new documents"
   (with test-indexes (create-test-indexes))
   (it "will index only the new documents"
@@ -56,7 +67,7 @@
           (should= (docs/last-etag tx) (indexing/last-indexed-etag tx))
           (should= 1 (indexing/last-index-doc-count tx)))))))
 
-(describe "loading indexes from the database and indexing using them"
+(describe "loading indexes from the database and querying using them"
   (with test-indexes (create-test-indexes))
   (it "will index all the documents"
     (with-db (fn [db]

@@ -66,12 +66,14 @@
 (defn process-mapped-documents! [tx compiled-indexes results] 
   (reduce process-mapped-document! 
           {:writers (into {} (for [i compiled-indexes] [ (i :id) (i :writer)])) 
-           :max-etag (zero-etag) 
+           :max-etag (last-indexed-etag tx) 
            :tx tx 
            :doc-count 0} results))
 
 (defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
   (doseq [[k v] writers] (.flush! v))
+  (info "Last etag after indexing" max-etag)
+  (info "Document index count" doc-count)
   (-> tx
     (.store last-indexed-etag-key max-etag)
     (.store last-index-doc-count-key doc-count)
