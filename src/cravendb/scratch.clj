@@ -10,10 +10,11 @@
             [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
-            [cravendb.lucene :as lucene]))
+            [cravendb.lucene :as lucene])
+  (use [cravendb.testing]))
 
-#_ (def db (indexengine/start (storage/create-storage "testdb3")))
-#_ (def db (indexengine/load-into (storage/create-storage "testdb3")))
+#_ (def db (indexengine/start (storage/create-storage "testdb")))
+#_ (def db (indexengine/load-into (storage/create-storage "testdb")))
 
 
 #_ (with-open [tx (.ensure-transaction db)]
@@ -35,7 +36,7 @@
 #_ (indexengine/teardown db) 
 #_ (.stop server)
 #_ (.close db)
-#_ (fs/delete-dir "testdb3")
+#_ (fs/delete-dir "testdb")
 
 #_ (indexengine/refresh-indexes db)
 
@@ -61,5 +62,4 @@
                                           :query "author:vicky"
                                           :wait true
                                           })
-
 

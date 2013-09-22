@@ -24,65 +24,58 @@
                 read-string) 
               (indexes/iterate-indexes iter)))))
 
-(defprotocol Indexes
-  (index [this id])
-  (all [this])
-  (refresh [this])
-  (open-reader-for [this index])
-  (setup [this compiled-indexes])
+(defn get-engine [db] 
+  @(get db :index-engine))
+
+(defn close-engine [engine]
+  (doseq [i (:compiled-indexes engine)] 
+    (do
+      (.close (i :writer)) 
+      (.close (i :storage)))))
+
+(defprotocol Resource
   (close [this]))
 
-(defrecord IndexInstance []
-  Indexes
-  (all [this] (get this :compiled-indexes))
-  (index [this id] (get this id))
-  (refresh [this])
-  (open-reader-for [this index]
-    (.open-reader ((get this index) :storage)))
-  (setup [this compiled-indexes]
-    (-> this
-      (assoc :compiled-indexes compiled-indexes)
-      (into (for [i compiled-indexes] [(i :id) i]))))
-  (close [this]
-    (doseq [i (get this :compiled-indexes)] 
-      (do
-        (.close (i :writer)) 
-        (.close (i :storage))))))
+(defrecord IndexEngine [db]
+  Resource
+  (close [this] (close-engine this)))
 
 (defn load-from [db]
-  (.setup 
-    (IndexInstance. )
-    (load-compiled-indexes db)))
+  (let [compiled-indexes (load-compiled-indexes db)]
+    (-> 
+      (IndexEngine. db)
+        (assoc :compiled-indexes compiled-indexes )
+        (assoc :indexes-by-name 
+          (into {} (for [i compiled-indexes] [(i :id) i]))))))
 
 (defn load-into [db]
   (assoc db :index-engine (atom (load-from db))))
 
-(defn get-engine [db] 
-  @(get db :index-engine))
-
 (defn reader-for-index [db index]
- (.open-reader-for (get-engine db) index))
+ (.open-reader (get-in (get-engine db) [:indexes-by-name index :storage])))
 
-(defn get-compiled-indexes [db] (get (get-engine db) :compiled-indexes) )
+(defn get-compiled-indexes [db] 
+  (get (get-engine db) :compiled-indexes) )
 
 (defn teardown [db]
   (future-cancel (get db :index-engine-worker))
-  (.close (get-engine db)))
+  (close-engine (get-engine db)))
 
 ;; I need to use an agent for this as it's not thread safe
 ;; First, remove the crappy records/protocols from above
 (defn refresh-indexes [db]
-  (.close (get-engine db))
+  (close-engine (get-engine db))
   (let [new-engine (load-from db)]
       (swap! (get db :index-engine) (fn [e] new-engine))))
 
-( defn start [db]
+(defn start [db]
   (let [loaded-db (load-into db)] 
     (let [task (future 
         (loop []
           (try
             (refresh-indexes loaded-db)
-            (indexing/index-documents! loaded-db (get-compiled-indexes loaded-db) )
+            (indexing/index-documents! loaded-db 
+              (get-compiled-indexes loaded-db) )
             (catch Exception e
               (println e)))
           (Thread/sleep 100)

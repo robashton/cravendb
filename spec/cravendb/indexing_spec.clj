@@ -75,6 +75,7 @@
             (indexes/put-index tx 
                 { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
         (write-three-documents db)
+
         (with-open [ie (indexengine/load-from db)]
           (indexing/index-documents! db (:compiled-indexes ie)))
 
