@@ -26,9 +26,9 @@
           "http://localhost:9000" 
           { :query "username:bob" :index "by_username" :wait true}))    
        (client/delete-document "http://localhost:9000" "1" )
-       (println (client/query 
+       (println (count (client/query 
           "http://localhost:9000" 
-          { :query "username:bob" :index "by_username" :wait true}))))  
+          { :query "username:bob" :index "by_username" :wait true})))))  
 
 #_ (client/put-index 
     "http://localhost:8080" 

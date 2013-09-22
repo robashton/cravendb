@@ -20,7 +20,7 @@
       (let [q (params :query)
             w (params :wait)]
         (info "Querying for " q  "waiting: " w)
-        (pr-str (query/execute db (indexengine/get-engine db) params))))
+        (query/execute db (indexengine/get-engine db) params)))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
@@ -31,7 +31,7 @@
     (GET "/doc/:id" [id] 
       (info "getting a document with id " id)
          (with-open [tx (.ensure-transaction db)]
-          (pr-str (or (docs/load-document tx id) { :status 404 }))))
+           (or (docs/load-document tx id) { :status 404 })))
 
     (DELETE "/doc/:id" [id]
       (info "deleting a document with id " id)
