@@ -75,8 +75,6 @@
 
 (defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
   (doseq [[k v] writers] (.commit! v))
-  (info "Last etag after indexing" max-etag)
-  (info "Document index count" doc-count)
   (-> tx
     (.store last-indexed-etag-key max-etag)
     (.store last-index-doc-count-key doc-count)

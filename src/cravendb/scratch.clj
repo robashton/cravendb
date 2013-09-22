@@ -25,9 +25,7 @@
        (println (client/query 
           "http://localhost:9000" 
           { :query "username:bob" :index "by_username" :wait true}))    
-       (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "alice"})
+       (client/delete-document "http://localhost:9000" "1" )
        (println (client/query 
           "http://localhost:9000" 
           { :query "username:bob" :index "by_username" :wait true}))))  
@@ -39,7 +37,16 @@
 
 #_ (client/put-document 
           "http://localhost:8080" 
-          "1" { :username "alice"})
+          "2" { :username "bob"})
+
+#_ (client/query 
+          "http://localhost:8080" 
+          { :query "username:bob" :index "by_username" :wait true})
+
+#_ (client/delete-document "http://localhost:8080" "2" )
+
+#_ (doall '(nil nil nil))
+
 
 #_ (def index (lucene/create-memory-index))
 #_ (def wirter (.open-writer index))

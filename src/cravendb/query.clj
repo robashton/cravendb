@@ -9,5 +9,5 @@
   (with-open [reader (indexengine/reader-for-index db (query :index))]
     (doall 
       (map 
-        (partial docs/load-document db) 
+     (partial docs/load-document db) 
         (.query reader query )))))
