@@ -13,23 +13,6 @@
             [cravendb.lucene :as lucene])
   (use [cravendb.testing]))
 
-#_ (with-test-server 
-      (fn []
-        (client/put-index 
-          "http://localhost:9000" 
-          "by_username" 
-          "(fn [doc] {\"username\" (doc :username)})")
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "bob"})
-       (println (client/query 
-          "http://localhost:9000" 
-          { :query "username:bob" :index "by_username" :wait true}))    
-       (client/delete-document "http://localhost:9000" "1" )
-       (println (count (client/query 
-          "http://localhost:9000" 
-          { :query "username:bob" :index "by_username" :wait true})))))  
-
 #_ (client/put-index 
     "http://localhost:8080" 
     "by_username" 
