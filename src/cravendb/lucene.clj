@@ -23,16 +23,24 @@
   (query [this options]))
 
 (defprotocol IndexWriting
-  (flush! [this]) 
-  (put-entry! [this ref-id content]))
+  (commit! [this]) 
+  (delete-all-entries-for [this ref-id])
+  (put-entry [this ref-id content]))
 
 (defprotocol Closeable ;; How do I even??
   (close [this]))
 
-(defrecord LuceneIndexWriting [writer]
+(defrecord LuceneIndexWriting [writer analyzer]
   IndexWriting
   Closeable
-  (put-entry! [this ref-id content]
+  (delete-all-entries-for [this ref-id]
+    (.deleteDocuments 
+      writer 
+      (.parse 
+        (QueryParser. Version/LUCENE_CURRENT "" analyzer)
+        (str "__document_id:" ref-id)))
+    this)
+  (put-entry [this ref-id content]
     (let [doc (Document.)
           fields (for [[k v] content] 
                    (if v
@@ -42,7 +50,7 @@
       (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
       (.addDocument writer doc))
       this) 
-  (flush! [this]
+  (commit! [this]
     (.commit writer) this)
   (close [this] 
     (.close writer)))
@@ -66,7 +74,8 @@
   IndexStore
   Closeable
   (open-writer [this] (LuceneIndexWriting. 
-                        (IndexWriter. directory config)))
+                        (IndexWriter. directory config)
+                         analyzer))
   (open-reader [this] (LuceneIndexReading. 
                         (DirectoryReader/open directory) analyzer))
   (close [this] 

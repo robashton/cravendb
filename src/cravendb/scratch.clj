@@ -22,27 +22,15 @@
         (client/put-document 
           "http://localhost:9000" 
           "1" { :username "bob"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "alice"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "alice"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "alice"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "alice"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "alice"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "4" { :username "alice"})
        (println (client/query 
           "http://localhost:9000" 
-          { :query "username:alice" :index "by_username" :wait true}))))  
+          { :query "username:bob" :index "by_username" :wait true}))    
+       (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "alice"})
+       (println (client/query 
+          "http://localhost:9000" 
+          { :query "username:bob" :index "by_username" :wait true}))))  
 
 #_ (client/put-index 
     "http://localhost:8080" 
@@ -52,3 +40,12 @@
 #_ (client/put-document 
           "http://localhost:8080" 
           "1" { :username "alice"})
+
+#_ (def index (lucene/create-memory-index))
+#_ (def wirter (.open-writer index))
+#_ (map #(println %1) (.getMethods (type (:writer wirter))))
+
+
+#_ (.close wirter)
+#_ (.close index)
+#_ (.delete-all-entries-for wirter "1")

@@ -77,7 +77,7 @@
             (indexing/index-documents! loaded-db 
               (get-compiled-indexes loaded-db) )
             (catch Exception e
-              (println e)))
+              (error e)))
           (Thread/sleep 100)
           (recur))) ]
       (assoc loaded-db :index-engine-worker task))))

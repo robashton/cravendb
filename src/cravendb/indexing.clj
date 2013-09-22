@@ -44,34 +44,37 @@
             :mapped ((index :map) (item :doc)) 
           }
           (catch Exception e
-            ;; TODO: Log this
-            (println "LOL")
+            (info "Indexing document failed" (:id item) (:id index))
             nil
             )
           )))))
 
-(defn put-into-writer! [writer doc-id mapped]
-  (.put-entry! writer doc-id mapped))
+(defn put-into-writer [writer doc-id mapped]
+  (.put-entry writer doc-id mapped))
 
-(defn process-mapped-document! 
+(defn delete-from-writer [writer doc-id]
+  (.delete-all-entries-for writer doc-id))
+
+(defn process-mapped-document 
   [ {:keys [max-etag tx doc-count] :as output} 
     {:keys [etag index-id id mapped]}] 
   (if mapped
     (-> output
-      (update-in [:writers index-id] put-into-writer! id mapped)
+      (update-in [:writers index-id] delete-from-writer id)
+      (update-in [:writers index-id] put-into-writer id mapped)
       (assoc :max-etag (newest-etag max-etag etag))
       (assoc :doc-count (inc doc-count)))  
     output))
 
-(defn process-mapped-documents! [tx compiled-indexes results] 
-  (reduce process-mapped-document! 
+(defn process-mapped-documents [tx compiled-indexes results] 
+  (reduce process-mapped-document 
           {:writers (into {} (for [i compiled-indexes] [ (i :id) (i :writer)])) 
            :max-etag (last-indexed-etag tx) 
            :tx tx 
            :doc-count 0} results))
 
 (defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
-  (doseq [[k v] writers] (.flush! v))
+  (doseq [[k v] writers] (.commit! v))
   (info "Last etag after indexing" max-etag)
   (info "Document index count" doc-count)
   (-> tx
@@ -86,6 +89,6 @@
         (last-indexed-etag tx)
         (docs/iterate-etags-after iter)
         (index-docs tx compiled-indexes)
-        (process-mapped-documents! tx compiled-indexes)
+        (process-mapped-documents tx compiled-indexes)
         (finish-map-process!)))))
 

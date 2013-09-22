@@ -6,6 +6,7 @@
             [cravendb.indexstore :as indexes]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
+            [cravendb.client :as client]
             [cravendb.lucene :as lucene]))
 
 (defn create-test-index []  
@@ -76,7 +77,6 @@
         (with-open [reader (.open-reader ((first @test-indexes) :storage))]
             (should== '("2") (.query reader { :query "author:vicky"})))))))
 
-
 (describe "querying an index with content in it"
   (with test-indexes (create-test-indexes))
   (it "will return the right document ids"
@@ -99,3 +99,26 @@
     (with-db (fn [db]
       (with-open [ie (indexengine/load-from db)]
         (should-not-throw (indexing/index-documents! db (:compiled-indexes ie))))))))
+
+(describe "Updating documents in the index"
+  (it "will not return documents based on old data in the query"
+    (with-test-server 
+      (fn []
+        (client/put-index 
+          "http://localhost:9000" 
+          "by_username" 
+          "(fn [doc] {\"username\" (doc :username)})")
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob"})
+        (should== 
+          '({:username "bob"}) 
+          (client/query "http://localhost:9000" 
+            { :query "username:bob" :index "by_username" :wait true}))
+       (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "alice"})
+       (should== () 
+         (client/query 
+          "http://localhost:9000" 
+          { :query "username:bob" :index "by_username" :wait true}))))))

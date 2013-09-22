@@ -23,7 +23,8 @@
     (read-string data)))
 
 (defn force-into-list [result]
-  (if (seq? result) result (seq [result])))
+  (if (nil? result) ()
+   (if (seq? result) result (seq [result]))))
 
 (defn process-response [response]
   (-> response
