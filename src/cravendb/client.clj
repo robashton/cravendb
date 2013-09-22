@@ -22,6 +22,9 @@
     nil
     (read-string data)))
 
+(defn force-into-list [result]
+  (if (seq? result) result (seq [result])))
+
 (defn process-response [response]
   (-> response
       http/await
@@ -55,5 +58,6 @@
 
 (defn query [url opts]
   (with-open [client (http/create-client)]
-    (process-response
-      (http/GET client (url-for-query url opts)))))
+    (force-into-list
+      (process-response
+        (http/GET client (url-for-query url opts))))))

@@ -67,7 +67,7 @@
           "1" { :username "bob"})
         (client/put-document 
           "http://localhost:9000" 
-          "1" { :username "alice"})
+          "2" { :username "alice"})
         (should== 
           '({:username "bob"}) 
           (client/query 

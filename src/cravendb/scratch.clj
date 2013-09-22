@@ -63,3 +63,18 @@
                                           :wait true
                                           })
 
+#_ (with-test-server 
+      (fn []
+        (client/put-index 
+          "http://localhost:9000" 
+          "by_username" 
+          "(fn [doc] {\"username\" (doc :username)})")
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "2" { :username "alice"})
+       (client/query 
+          "http://localhost:9000" 
+          { :query "username:bob" :index "by_username" :wait true})))  

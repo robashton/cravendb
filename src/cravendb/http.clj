@@ -19,7 +19,7 @@
     (GET "/query/:index/:query" { params :params  }
       (let [q (params :query)
             w (params :wait)]
-        (info "Querying for " q  w)
+        (info "Querying for " q  "waiting: " w)
         (query/execute db (indexengine/get-engine db) params)))
 
     (PUT "/doc/:id" { params :params body :body }

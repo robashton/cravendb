@@ -1,6 +1,6 @@
 (ns cravendb.indexing
   (use [cravendb.core]
-       [clojure.tools.logging :only (info error)])
+       [clojure.tools.logging :only (info error debug)])
   (:require [cravendb.storage :as storage]
             [cravendb.indexstore :as indexes]
             [cravendb.documents :as docs])) 
@@ -27,12 +27,16 @@
 
 (defn index-docs [tx indexes ids]
   (if (empty? ids)
-    ()
+    (do
+      (debug "Idle indexing process")
+      ()
+      )
     (do
       (info "Performing indexing task on stale documents")
       (for [item (map (partial load-document-for-indexing tx) ids)
           index indexes] 
         (try
+          (info "indexing " (item :id) "with" (index :id))
           {
             :id (item :id)
             :etag (item :etag)
