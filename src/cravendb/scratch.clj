@@ -13,6 +13,40 @@
             [cravendb.lucene :as lucene])
   (use [cravendb.testing]))
 
+
+;; Ensure that we are setting the last indexed etag for each index on creation
+#_ (with-open [db (storage/create-storage "testdb")]
+     (with-open [tx (.ensure-transaction db)]
+       (-> tx
+        (indexes/put-index { :id "test" :map ""})   
+        (indexes/get-last-indexed-etag-for-index "test"))))
+
+;; Ensure that we're setting the etag on each index after a process
+#_ (do
+   (with-open [db (indexengine/start 
+                   (storage/create-storage "testdb"))]
+    (try
+      (with-open [tx (.ensure-transaction db)]
+        (-> tx
+          (docs/store-document "1" (pr-str { :foo "bar" }) ) 
+          (docs/store-document "2" (pr-str { :foo "bas" }) ) 
+          (docs/store-document "3" (pr-str { :foo "baz" }) )
+          (.commit!)))
+
+    (with-open [tx (.ensure-transaction db)]
+      (-> tx
+          (indexes/put-index { :id "by_bar" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
+          (.commit!))) 
+      
+    (indexing/wait-for-index-catch-up db 1)
+
+    (println (with-open [tx (.ensure-transaction db)]
+      (indexes/get-last-indexed-etag-for-index tx "by_bar")))
+
+      (finally (indexengine/teardown db))))
+      (fs/delete-dir "testdb") 
+     ) 
+
 #_ (do
    (with-open [db (indexengine/start 
                    (storage/create-storage "testdb"))]
@@ -44,7 +78,6 @@
     (finally
       (indexengine/teardown db))))
     (fs/delete-dir "testdb"))
-
 
 #_ (client/put-index 
     "http://localhost:8080" 

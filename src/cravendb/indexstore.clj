@@ -6,13 +6,21 @@
   (use [cravendb.core]))
 
 (def index-prefix "index-")
+(def index-last-etag-prefix "indexlastetag-")
 
+(defn set-last-indexed-etag-for-index [tx id etag]
+  (.store tx (str index-last-etag-prefix id) etag))
+
+(defn get-last-indexed-etag-for-index [tx id]
+  (.get-string tx (str index-last-etag-prefix id)))
 
 (defn index-doc-id [id]
   (str index-prefix id))
 
 (defn put-index [tx index]
-  (docs/store-document tx (index-doc-id (index :id)) (pr-str index)))
+  (-> tx 
+    (docs/store-document (index-doc-id (index :id)) (pr-str index))
+    (set-last-indexed-etag-for-index (index :id) (zero-etag))))
 
 (defn load-index [tx id]
   (let [doc (docs/load-document tx (index-doc-id id))]

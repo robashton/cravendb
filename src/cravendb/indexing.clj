@@ -2,6 +2,8 @@
   (use [cravendb.core]
        [clojure.tools.logging :only (info error debug)])
   (:require [cravendb.storage :as storage]
+            [clj-time.core :as tc]
+            [clj-time.local :as tl]
             [cravendb.indexstore :as indexes]
             [cravendb.documents :as docs])) 
 
@@ -20,10 +22,15 @@
    :etag (docs/etag-for-doc tx id)
    })
 
-(defn wait-for-index-catch-up [db]
-  (let [last-etag (etag-to-integer (docs/last-etag db))]
-   (while (> last-etag (etag-to-integer (last-indexed-etag db)))
-     (Thread/sleep 100))))
+(defn wait-for-index-catch-up 
+  ([db] (wait-for-index-catch-up db 5))
+  ([db timeout]
+    (let [last-etag (etag-to-integer (docs/last-etag db))
+          start-time (tl/local-now) ]
+    (while (and
+              (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
+              (> last-etag (etag-to-integer (last-indexed-etag db))))
+      (Thread/sleep 100)))))
 
 (defn index-docs [tx indexes ids]
   (if (empty? ids)
@@ -73,9 +80,13 @@
            :tx tx 
            :doc-count 0} results))
 
+(defn finish-map-process-for-writer! [{:keys [max-etag tx] :as output} writer]
+  (.commit! (get writer 1))
+  (assoc output :tx 
+    (indexes/set-last-indexed-etag-for-index tx #spy/p (get writer 0) #spy/d max-etag)))
+
 (defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
-  (doseq [[k v] writers] (.commit! v))
-  (-> tx
+  (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
     (.store last-indexed-etag-key max-etag)
     (.store last-index-doc-count-key doc-count)
     (.commit!)))
