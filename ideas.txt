@@ -1,19 +1,21 @@
-- We have the following constructs thus far
+# Implemented thus far
 
-  - Storage = Transactional key/value storage and iteration over that key value storage
-  - Documents = Functions over the top of storage for storing documents/etags
-  - Indexes - Functions over the top of Documents for storing indexes
+- Transactional key-value storage on top of LevelDB
+- Document storage on top of that
+- Index storage on top of documents
+- Etags per documents kept per version
+- Wrapper around Lucene for index content
+- Indexing process that executes 'maps' documents into Lucene
+- Querying against the indexes, loading documents that match
+- HTTP API around the above
+- Basic client API around the HTTP API
 
-  - Indexing - Functions that interpret those indexes
-  
-  - IndexStorage
+# Pending/debt/etc
 
-      - for lack of a better name, this is where the state of indexes ends up
-      - Every time a new index is added, this needs to load that index
-      - Every time an index is modified, this needs to re-load that index
-      - Every time an index is removed, this needs to drop that index
-
-      - This needs to watch for changes to documents and plough them into the storage
-
-      - This needs to be modelled as a separate process effectively
+- Options for Lucene
+- Decide on how to expose Lucene queries to the consumer
+- Process to remove deleted documents from index
+- Some form of concurrency check over transactions (MVCC most likely)
+- Handle errors during indexing so it doesn't infini-loop
+- Handle new indexes/writers more elegantly, most likely putting them into Clojure Agents
 
