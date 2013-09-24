@@ -12,6 +12,7 @@
 
 # Pending/debt/etc
 
+- Catch up process for indexes that are behind
 - Options for Lucene
 - Decide on how to expose Lucene queries to the consumer
 - Process to remove deleted documents from index

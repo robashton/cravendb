@@ -14,6 +14,10 @@
   (use [cravendb.testing]))
 
 
+#_ (def testagent (agent {}))
+#_ (testagent)
+
+
 ;; Ensure that we are setting the last indexed etag for each index on creation
 #_ (with-open [db (storage/create-storage "testdb")]
      (with-open [tx (.ensure-transaction db)]

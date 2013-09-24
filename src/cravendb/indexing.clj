@@ -83,7 +83,7 @@
 (defn finish-map-process-for-writer! [{:keys [max-etag tx] :as output} writer]
   (.commit! (get writer 1))
   (assoc output :tx 
-    (indexes/set-last-indexed-etag-for-index tx #spy/p (get writer 0) #spy/d max-etag)))
+    (indexes/set-last-indexed-etag-for-index tx (get writer 0) max-etag)))
 
 (defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
   (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
@@ -91,13 +91,20 @@
     (.store last-index-doc-count-key doc-count)
     (.commit!)))
 
+
+(defn index-documents-from-etag! [tx indexes etag]
+  (with-open [iter (.get-iterator tx)] 
+    (->>  (docs/iterate-etags-after iter etag)
+          (index-docs tx indexes)
+          (process-mapped-documents tx indexes)
+          (finish-map-process!))))
+
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (.ensure-transaction db)]
-    (with-open [iter (.get-iterator tx)]
-      (->> 
-        (last-indexed-etag tx)
-        (docs/iterate-etags-after iter)
-        (index-docs tx compiled-indexes)
-        (process-mapped-documents tx compiled-indexes)
-        (finish-map-process!)))))
+    (let [last-etag (last-indexed-etag tx)]
+      (index-documents-from-etag! 
+        tx
+        compiled-indexes
+        last-etag))))
 
+      ;;  (filter #(= last-etag (indexes/get-last-indexed-etag-for-index tx (:id %1))))
