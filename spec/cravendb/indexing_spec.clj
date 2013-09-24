@@ -87,8 +87,11 @@
                 { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
         (write-three-documents db)
 
-        (with-open [ie (indexengine/load-from db)]
-          (indexing/index-documents! db (:compiled-indexes ie)))
+        (let [ie (indexengine/load-from db)]
+          (try
+            (indexing/index-documents! db (:compiled-indexes ie))
+            (finally
+              indexengine/close-engine ie)))
 
         (with-open [tx (.ensure-transaction db)]
           (should= 4 (indexing/last-index-doc-count tx)) ;; The index counts
@@ -97,8 +100,11 @@
 (describe "Running indexing with no documents or indexes"
   (it "will not fall over in a heap, crying with a bottle of whisky"
     (with-db (fn [db]
-      (with-open [ie (indexengine/load-from db)]
-        (should-not-throw (indexing/index-documents! db (:compiled-indexes ie))))))))
+      (let [ie (indexengine/load-from db)]
+        (try
+          (should-not-throw (indexing/index-documents! db (:compiled-indexes ie)))
+          (finally
+            (indexengine/close-engine ie))))))))
 
 (describe "Updating documents in the index"
   (it "will not return documents based on old data in the query"

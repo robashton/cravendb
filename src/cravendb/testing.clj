@@ -23,8 +23,7 @@
 
 (defn with-test-server [testfn]
   (clear-test-data)
-  (with-open [db (indexengine/start (storage/create-storage "testdir"))
-              loaded-indexes (indexengine/load-from db) ]
+  (with-open [db (indexengine/start (storage/create-storage "testdir"))]
     (let [server (run-jetty (http/create-http-server db) { :port 9000 :join? false} )]
       (try
         (testfn)

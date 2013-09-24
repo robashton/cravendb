@@ -33,24 +33,17 @@
       (.close (i :writer)) 
       (.close (i :storage)))))
 
-(defprotocol Resource
-  (close [this]))
-
-(defrecord IndexEngine [db]
-  Resource
-  (close [this] (close-engine this)))
-
 (defn load-from [db]
   (let [compiled-indexes (load-compiled-indexes db)]
-    (-> 
-      (IndexEngine. db)
-        (assoc :compiled-indexes compiled-indexes )
-        (assoc :indexes-by-name 
-          (into {} (for [i compiled-indexes] [(i :id) i]))))))
+    {
+     :compiled-indexes compiled-indexes
+     :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
+     }))
 
 (defn load-into [db]
   (assoc db :index-engine (agent (load-from db))))
 
+;; This is not currently safe
 (defn reader-for-index [db index]
  (.open-reader (get-in (get-engine db) [:indexes-by-name index :storage])))
 
