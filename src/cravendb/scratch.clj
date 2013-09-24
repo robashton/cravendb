@@ -15,12 +15,9 @@
 
 #_ (with-open [db (storage/create-storage "testdb")
                index-engine (indexengine/create-engine db)]
-
-     (indexengine/start db index-engine)
-     
+     (.start index-engine db)
      (Thread/sleep 1000)
-
-     (indexengine/stop db index-engine))
+     (.stop index-engine))
 
 
 ;; Ensure that we are setting the last indexed etag for each index on creation

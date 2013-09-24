@@ -30,22 +30,6 @@
       (.close (i :writer)) 
       (.close (i :storage)))))
 
-(defprotocol Resource
-  (close [this]))
-
-(defrecord EngineHandle [ea]
-  Resource
-  (close [this]
-    (send ea close-engine)))
-
-(defn create-engine [db]
-  (let [compiled-indexes (load-compiled-indexes db)]
-    (EngineHandle.
-      (agent {
-              :compiled-indexes compiled-indexes
-              :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
-              })))) 
-
 ;; This is not currently safe
 (defn reader-for-index [handle index]
  (.open-reader (get-in @(:ea handle) [:indexes-by-name index :storage])))
@@ -97,8 +81,24 @@
       engine
       )))
 
-(defn stop [db handle]
-  (send (:ea handle) stop-indexing db))
+(defprotocol EngineOperations
+  (start [this db])
+  (stop [this db])
+  (close [this]))
 
-(defn start [db handle]
-  (send (:ea handle) start-indexing db (:ea handle)))
+(defrecord EngineHandle [ea]
+  EngineOperations
+  (start [this db]
+   (send ea start-indexing db ea))
+  (stop [this db]
+   (send ea stop-indexing db))
+  (close [this]
+    (send ea close-engine)))
+
+(defn create-engine [db]
+  (let [compiled-indexes (load-compiled-indexes db)]
+    (EngineHandle.
+      (agent {
+              :compiled-indexes compiled-indexes
+              :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
+              })))) 
