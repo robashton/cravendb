@@ -15,7 +15,9 @@
 
 
 #_ (def testagent (agent {}))
-#_ (testagent)
+#_ (send testagent #(assoc %1 :id "blah"))
+#_ (@testagent :id)
+#_ (:id testagent)
 
 
 ;; Ensure that we are setting the last indexed etag for each index on creation

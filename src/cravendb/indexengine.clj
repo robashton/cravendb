@@ -49,7 +49,7 @@
           (into {} (for [i compiled-indexes] [(i :id) i]))))))
 
 (defn load-into [db]
-  (assoc db :index-engine (atom (load-from db))))
+  (assoc db :index-engine (agent (load-from db))))
 
 (defn reader-for-index [db index]
  (.open-reader (get-in (get-engine db) [:indexes-by-name index :storage])))
@@ -61,21 +61,27 @@
   (future-cancel (get db :index-engine-worker))
   (close-engine (get-engine db)))
 
-;; I need to use an agent for this as it's not thread safe
-;; First, remove the crappy records/protocols from above
-(defn refresh-indexes [db]
-  (close-engine (get-engine db))
-  (let [new-engine (load-from db)]
-      (swap! (get db :index-engine) (fn [e] new-engine))))
+(defn refresh-indexes [engine db]
+  (info "ABOUT TO DO THIS SHIT")
+  (try 
+    (info "CLOSING")
+    (close-engine engine)
+    (info "OPENING")
+    (load-from db)
+    (catch Exception e
+      (info e))))
+
+(defn run-index-chaser [engine db]
+  (indexing/index-documents! db (:compiled-indexes engine))
+  engine)
 
 (defn start [db]
   (let [loaded-db (load-into db)] 
     (let [task (future 
         (loop []
           (try
-            (refresh-indexes loaded-db)
-            (indexing/index-documents! loaded-db 
-              (get-compiled-indexes loaded-db) )
+            (send (:index-engine loaded-db) refresh-indexes loaded-db)
+            (send (:index-engine loaded-db) run-index-chaser loaded-db)
             (catch Exception e
               (error e)))
           (Thread/sleep 100)

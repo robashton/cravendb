@@ -107,4 +107,4 @@
         compiled-indexes
         last-etag))))
 
-      ;;  (filter #(= last-etag (indexes/get-last-indexed-etag-for-index tx (:id %1))))
+;;  (filter #(= last-etag (indexes/get-last-indexed-etag-for-index tx (:id %1))))
