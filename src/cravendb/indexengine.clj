@@ -30,10 +30,6 @@
       (.close (i :writer)) 
       (.close (i :storage)))))
 
-;; This is not currently safe
-(defn reader-for-index [handle index]
- (.open-reader (get-in @(:ea handle) [:indexes-by-name index :storage])))
-
 (defn get-compiled-indexes [handle] 
   (:compiled-indexes @(:ea handle)))
 
@@ -83,6 +79,7 @@
 
 (defprotocol EngineOperations
   (start [this db])
+  (open-reader [this index-id])
   (stop [this db])
   (close [this]))
 
@@ -90,6 +87,8 @@
   EngineOperations
   (start [this db]
    (send ea start-indexing db ea))
+  (open-reader [this index-id]
+    (.open-reader (get-in @ea [:indexes-by-name index-id :storage])))
   (stop [this db]
    (send ea stop-indexing db))
   (close [this]
