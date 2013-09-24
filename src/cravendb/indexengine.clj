@@ -24,56 +24,81 @@
                 read-string) 
               (indexes/iterate-indexes iter)))))
 
-(defn get-engine [db] 
-  @(get db :index-engine))
-
 (defn close-engine [engine]
   (doseq [i (:compiled-indexes engine)] 
     (do
       (.close (i :writer)) 
       (.close (i :storage)))))
 
-(defn load-from [db]
-  (let [compiled-indexes (load-compiled-indexes db)]
-    {
-     :compiled-indexes compiled-indexes
-     :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
-     }))
+(defprotocol Resource
+  (close [this]))
 
-(defn load-into [db]
-  (assoc db :index-engine (agent (load-from db))))
+(defrecord EngineHandle [ea]
+  Resource
+  (close [this]
+    (send ea close-engine)))
+
+(defn create-engine [db]
+  (let [compiled-indexes (load-compiled-indexes db)]
+    (EngineHandle.
+      (agent {
+              :compiled-indexes compiled-indexes
+              :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
+              })))) 
 
 ;; This is not currently safe
-(defn reader-for-index [db index]
- (.open-reader (get-in (get-engine db) [:indexes-by-name index :storage])))
+(defn reader-for-index [handle index]
+ (.open-reader (get-in @(:ea handle) [:indexes-by-name index :storage])))
 
-(defn get-compiled-indexes [db] 
-  (get (get-engine db) :compiled-indexes) )
-
-(defn teardown [db]
-  (future-cancel (get db :index-engine-worker))
-  (send (:index-engine db) close-engine))
+(defn get-compiled-indexes [handle] 
+  (:compiled-indexes @(:ea handle)))
 
 (defn refresh-indexes [engine db]
   (try 
     (close-engine engine)
-    (load-from db)
+    (let [compiled-indexes (load-compiled-indexes db)]
+      (-> engine
+        (assoc :compiled-indexes compiled-indexes)
+        (assoc :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])))))
     (catch Exception e
-      (info "FUCK" e))))
+      (info "REFRESH FUCK" e))))
 
 (defn run-index-chaser [engine db]
-  (indexing/index-documents! db (:compiled-indexes engine))
+  ;; Tidy up any futures that have finished
+
+  ;; Run chaser here and make a note of which indexes are being run
+  (try
+    (indexing/index-documents! db (:compiled-indexes engine))
+    (catch Exception ex
+      (info "INDEXING FUCK" ex)))
+
+  ;; Run any indexes that need catching up in their own futures
+
   engine)
 
-(defn start [db]
-  (let [loaded-db (load-into db)] 
-    (let [task (future 
+(defn start-indexing [engine db ea]
+  (let [task (future 
         (loop []
           (try
-            (send (:index-engine loaded-db) refresh-indexes loaded-db)
-            (send (:index-engine loaded-db) run-index-chaser loaded-db)
+            (send ea refresh-indexes db)
+            (send ea run-index-chaser db)
             (catch Exception e
               (error e)))
           (Thread/sleep 100)
-          (recur))) ]
-      (assoc loaded-db :index-engine-worker task))))
+          (recur)))]
+   (assoc engine :worker-future task)))
+
+(defn stop-indexing [engine db]
+  (try
+    (future-cancel (:worker-future engine))
+    (assoc engine :worker-future nil)
+    (catch Exception ex
+      (info "STOPPING FUCK" ex)
+      engine
+      )))
+
+(defn stop [db handle]
+  (send (:ea handle) stop-indexing db))
+
+(defn start [db handle]
+  (send (:ea handle) start-indexing db (:ea handle)))

@@ -12,7 +12,7 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error)]))
 
-(defn create-http-server [db]
+(defn create-http-server [db index-engine]
 
   (defroutes app-routes
 
@@ -20,7 +20,7 @@
       (let [q (params :query)
             w (params :wait)]
         (info "Querying for " q  "waiting: " w)
-        (query/execute db (indexengine/get-engine db) params)))
+        (query/execute db index-engine params)))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
@@ -62,14 +62,15 @@
   (handler/api app-routes))
 
 (defn -main []
-  (with-open [db (indexengine/start 
-                   (storage/create-storage "testdb"))]
+  (with-open [db (storage/create-storage "testdb")
+              engine (indexengine/create-engine db)]
     (try
+      (indexengine/start db engine)
       (run-jetty 
-        (create-http-server db) {
-                                 :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})
+        (create-http-server db engine) 
+        { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})   
       (finally
-        (indexengine/teardown db)))  
-
+        (indexengine/stop db engine)))
+    
     (info "Shutting down")))
 
