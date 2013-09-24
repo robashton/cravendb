@@ -59,17 +59,14 @@
 
 (defn teardown [db]
   (future-cancel (get db :index-engine-worker))
-  (close-engine (get-engine db)))
+  (send (:index-engine db) close-engine))
 
 (defn refresh-indexes [engine db]
-  (info "ABOUT TO DO THIS SHIT")
   (try 
-    (info "CLOSING")
     (close-engine engine)
-    (info "OPENING")
     (load-from db)
     (catch Exception e
-      (info e))))
+      (info "FUCK" e))))
 
 (defn run-index-chaser [engine db]
   (indexing/index-documents! db (:compiled-indexes engine))
