@@ -108,7 +108,7 @@
     (future-cancel (:worker-future engine))
     (assoc engine :worker-future nil)
     (catch Exception ex
-      (error "STOPPING FUCK" ex)
+      (error "STOPPING FUCK" (pprint ex))
       engine
       )))
 

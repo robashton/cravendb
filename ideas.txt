@@ -18,5 +18,5 @@
 - Process to remove deleted documents from index
 - Some form of concurrency check over transactions (MVCC most likely)
 - Handle errors during indexing so it doesn't infini-loop
-- Handle the index refresh process more gracefully, not closing them all and re-opening them as this will cause crap loads of issues
+- The index engine shouldn't be swallowing agent exceptions
 
