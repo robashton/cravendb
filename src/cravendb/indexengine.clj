@@ -1,5 +1,6 @@
 (ns cravendb.indexengine
   (use [cravendb.core]
+       [clojure.pprint]
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (require [cravendb.lucene :as lucene]
@@ -48,6 +49,9 @@
               (map :id compiled-indexes)) 
               all-indexes) 
 
+(defn ex-error [prefix ex]
+  (error prefix (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))))
+
 (defn refresh-indexes [engine db]
   (try 
     (let [indexes-to-add 
@@ -63,7 +67,7 @@
         (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
 
     (catch Exception ex
-      (error "REFRESH FUCK" (.getMessage ex))
+      (ex-error "REFRESH FUCK" ex)
       engine)))
 
 
@@ -75,7 +79,7 @@
   (try
     (indexing/index-documents! db (:compiled-indexes engine))
     (catch Exception ex
-      (error "INDEXING FUCK" ex)))
+      (ex-error "INDEXING FUCK" ex)))
 
   ;; Run any indexes that need catching up in their own futures
 

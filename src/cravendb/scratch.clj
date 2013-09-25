@@ -11,30 +11,8 @@
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
             [cravendb.lucene :as lucene])
-  (use [cravendb.testing]))
-
-#_ (def write-three-documents 
-  (fn [db]
-    (with-open [tx (.ensure-transaction db)]
-      (-> tx
-        (docs/store-document "1" (pr-str { :title "hello" :author "rob"}))
-        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
-        (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
-        (.commit!)))))
-
-#_  (with-db (fn [db]
-        (with-open [tx (.ensure-transaction db)]
-          (.commit! 
-            (indexes/put-index tx 
-                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
-
-        (write-three-documents db)
-
-        (with-open [ie (indexengine/create-engine db)]
-          (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
-
-        (with-open [tx (.ensure-transaction db)]
-          (indexing/last-index-doc-count tx))))
+  (use [cravendb.testing]
+       [clojure.pprint]))
 
 ;; Ensure that we are setting the last indexed etag for each index on creation
 #_ (with-open [db (storage/create-storage "testdb")]
@@ -45,9 +23,11 @@
 
 ;; Ensure that we're setting the etag on each index after a process
 #_ (do
-   (with-open [db (indexengine/start 
-                   (storage/create-storage "testdb"))]
+     (with-open [db (storage/create-storage "testdb")
+                 ie (indexengine/create-engine db) ]
     (try
+      (.start ie db)
+
       (with-open [tx (.ensure-transaction db)]
         (-> tx
           (docs/store-document "1" (pr-str { :foo "bar" }) ) 
@@ -60,19 +40,19 @@
           (indexes/put-index { :id "by_bar" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
           (.commit!))) 
       
-    (indexing/wait-for-index-catch-up db 1)
+    (indexing/wait-for-index-catch-up db 5)
 
     (println (with-open [tx (.ensure-transaction db)]
       (indexes/get-last-indexed-etag-for-index tx "by_bar")))
 
-      (finally (indexengine/teardown db))))
-      (fs/delete-dir "testdb") 
-     ) 
+      (finally (.stop ie db))))
+      (fs/delete-dir "testdb")) 
 
 #_ (do
-   (with-open [db (indexengine/start 
-                   (storage/create-storage "testdb"))]
+     (with-open [db (storage/create-storage "testdb")
+                 ie (indexengine/create-engine db) ]
     (try
+      (.start ie db)
       (with-open [tx (.ensure-transaction db)]
         (-> tx
           (docs/store-document "1" (pr-str { :foo "bar" }) ) 
@@ -82,23 +62,20 @@
 
     (with-open [tx (.ensure-transaction db)]
       (-> tx
-          (indexes/put-index { :id "by_bar" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
-          (.commit!))) 
+        (indexes/put-index { :id "by_bar" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
+        (.commit!))) 
       
-    (println "waiting for indexing")
     (indexing/wait-for-index-catch-up db)
-     (println "waited for indexing, putting index")
   
     (with-open [tx (.ensure-transaction db)]
       (-> tx
-          (indexes/put-index { :id "by_foo" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
-          (.commit!))) 
+        (indexes/put-index { :id "by_foo" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
+        (.commit!))) 
 
-    (println "put index, querying against it")
-    (println (query/execute db (indexengine/get-engine db) { :index "by_foo" :query "foo:bar" :wait true} )) 
+    (println (query/execute db ie { :index "by_foo" :query "foo:bar" :wait true} )) 
 
     (finally
-      (indexengine/teardown db))))
+      (.stop ie db))))
     (fs/delete-dir "testdb"))
 
 #_ (client/put-index 
