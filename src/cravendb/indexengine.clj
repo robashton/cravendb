@@ -15,14 +15,20 @@
 (defn compile-index [index]
   (assoc index :map (load-string (index :map))))
 
-(defn load-compiled-indexes [db]
-  (with-open [iter (.get-iterator db)]
-    (doall (map 
-             (comp 
+(defn all-indexes [db]
+  (with-open [tx (.ensure-transaction db)
+              iter (.get-iterator tx)]
+    (doall (map read-string (indexes/iterate-indexes iter)))))
+
+(defn compile-indexes [indexes db]
+  (doall (map (comp 
                 (partial open-storage-for-index (.path db))
                 compile-index 
                 read-string) 
-              (indexes/iterate-indexes iter)))))
+              indexes)))
+
+(defn load-compiled-indexes [db]
+  (compile-indexes (all-indexes db) db))
 
 (defn close-engine [engine]
   (doseq [i (:compiled-indexes engine)] 
@@ -33,15 +39,32 @@
 (defn get-compiled-indexes [handle] 
   (:compiled-indexes @(:ea handle)))
 
+
+#_ (def compiled-indexes '({ :id "by_bar" }))
+#_ (def all-indexes '({ :id "by_bar"}))
+
+#_ (filter #(not-any? 
+            (partial = (:id %1)) 
+              (map :id compiled-indexes)) 
+              all-indexes) 
+
 (defn refresh-indexes [engine db]
   (try 
-    (close-engine engine)
-    (let [compiled-indexes (load-compiled-indexes db)]
-      (-> engine
-        (assoc :compiled-indexes compiled-indexes)
-        (assoc :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])))))
-    (catch Exception e
-      (info "REFRESH FUCK" e))))
+    (let [indexes-to-add 
+          (filter #(not-any? 
+                     (partial = (:id %1)) 
+                        (map :id (:compiled-indexes engine))) 
+                        (all-indexes db)) 
+          new-indexes (concat (:compiled-indexes engine) 
+                              (compile-indexes indexes-to-add db))]
+
+        (-> engine
+        (assoc :compiled-indexes new-indexes)
+        (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
+
+    (catch Exception ex
+      (info "REFRESH FUCK" (.getMessage ex))
+      engine)))
 
 (defn run-index-chaser [engine db]
   ;; Tidy up any futures that have finished

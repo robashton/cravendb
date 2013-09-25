@@ -49,9 +49,9 @@
         (client/put-index 
           "http://localhost:9000" 
           "by_username" 
-          "(fn [doc] (doc :username))")
+          "(fn [doc] {\"username\" (:username doc)})")
         (should=
-          "(fn [doc] (doc :username))" 
+          "(fn [doc] {\"username\" (:username doc)})"
           ((client/get-index "http://localhost:9000" "by_username") :map))))))
 
 (describe "Querying an index on the server", 
@@ -61,7 +61,7 @@
         (client/put-index 
           "http://localhost:9000" 
           "by_username" 
-          "(fn [doc] {\"username\" (doc :username)})")
+          "(fn [doc] {\"username\" (:username doc)})")
         (client/put-document 
           "http://localhost:9000" 
           "1" { :username "bob"})
@@ -82,7 +82,7 @@
         (client/put-index 
           "http://localhost:9000" 
           "by_username" 
-          "(fn [doc] {\"username\" (doc :username)})")
+          "(fn [doc] {\"username\" (:username doc)})")
         (client/put-document 
           "http://localhost:9000" 
           "1" { :username "bob"})

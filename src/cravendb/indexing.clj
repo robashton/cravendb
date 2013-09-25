@@ -16,7 +16,8 @@
 (defn last-index-doc-count [db]
     (.get-integer db last-index-doc-count-key))
 
-(defn load-document-for-indexing [tx id] {
+(defn load-document-for-indexing [tx id] 
+   (info "Loading " id "for indexing") {
    :doc (read-string (docs/load-document tx id))
    :id id
    :etag (docs/etag-for-doc tx id)
@@ -25,11 +26,11 @@
 (defn wait-for-index-catch-up 
   ([db] (wait-for-index-catch-up db 5))
   ([db timeout]
-    (let [last-etag (etag-to-integer (docs/last-etag db))
+    (let [last-etag (etag-to-integer (with-open [tx (.ensure-transaction db)] (docs/last-etag tx)))
           start-time (tl/local-now) ]
     (while (and
               (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
-              (> last-etag (etag-to-integer (last-indexed-etag db))))
+              (> last-etag (etag-to-integer (with-open [tx (.ensure-transaction db)] (last-indexed-etag tx)))))
       (Thread/sleep 100)))))
 
 (defn index-docs [tx indexes ids]
@@ -65,6 +66,7 @@
 (defn process-mapped-document 
   [ {:keys [max-etag tx doc-count] :as output} 
     {:keys [etag index-id id mapped]}] 
+  (info "About to send to the writers" index-id id)
   (if mapped
     (-> output
       (update-in [:writers index-id] delete-from-writer id)
@@ -74,6 +76,7 @@
     output))
 
 (defn process-mapped-documents [tx compiled-indexes results] 
+  (info "About to reduce")
   (reduce process-mapped-document 
           {:writers (into {} (for [i compiled-indexes] [ (i :id) (i :writer)])) 
            :max-etag (last-indexed-etag tx) 

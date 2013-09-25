@@ -13,12 +13,6 @@
             [cravendb.lucene :as lucene])
   (use [cravendb.testing]))
 
-#_ (with-open [db (storage/create-storage "testdb")
-               index-engine (indexengine/create-engine db)]
-     (.start index-engine db)
-     (Thread/sleep 1000)
-     (.stop index-engine))
-
 
 ;; Ensure that we are setting the last indexed etag for each index on creation
 #_ (with-open [db (storage/create-storage "testdb")]

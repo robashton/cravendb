@@ -3,6 +3,7 @@
 
 (import 'org.iq80.leveldb.Options)
 (import 'org.iq80.leveldb.ReadOptions)
+(import 'org.iq80.leveldb.WriteOptions)
 (import 'org.iq80.leveldb.DBIterator)
 (import 'org.fusesource.leveldbjni.JniDBFactory)
 (import 'java.io.File)
@@ -78,21 +79,14 @@
           (if (= value :deleted)
             (.delete db (to-db id))
             (.put db (to-db id) value))))
-      (.write db batch)) nil))
-
+      (let [wo (WriteOptions.)]
+        (.sync wo true)
+        (.write db batch wo))) nil))
 
 (defrecord LevelStorage [path db]
   Storage
-  Reader
   (path [this] path)
   (close [this] (.close db) nil) 
-  (get-iterator [this] (.iterator db))
-  (get-integer [this id]
-    (from-db-int (.get-blob this id)))
-  (get-string [this id]
-    (from-db-str (.get-blob this id)))
-  (get-blob [this id]
-    (.get db (to-db id)))
   (ensure-transaction [this] 
     (let [options (ReadOptions.)
           snapshot (.getSnapshot db)]
