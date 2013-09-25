@@ -100,14 +100,12 @@
     (->>  (docs/iterate-etags-after iter etag)
           (index-docs tx indexes)
           (process-mapped-documents tx indexes)
-          (finish-map-process!))))
+          (finish-map-process!)))
+  (info "Finished indexing bit"))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (.ensure-transaction db)]
     (let [last-etag (last-indexed-etag tx)]
-      (index-documents-from-etag! 
-        tx
-        compiled-indexes
-        last-etag))))
+      (index-documents-from-etag! tx compiled-indexes last-etag))))
 
 ;;  (filter #(= last-etag (indexes/get-last-indexed-etag-for-index tx (:id %1))))

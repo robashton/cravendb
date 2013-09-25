@@ -85,6 +85,7 @@
           (.commit! 
             (indexes/put-index tx 
                 { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
+
         (write-three-documents db)
 
         (with-open [ie (indexengine/create-engine db)]
@@ -100,7 +101,7 @@
       (with-open [ie (indexengine/create-engine db)]
         (should-not-throw (indexing/index-documents! db (indexengine/get-compiled-indexes ie))))))))
 
-(describe "Updating documents in the index"
+#_ (describe "Updating documents in the index"
   (it "will not return documents based on old data in the query"
     (with-test-server 
       (fn []

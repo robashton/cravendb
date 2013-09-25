@@ -13,6 +13,28 @@
             [cravendb.lucene :as lucene])
   (use [cravendb.testing]))
 
+#_ (def write-three-documents 
+  (fn [db]
+    (with-open [tx (.ensure-transaction db)]
+      (-> tx
+        (docs/store-document "1" (pr-str { :title "hello" :author "rob"}))
+        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
+        (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
+        (.commit!)))))
+
+#_  (with-db (fn [db]
+        (with-open [tx (.ensure-transaction db)]
+          (.commit! 
+            (indexes/put-index tx 
+                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
+
+        (write-three-documents db)
+
+        (with-open [ie (indexengine/create-engine db)]
+          (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
+
+        (with-open [tx (.ensure-transaction db)]
+          (indexing/last-index-doc-count tx))))
 
 ;; Ensure that we are setting the last indexed etag for each index on creation
 #_ (with-open [db (storage/create-storage "testdb")]
