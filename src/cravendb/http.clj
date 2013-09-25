@@ -10,7 +10,7 @@
             [cravendb.documents :as docs])
 
   (:use compojure.core
-        [clojure.tools.logging :only (info error)]))
+        [clojure.tools.logging :only (info error debug)]))
 
 (defn create-http-server [db index-engine]
 
@@ -19,28 +19,28 @@
     (GET "/query/:index/:query" { params :params  }
       (let [q (params :query)
             w (params :wait)]
-        (info "Querying for " q  "waiting: " w)
+        (debug "Querying for " q  "waiting: " w)
         (query/execute db index-engine params)))
 
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
-        (info "putting a document in with id " id " and body " body)
+        (debug "putting a document in with id " id " and body " body)
         (with-open [tx (.ensure-transaction db)]
           (.commit! (docs/store-document tx id body)))))
 
     (GET "/doc/:id" [id] 
-      (info "getting a document with id " id)
+      (debug "getting a document with id " id)
          (with-open [tx (.ensure-transaction db)]
            (or (docs/load-document tx id) { :status 404 })))
 
     (DELETE "/doc/:id" [id]
-      (info "deleting a document with id " id)
+      (debug "deleting a document with id " id)
         (with-open [tx (.ensure-transaction db)]
           (.commit! (docs/delete-document tx id))))
 
     (PUT "/index/:id" { params :params body :body }
       (let [id (params :id) body ((comp read-string slurp) body)]
-        (info "putting an in with id " id " and body " body)
+        (debug "putting an in with id " id " and body " body)
         (with-open [tx (.ensure-transaction db)]
           (.commit! 
             (indexes/put-index 
@@ -50,7 +50,7 @@
                  })))))
 
     (GET "/index/:id" [id] 
-      (info "getting an index with id " id)
+      (debug "getting an index with id " id)
          (with-open [tx (.ensure-transaction db)]
            (let [index (indexes/load-index tx id)]
              (if index
@@ -72,5 +72,5 @@
       (finally
         (.stop engine db)))
     
-    (info "Shutting down")))
+    (debug "Shutting down")))
 

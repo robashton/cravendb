@@ -1,6 +1,6 @@
 (ns cravendb.indexengine
   (use [cravendb.core]
-       [clojure.tools.logging :only (info error)])
+       [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (require [cravendb.lucene :as lucene]
            [cravendb.indexstore :as indexes]
@@ -31,7 +31,7 @@
   (compile-indexes (all-indexes db) db))
 
 (defn close-engine [engine]
-  (info "Closing the engine")
+  (debug "Closing the engine")
   (doseq [i (:compiled-indexes engine)] 
     (do
       (.close (i :writer)) 
@@ -63,7 +63,7 @@
         (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
 
     (catch Exception ex
-      (info "REFRESH FUCK" (.getMessage ex))
+      (error "REFRESH FUCK" (.getMessage ex))
       engine)))
 
 
@@ -75,11 +75,11 @@
   (try
     (indexing/index-documents! db (:compiled-indexes engine))
     (catch Exception ex
-      (info "INDEXING FUCK" ex)))
+      (error "INDEXING FUCK" ex)))
 
   ;; Run any indexes that need catching up in their own futures
 
-  (info "Index chaser complete")
+  (debug "Index chaser complete")
   (assoc engine :running-chaser false))
 
 (defn try-run-index-chaser [engine db ea]
@@ -93,12 +93,12 @@
   (let [task (future 
         (loop []
           (try
-            (info "LOOP")
+            (debug "LOOP")
             (send ea refresh-indexes db)
             (send ea try-run-index-chaser db ea)
-            (info "END LOOP")
+            (debug "END LOOP")
             (catch Exception e
-              (info "SHIT" e)))
+              (error "SHIT" e)))
           (Thread/sleep 50)
           (recur)))]
    (assoc engine :worker-future task)))
@@ -108,7 +108,7 @@
     (future-cancel (:worker-future engine))
     (assoc engine :worker-future nil)
     (catch Exception ex
-      (info "STOPPING FUCK" ex)
+      (error "STOPPING FUCK" ex)
       engine
       )))
 
@@ -125,10 +125,11 @@
   (open-reader [this index-id]
     (.open-reader (get-in @ea [:indexes-by-name index-id :storage])))
   (stop [this db]
+    (debug "Stopping indexing agents")
    (send ea stop-indexing db)
    (await ea))
   (close [this]
-    (info "Closing engine handle")
+    (debug "Closing engine handle")
     (send ea close-engine)
     (await ea)))
 

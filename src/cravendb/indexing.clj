@@ -17,7 +17,7 @@
     (.get-integer db last-index-doc-count-key))
 
 (defn load-document-for-indexing [tx id] 
-   (info "Loading " id "for indexing") {
+   (debug "Loading " id "for indexing") {
    :doc (read-string (docs/load-document tx id))
    :id id
    :etag (docs/etag-for-doc tx id)
@@ -40,11 +40,11 @@
       ()
       )
     (do
-      (info "Performing indexing task on stale documents")
+      (debug "Performing indexing task on stale documents")
       (for [item (map (partial load-document-for-indexing tx) ids)
           index indexes] 
         (try
-          (info "indexing " (item :id) "with" (index :id))
+          (debug "indexing " (item :id) "with" (index :id))
           {
             :id (item :id)
             :etag (item :etag)
@@ -52,7 +52,7 @@
             :mapped ((index :map) (item :doc)) 
           }
           (catch Exception e
-            (info "Indexing document failed" (:id item) (:id index))
+            (error "Indexing document failed" (:id item) (:id index))
             nil
             )
           )))))
@@ -66,7 +66,7 @@
 (defn process-mapped-document 
   [ {:keys [max-etag tx doc-count] :as output} 
     {:keys [etag index-id id mapped]}] 
-  (info "About to send to the writers" index-id id)
+  (debug "About to send to the writers" index-id id)
   (if mapped
     (-> output
       (update-in [:writers index-id] delete-from-writer id)
@@ -76,7 +76,7 @@
     output))
 
 (defn process-mapped-documents [tx compiled-indexes results] 
-  (info "About to reduce")
+  (debug "About to reduce")
   (reduce process-mapped-document 
           {:writers (into {} (for [i compiled-indexes] [ (i :id) (i :writer)])) 
            :max-etag (last-indexed-etag tx) 
@@ -101,7 +101,7 @@
           (index-docs tx indexes)
           (process-mapped-documents tx indexes)
           (finish-map-process!)))
-  (info "Finished indexing bit"))
+  (debug "Finished indexing bit"))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (.ensure-transaction db)]

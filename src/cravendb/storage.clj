@@ -1,5 +1,5 @@
 (ns cravendb.storage
-  (use [clojure.tools.logging :only (info error)])
+  (use [clojure.tools.logging :only (info debug error)])
   (require [clojure.core.incubator :refer [dissoc-in]]))
 
 (import 'org.iq80.leveldb.Options)
@@ -69,7 +69,7 @@
           cached
           (.get db (to-db id) options)))))
   (close [this]
-    (info "Closing the snapshot")
+    (debug "Closing the snapshot")
     (.close (.snapshot options)))
   (ensure-transaction [this] 
     (info "Wuh oh, nested transaction")
@@ -91,11 +91,11 @@
   Storage
   (path [this] path)
   (close [this] 
-    (info "Closing the actual storage engine")
+    (debug "Closing the actual storage engine")
     (.close db) 
     nil) 
   (ensure-transaction [this] 
-    (info "Opening transaction")
+    (debug "Opening transaction")
     (let [options (ReadOptions.)
           snapshot (.getSnapshot db)]
       (.snapshot options snapshot)
