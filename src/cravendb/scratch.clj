@@ -12,14 +12,23 @@
             [cravendb.http :as http]  
             [cravendb.lucene :as lucene])
   (use [cravendb.testing]
+       [cravendb.core]
+       [clojure.tools.logging :only (info debug error)] 
        [clojure.pprint]))
 
-;; Ensure that we are setting the last indexed etag for each index on creation
+
 #_ (with-open [db (storage/create-storage "testdb")]
      (with-open [tx (.ensure-transaction db)]
-       (-> tx
-        (indexes/put-index { :id "test" :map ""})   
-        (indexes/get-last-indexed-etag-for-index "test"))))
+       (.commit! (.store tx (str indexing/last-indexed-etag-key) (integer-to-etag 0))))
+
+     (with-open [tx (.ensure-transaction db)] 
+       (indexengine/needs-a-new-chaser {
+          :db tx
+          :chasers ()
+        }
+        {
+          :id "blah" 
+        })))
 
 ;; Ensure that we're setting the etag on each index after a process
 #_ (do
@@ -40,7 +49,7 @@
           (indexes/put-index { :id "by_bar" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
           (.commit!))) 
       
-    (indexing/wait-for-index-catch-up db 5)
+    (indexing/wait-for-index-catch-up db 1)
 
     (println (with-open [tx (.ensure-transaction db)]
       (indexes/get-last-indexed-etag-for-index tx "by_bar")))
@@ -52,7 +61,7 @@
      (with-open [db (storage/create-storage "testdb")
                  ie (indexengine/create-engine db) ]
     (try
-      (.start ie db)
+      (.start ie)
       (with-open [tx (.ensure-transaction db)]
         (-> tx
           (docs/store-document "1" (pr-str { :foo "bar" }) ) 
@@ -75,7 +84,7 @@
     (println (query/execute db ie { :index "by_foo" :query "foo:bar" :wait true} )) 
 
     (finally
-      (.stop ie db))))
+      (.stop ie))))
     (fs/delete-dir "testdb"))
 
 #_ (client/put-index 

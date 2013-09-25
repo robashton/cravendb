@@ -89,11 +89,18 @@
 
 (defrecord LevelStorage [path db]
   Storage
+  Reader
   (path [this] path)
   (close [this] 
     (debug "Closing the actual storage engine")
     (.close db) 
     nil) 
+  (get-integer [this id]
+    (from-db-int (.get-blob this id)))
+  (get-string [this id]
+    (from-db-str (.get-blob this id)))
+  (get-blob [this id]
+    (.get db (to-db id)))
   (ensure-transaction [this] 
     (debug "Opening transaction")
     (let [options (ReadOptions.)

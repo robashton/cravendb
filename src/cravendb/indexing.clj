@@ -94,7 +94,6 @@
     (.store last-index-doc-count-key doc-count)
     (.commit!)))
 
-
 (defn index-documents-from-etag! [tx indexes etag]
   (with-open [iter (.get-iterator tx)] 
     (->>  (docs/iterate-etags-after iter etag)

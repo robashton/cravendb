@@ -41,14 +41,6 @@
 (defn get-compiled-indexes [handle] 
   (:compiled-indexes @(:ea handle)))
 
-#_ (def compiled-indexes '({ :id "by_bar" }))
-#_ (def all-indexes '({ :id "by_bar"}))
-
-#_ (filter #(not-any? 
-            (partial = (:id %1)) 
-              (map :id compiled-indexes)) 
-              all-indexes) 
-
 (defn ex-error [prefix ex]
   (error prefix (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))))
 
@@ -72,16 +64,50 @@
 
 
 (defn remove-any-finished-chasers [engine]
-  engine
-  )
+  (info "Removing chasers that aren't needed")
+  (assoc engine :chasers
+        (filter #(not (realized? (:future %1))) (:chasers engine))))
+
+(defn needs-a-new-chaser [engine index]
+  (info "Checking if we need a new chaser for" (:id index))
+   (and
+    (not= 
+     (indexing/last-indexed-etag (:db engine)) 
+      (indexes/get-last-indexed-etag-for-index 
+        (:db engine) 
+        (:id index)))
+      (not-any? 
+        (partial = (:id index))
+        (map :id (:chasers engine)))))
+
+(defn create-chaser [index]
+  (info "Starting a freaking chaser for " (:id index))
+  {
+   :id (:id index)
+   :future (future (println "lol"))
+   })
 
 (defn start-new-chasers [engine]
-  engine
-  )
+  (info "Starting new chasers")
+  (assoc engine :chasers
+    (concat 
+      (:chasers engine)
+      (doall 
+        (map 
+          create-chaser 
+          (filter 
+            #(needs-a-new-chaser engine %1) 
+            (:compiled-indexes engine)))))))
+
+(defn indexes-which-are-up-to-date [engine]
+  ;; Any indexes not in the chaser collection
+  (:compiled-indexes engine))
 
 (defn pump-indexes-at-head [engine]
   (try
-    (indexing/index-documents! (:db engine) (:compiled-indexes engine))
+    (indexing/index-documents! 
+      (:db engine) 
+      (indexes-which-are-up-to-date engine))
     (catch Exception ex
       (ex-error "INDEXING FUCK" ex)))
   engine) ;; no mutation here
@@ -108,12 +134,10 @@
   (let [task (future 
         (loop []
           (try
-            (debug "LOOP")
             (send ea refresh-indexes)
             (send ea try-pump-indexes ea)
-            (debug "END LOOP")
             (catch Exception e
-              (error "SHIT" e)))
+              (ex-error "SHIT" e)))
           (Thread/sleep 50)
           (recur)))]
    (assoc engine :worker-future task)))
@@ -123,7 +147,7 @@
     (future-cancel (:worker-future engine))
     (assoc engine :worker-future nil)
     (catch Exception ex
-      (error "STOPPING FUCK" (pprint ex))
+      (ex-error "STOPPING FUCK" (pprint ex))
       engine
       )))
 
@@ -152,6 +176,7 @@
   (let [compiled-indexes (load-compiled-indexes db)]
     (EngineHandle.
       (agent {
+              :chasers ()
               :db db
               :compiled-indexes compiled-indexes
               :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
