@@ -65,12 +65,12 @@
   (with-open [db (storage/create-storage "testdb")
               engine (indexengine/create-engine db)]
     (try
-      (.start engine db)
+      (.start engine)
       (run-jetty 
         (create-http-server db engine) 
         { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})   
       (finally
-        (.stop engine db)))
+        (.stop engine)))
     
     (debug "Shutting down")))
 

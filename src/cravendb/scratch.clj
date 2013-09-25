@@ -26,7 +26,7 @@
      (with-open [db (storage/create-storage "testdb")
                  ie (indexengine/create-engine db) ]
     (try
-      (.start ie db)
+      (.start ie)
 
       (with-open [tx (.ensure-transaction db)]
         (-> tx
@@ -45,7 +45,7 @@
     (println (with-open [tx (.ensure-transaction db)]
       (indexes/get-last-indexed-etag-for-index tx "by_bar")))
 
-      (finally (.stop ie db))))
+      (finally (.stop ie))))
       (fs/delete-dir "testdb")) 
 
 #_ (do

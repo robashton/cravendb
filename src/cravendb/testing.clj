@@ -26,7 +26,7 @@
   (with-open [db (storage/create-storage "testdir")
               index-engine (indexengine/create-engine db)]
     (try
-      (.start index-engine db)
+      (.start index-engine)
       (let [server (run-jetty 
                    (http/create-http-server db index-engine) 
                     { :port 9000 :join? false} )]
@@ -35,5 +35,5 @@
         (finally
           (.stop server))))
       (finally
-        (.stop index-engine db))))
+        (.stop index-engine))))
   (clear-test-data))
