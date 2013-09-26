@@ -12,11 +12,13 @@
 
 # Pending/debt/etc
 
-- Catch up process for indexes that are behind
 - Options for Lucene
 - Decide on how to expose Lucene queries to the consumer
 - Process to remove deleted documents from index
 - Some form of concurrency check over transactions (MVCC most likely)
 - Handle errors during indexing so it doesn't infini-loop
 - The index engine shouldn't be swallowing agent exceptions
-
+- Client should be handling HTTP results properly
+- HTTP server should be sending back appropriate HTTP responses
+- Documents should be validated as valid clojure objects by HTTP API
+- Document storage should be responsible for serializing to string

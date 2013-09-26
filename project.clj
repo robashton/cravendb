@@ -2,6 +2,7 @@
   :min-lein-version "2.2.0"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [clj-http "0.7.6"]
+                 [org.clojure/data.csv "0.1.2"] ;; For load  purposes
                  [ring "1.2.0"]
                  [compojure "1.1.5"]
                  [serializable-fn "1.1.3"]

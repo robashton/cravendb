@@ -7,6 +7,9 @@
 (defn url-for-index-id [url id]
   (str url "/index/" id))
 
+(defn url-for-bulk-ops [url]
+  (str url "/bulk"))
+
 (defn url-for-query [url opts]
   (str 
     url "/query/"
@@ -52,6 +55,11 @@
     (process-response 
       (http/PUT client (url-for-index-id url id) :body (to-db {:map mapf})))))
 
+(defn bulk-operation [url ops]
+  (with-open [client (http/create-client)]
+    (process-response 
+      (http/POST client (url-for-bulk-ops url) :body (to-db ops)))))
+
 (defn get-index [url id]
   (with-open [client (http/create-client)]
     (process-response 
@@ -62,3 +70,4 @@
     (force-into-list
       (process-response
         (http/GET client (url-for-query url opts))))))
+

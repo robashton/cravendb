@@ -12,7 +12,14 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
 
+(defn interpret-bulk-operation [tx op]
+  (case (:operation op)
+    :docs-delete (docs/delete-document tx (:id op))
+    :docs-put (docs/store-document tx (:id op) (pr-str (:document op)))) ;;  TODO: NO
+  )
+
 (defn create-http-server [db index-engine]
+  (info "Setting up the bomb")
 
   (defroutes app-routes
 
@@ -37,6 +44,17 @@
       (debug "deleting a document with id " id)
         (with-open [tx (.ensure-transaction db)]
           (.commit! (docs/delete-document tx id))))
+
+    (POST "/bulk" { body-in :body }
+      (let [body ((comp read-string slurp) body-in)]
+        (debug "Bulk operation: " body)
+        (with-open [tx (.ensure-transaction db)]
+          (.commit! 
+            (reduce
+              interpret-bulk-operation
+              tx
+              body))))
+          "OK")
 
     (PUT "/index/:id" { params :params body :body }
       (let [id (params :id) body ((comp read-string slurp) body)]
