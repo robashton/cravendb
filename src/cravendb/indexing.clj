@@ -103,9 +103,8 @@
 (defn finish-map-process! 
   ([output] (finish-map-process! output false))
   ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
-  (if (or force-flush (= 0 (mod (inc doc-count) 1000)))
-    (do
-      (info "Flushing main map process at " doc-count max-etag)
+  (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
+    (do (info "Flushing main map process at " doc-count max-etag)
       (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
         (.store last-indexed-etag-key max-etag)
         (.store last-index-doc-count-key doc-count)
@@ -115,11 +114,9 @@
 (defn finish-partial-map-process! 
   ([output] (finish-partial-map-process! output false))
   ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
-  (if (or force-flush (= 0 (mod (inc doc-count) 1000)))
-    (do
-      (info "Flushing chaser process at " doc-count max-etag)
-      (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
-        (.commit!))))
+  (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
+    (do (info "Flushing chaser process at " doc-count max-etag)
+      (.commit! (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers)))))
     output))
 
 (defn index-documents-from-etag! [tx indexes etag pulsefn]

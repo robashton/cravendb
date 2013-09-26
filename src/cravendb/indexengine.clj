@@ -64,12 +64,12 @@
 
 
 (defn remove-any-finished-chasers [engine]
-  (info "Removing chasers that aren't needed")
+  (debug "Removing chasers that aren't needed")
   (assoc engine :chasers
         (filter #(not (realized? (:future %1))) (:chasers engine))))
 
 (defn needs-a-new-chaser [engine index]
-  (info "Checking if we need a new chaser for" (:id index))
+  (debug "Checking if we need a new chaser for" (:id index))
    (and
     (not= 
      (indexing/last-indexed-etag (:db engine)) 
@@ -95,7 +95,7 @@
     (:compiled-indexes engine)))
 
 (defn start-new-chasers [engine]
-  (info "Starting new chasers")
+  (debug "Starting new chasers")
   (assoc engine :chasers
     (concat 
       (:chasers engine)

@@ -67,8 +67,8 @@
      (http/create-http-server db engine)
     { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
 
-(.start engine)
-(.stop engine)
+#_ (.start engine)
+#_ (.stop engine)
 
 #_ (.stop server)
 #_ (.close engine)
