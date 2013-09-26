@@ -76,52 +76,64 @@
     {:keys [etag index-id id mapped]}] 
   (debug "About to send to the writers" index-id id)
   (if mapped
-    (-> output
+    (-> ((:pulsefn output) output)
       (update-in [:writers index-id] delete-from-writer id)
       (update-in [:writers index-id] put-into-writer id mapped)
       (assoc :max-etag (newest-etag max-etag etag))
       (assoc :doc-count (inc doc-count)))  
     output))
 
-(defn process-mapped-documents [tx compiled-indexes results] 
+(defn process-mapped-documents [tx compiled-indexes pulsefn results] 
   (debug "About to reduce")
-  (reduce process-mapped-document 
+  (pulsefn 
+    (reduce process-mapped-document 
           {:writers (into {} (for [i compiled-indexes] [ (i :id) (i :writer)])) 
            :max-etag (last-indexed-etag tx) 
            :tx tx 
-           :doc-count 0} results))
+           :doc-count 0
+           :pulsefn pulsefn
+           } results)
+    true))
 
 (defn finish-map-process-for-writer! [{:keys [max-etag tx] :as output} writer]
   (.commit! (get writer 1))
   (assoc output :tx 
     (indexes/set-last-indexed-etag-for-index tx (get writer 0) max-etag)))
 
-(defn finish-map-process! [{:keys [writers max-etag tx doc-count]}]
-  (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
-    (.store last-indexed-etag-key max-etag)
-    (.store last-index-doc-count-key doc-count)
-    (.commit!)))
+(defn finish-map-process! 
+  ([output] (finish-map-process! output false))
+  ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
+  (if (or force-flush (= 0 (mod (inc doc-count) 1000)))
+    (do
+      (info "Flushing main map process at " doc-count max-etag)
+      (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
+        (.store last-indexed-etag-key max-etag)
+        (.store last-index-doc-count-key doc-count)
+        (.commit!))))
+   output)) 
 
-(defn finish-partial-map-process! [{:keys [writers max-etag tx doc-count]}]
-  (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
-    (.commit!)))
+(defn finish-partial-map-process! 
+  ([output] (finish-partial-map-process! output false))
+  ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
+  (if (or force-flush (= 0 (mod (inc doc-count) 1000)))
+    (do
+      (info "Flushing chaser process at " doc-count max-etag)
+      (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
+        (.commit!))))
+    output))
 
-(defn index-documents-from-etag! [tx indexes etag]
+(defn index-documents-from-etag! [tx indexes etag pulsefn]
   (with-open [iter (.get-iterator tx)] 
     (->>  (docs/iterate-etags-after iter etag)
           (index-docs tx indexes)
-          (process-mapped-documents tx indexes))) )
+          (process-mapped-documents tx indexes pulsefn))) )
 
 (defn index-catchup! [db index]
   (with-open [tx (.ensure-transaction db)]
     (let [last-etag (indexes/get-last-indexed-etag-for-index tx (:id index))]
-      (-> tx
-        (index-documents-from-etag! [index] last-etag)
-        (finish-partial-map-process!)))))
+      (index-documents-from-etag! tx [index] last-etag finish-partial-map-process!))))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (.ensure-transaction db)]
     (let [last-etag (last-indexed-etag tx)]
-      (-> tx
-        (index-documents-from-etag! compiled-indexes last-etag)
-        (finish-map-process!)))))
+      (index-documents-from-etag! tx compiled-indexes last-etag finish-map-process!))))
