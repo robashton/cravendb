@@ -42,7 +42,7 @@
 
 
 (defn index-docs [tx indexes ids]
-  (if (empty? ids)
+  (if (or (empty? ids) (empty? indexes))
     (do
       (debug "Idle indexing process")
       ()

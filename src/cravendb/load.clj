@@ -104,14 +104,14 @@
        }
       (map prescription-row (csv/read-csv in-file))))))
 
-#_ (with-open [in-file (io/reader "input/epraccur.csv")]
+#_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
      (.commit! (:tx (reduce add-sequential-doc-to-transaction {
         :tx (trans/start "http://localhost:9002") 
         :id 0
         :total 0
         :prefix "gp"
      }
-      (map gp-row (csv/read-csv in-file))))))
+      (map gp-row (csv/read-csv in-file)))))))
 
 #_ (client/put-index "http://localhost:9002" 
                      "by_practice" 
