@@ -6,6 +6,7 @@
             [clojure.string :refer [trim]]
             [cravendb.http :as http]
             [cravendb.clienttransaction :as trans]
+            [cravendb.client :as client]
             [cravendb.storage :as storage]
             [cravendb.indexengine :as indexengine]))
 
@@ -17,7 +18,6 @@
 
 (defn read-str [in i]
   (trim (get in i)))
-
 (defn prescription-row [in]
   {
    :sha  (read-str in 0)
@@ -67,12 +67,17 @@
      (http/create-http-server db engine)
     { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
 
+(.start engine)
+(.stop engine)
 
 #_ (.stop server)
 #_ (.close engine)
 #_ (.close db)
+#_ (fs/delete-dir "testdb")
+
 
 #_ (trans/start "http://localhost:9002")
+
 
 (defn add-sequential-doc-to-transaction [{:keys [tx prefix id total] :as state} item]
   (if (< 1000 total)
@@ -107,3 +112,7 @@
         :prefix "gp"
      }
       (map gp-row (csv/read-csv in-file))))))
+
+#_ (client/put-index "http://localhost:9002" 
+                     "by_practice" 
+                     "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")

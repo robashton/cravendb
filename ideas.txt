@@ -9,8 +9,19 @@
 - Querying against the indexes, loading documents that match
 - HTTP API around the above
 - Basic client API around the HTTP API
+- Bulk imports
+- A rudimentary client-side session helper
 
 # Pending/debt/etc
+
+### Immediate priority
+- Perform indexing in chunks (at the moment it's all or nothing)
+- Allow restricting indexing to documents with a prefix (cats-/dogs-)
+- Allow paging through results by some means
+- Modification of an index means re-indexing
+
+
+### Can wait
 
 - Options for Lucene
 - Decide on how to expose Lucene queries to the consumer
@@ -22,3 +33,5 @@
 - HTTP server should be sending back appropriate HTTP responses
 - Documents should be validated as valid clojure objects by HTTP API
 - Document storage should be responsible for serializing to string
+- Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
+

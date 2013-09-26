@@ -64,8 +64,9 @@
             (indexes/put-index 
               tx {
                   :id id
-                  :map (body :map)
-                 })))))
+                  :map (:map body)
+                 }))))
+         "OK")
 
     (GET "/index/:id" [id] 
       (debug "getting an index with id " id)
