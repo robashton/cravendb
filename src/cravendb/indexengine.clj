@@ -80,12 +80,19 @@
         (partial = (:id index))
         (map :id (:chasers engine)))))
 
-(defn create-chaser [index]
+(defn create-chaser [engine index]
   (info "Starting a freaking chaser for " (:id index))
   {
    :id (:id index)
-   :future (future (println "lol"))
+   :future 
+    (future
+      (indexing/index-catchup! (:db engine) index))
    })
+
+(defn indexes-which-require-a-chaser [engine]
+  (filter 
+    #(needs-a-new-chaser engine %1) 
+    (:compiled-indexes engine)))
 
 (defn start-new-chasers [engine]
   (info "Starting new chasers")
@@ -93,15 +100,14 @@
     (concat 
       (:chasers engine)
       (doall 
-        (map 
-          create-chaser 
-          (filter 
-            #(needs-a-new-chaser engine %1) 
-            (:compiled-indexes engine)))))))
+        (map #(create-chaser engine %1) 
+          (indexes-which-require-a-chaser engine))))))
 
 (defn indexes-which-are-up-to-date [engine]
-  ;; Any indexes not in the chaser collection
-  (:compiled-indexes engine))
+  (filter #(not-any? 
+             (partial = (:id %1)) 
+             (map :id (:chasers engine))) 
+          (:compiled-indexes engine)))
 
 (defn pump-indexes-at-head [engine]
   (try

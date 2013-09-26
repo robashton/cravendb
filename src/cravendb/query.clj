@@ -4,8 +4,11 @@
     [cravendb.documents :as docs]))
 
 (defn execute [db index-engine query]
-  (if (query :wait) (indexing/wait-for-index-catch-up db))
-  (with-open [reader (.open-reader index-engine (query :index))
+  (if (query :wait) (indexing/wait-for-index-catch-up 
+                      db 
+                      (:index query) 
+                      (or (:wait-duration query) 5)))
+  (with-open [reader (.open-reader index-engine (:index query))
               tx (.ensure-transaction db)]
     (doall 
       (filter boolean 

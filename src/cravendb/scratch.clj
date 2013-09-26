@@ -16,6 +16,11 @@
        [clojure.tools.logging :only (info debug error)] 
        [clojure.pprint]))
 
+#_ (indexengine/indexes-which-are-up-to-date 
+     {
+       :chasers '({:id "one"})
+       :compiled-indexes '({:id "one"} {:id "two"})
+    })
 
 #_ (with-open [db (storage/create-storage "testdb")]
      (with-open [tx (.ensure-transaction db)]
@@ -74,14 +79,14 @@
         (indexes/put-index { :id "by_bar" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
         (.commit!))) 
       
-    (indexing/wait-for-index-catch-up db)
+    (indexing/wait-for-index-catch-up db 1)
   
     (with-open [tx (.ensure-transaction db)]
       (-> tx
         (indexes/put-index { :id "by_foo" :map "(fn [doc] {\"foo\" (:foo doc)})"})   
         (.commit!))) 
 
-    (println (query/execute db ie { :index "by_foo" :query "foo:bar" :wait true} )) 
+    (println (query/execute db ie { :index "by_foo" :query "foo:bar" :wait true :wait_duration 1} )) 
 
     (finally
       (.stop ie))))

@@ -26,12 +26,20 @@
 (defn wait-for-index-catch-up 
   ([db] (wait-for-index-catch-up db 5))
   ([db timeout]
-    (let [last-etag (etag-to-integer (with-open [tx (.ensure-transaction db)] (docs/last-etag tx)))
+   (let [last-etag (etag-to-integer (docs/last-etag db))
           start-time (tl/local-now) ]
     (while (and
               (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
-              (> last-etag (etag-to-integer (with-open [tx (.ensure-transaction db)] (last-indexed-etag tx)))))
-      (Thread/sleep 100)))))
+              (> last-etag (etag-to-integer (last-indexed-etag db))))
+      (Thread/sleep 100))))
+   ([db index-id timeout]
+   (let [last-etag (etag-to-integer (docs/last-etag db))
+          start-time (tl/local-now) ]
+    (while (and
+              (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
+              (> last-etag (etag-to-integer (indexes/get-last-indexed-etag-for-index db index-id))))
+      (Thread/sleep 100))))) 
+
 
 (defn index-docs [tx indexes ids]
   (if (empty? ids)
@@ -101,6 +109,11 @@
           (process-mapped-documents tx indexes)
           (finish-map-process!)))
   (debug "Finished indexing bit"))
+
+(defn index-catchup! [db index]
+  (with-open [tx (.ensure-transaction db)]
+    (let [last-etag (indexes/get-last-indexed-etag-for-index tx (:id index))]
+      (index-documents-from-etag! tx [index] last-etag))))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (.ensure-transaction db)]
