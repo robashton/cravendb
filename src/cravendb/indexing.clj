@@ -102,22 +102,26 @@
     (.store last-index-doc-count-key doc-count)
     (.commit!)))
 
+(defn finish-partial-map-process! [{:keys [writers max-etag tx doc-count]}]
+  (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
+    (.commit!)))
+
 (defn index-documents-from-etag! [tx indexes etag]
   (with-open [iter (.get-iterator tx)] 
     (->>  (docs/iterate-etags-after iter etag)
           (index-docs tx indexes)
-          (process-mapped-documents tx indexes)
-          (finish-map-process!)))
-  (debug "Finished indexing bit"))
+          (process-mapped-documents tx indexes))) )
 
 (defn index-catchup! [db index]
   (with-open [tx (.ensure-transaction db)]
     (let [last-etag (indexes/get-last-indexed-etag-for-index tx (:id index))]
-      (index-documents-from-etag! tx [index] last-etag))))
+      (-> tx
+        (index-documents-from-etag! [index] last-etag)
+        (finish-partial-map-process!)))))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (.ensure-transaction db)]
     (let [last-etag (last-indexed-etag tx)]
-      (index-documents-from-etag! tx compiled-indexes last-etag))))
-
-;;  (filter #(= last-etag (indexes/get-last-indexed-etag-for-index tx (:id %1))))
+      (-> tx
+        (index-documents-from-etag! compiled-indexes last-etag)
+        (finish-map-process!)))))
