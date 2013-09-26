@@ -6,7 +6,6 @@
     [cravendb.documents :as docs]))
 
 (defn execute [db index-engine query]
-  (info "LOL")
   (if (query :wait) (indexing/wait-for-index-catch-up 
                       db 
                       (:index query) 
