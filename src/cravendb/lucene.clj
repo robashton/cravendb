@@ -1,4 +1,5 @@
 (ns cravendb.lucene
+  (use [clojure.tools.logging :only (info error debug)])
   (:import 
            (org.apache.lucene.analysis.standard StandardAnalyzer)
            (org.apache.lucene.store FSDirectory)
@@ -11,9 +12,12 @@
            (org.apache.lucene.queryparser.classic QueryParser)
            (org.apache.lucene.document Document)
            (org.apache.lucene.document Field)
+           (org.apache.lucene.document Field$Store)
+           (org.apache.lucene.document Field$Index)
            (org.apache.lucene.document TextField)
            (java.util Collection Random)
            (java.io File File PushbackReader IOException FileNotFoundException )))
+
 
 (defprotocol IndexStore
   (open-writer [this])
@@ -36,9 +40,9 @@
   (delete-all-entries-for [this ref-id]
     (.deleteDocuments 
       writer 
-      (.parse 
+       (.parse 
         (QueryParser. Version/LUCENE_CURRENT "" analyzer)
-        (str "__document_id:" ref-id)))
+        (str "__document_id:" (QueryParser/escape ref-id))))
     this)
   (put-entry [this ref-id content]
     (let [doc (Document.)
@@ -47,11 +51,12 @@
                      (Field. k v TextField/TYPE_STORED) 
                      nil))]
       (doseq [f (filter boolean fields)] (.add doc f))
-      (.add doc (Field. "__document_id" ref-id TextField/TYPE_STORED))
+      (.add doc (Field. "__document_id" ref-id Field$Store/YES Field$Index/NOT_ANALYZED))
       (.addDocument writer doc))
       this) 
   (commit! [this]
-    (.commit writer) this)
+    (.commit writer) 
+    this)
   (close [this] 
     (.close writer)))
 

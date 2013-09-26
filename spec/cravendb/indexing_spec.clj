@@ -25,9 +25,9 @@
   (fn [db]
     (with-open [tx (.ensure-transaction db)]
       (-> tx
-        (docs/store-document "1" (pr-str { :title "hello" :author "rob"}))
-        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
-        (docs/store-document "3" (pr-str { :title "goodbye" :author "james"}))
+        (docs/store-document "doc-1" (pr-str { :title "hello" :author "rob"}))
+        (docs/store-document "doc-2" (pr-str { :title "morning" :author "vicky"}))
+        (docs/store-document "doc-3" (pr-str { :title "goodbye" :author "james"}))
         (.commit!)))))
 
 (def write-one-document 
@@ -66,7 +66,7 @@
         (write-three-documents db)
         (indexing/index-documents! db @test-indexes)
         (with-open [reader (.open-reader ((first @test-indexes) :storage))]
-            (should== '("2") (.query reader { :query "author:vicky"})))))))
+            (should== '("doc-2") (.query reader { :query "author:vicky"})))))))
 
 (describe "querying an index with content in it"
   (with test-indexes (create-test-indexes))

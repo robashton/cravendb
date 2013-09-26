@@ -74,13 +74,13 @@
 (defn process-mapped-document 
   [ {:keys [max-etag tx doc-count] :as output} 
     {:keys [etag index-id id mapped]}] 
-  (debug "About to send to the writers" index-id id)
   (if mapped
-    (-> ((:pulsefn output) output)
-      (update-in [:writers index-id] delete-from-writer id)
-      (update-in [:writers index-id] put-into-writer id mapped)
-      (assoc :max-etag (newest-etag max-etag etag))
-      (assoc :doc-count (inc doc-count)))  
+    (do
+      (-> ((:pulsefn output) output)
+        (update-in [:writers index-id] delete-from-writer id)
+        (update-in [:writers index-id] put-into-writer id mapped)
+        (assoc :max-etag (newest-etag max-etag etag))
+        (assoc :doc-count (inc doc-count))))  
     output))
 
 (defn process-mapped-documents [tx compiled-indexes pulsefn results] 

@@ -67,6 +67,8 @@
      (http/create-http-server db engine)
     { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
 
+#_ 
+
 #_ (.start engine)
 #_ (.stop engine)
 
@@ -95,14 +97,14 @@
         (assoc :id (inc id)) 
         (assoc :total (inc total))))))
 
-#_ (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
+#_ (time (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
      (.commit! (:tx (reduce add-sequential-doc-to-transaction {
         :tx (trans/start "http://localhost:9002")
         :id 0
         :total 0
         :prefix "scrips"
        }
-      (map prescription-row (csv/read-csv in-file))))))
+      (map prescription-row (csv/read-csv in-file)))))))
 
 #_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
      (.commit! (:tx (reduce add-sequential-doc-to-transaction {
@@ -116,3 +118,14 @@
 #_ (client/put-index "http://localhost:9002" 
                      "by_practice" 
                      "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")
+
+#_ (with-open [reader (.open-reader engine "by_practice")]
+  ((.query reader { :query "*:*"})))
+
+
+
+#_ (client/query "http://localhost:9002" {
+                                          :index "by_practice"
+                                          :query "practice:E83030"
+                                          :wait true
+                                          })
