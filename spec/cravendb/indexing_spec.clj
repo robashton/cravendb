@@ -1,6 +1,8 @@
 (ns cravendb.indexing-spec
   (:use [speclj.core]
-        [cravendb.testing])
+        [cravendb.testing]
+        [cravendb.core])
+
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
@@ -101,6 +103,39 @@
       (with-open [ie (indexengine/create-engine db)]
         (should-not-throw (indexing/index-documents! db (indexengine/get-compiled-indexes ie))))))))
 
+
+(describe "Keeping track of per index status"
+  (it "will start each tracker off at zero status"
+      (with-db (fn [db]
+        (with-open [tx (.ensure-transaction db)]
+          (.commit! (indexes/put-index tx { :id "test" } )))
+        
+        (should= (integer-to-etag 0) 
+                 (indexes/get-last-indexed-etag-for-index db "test")))))
+
+  (it "will set the tracker to the last indexed etag"
+      (with-db (fn [db]
+
+        (with-open [tx (.ensure-transaction db)]
+          (.commit! (indexes/put-index tx 
+            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} )))
+
+        (with-open [tx (.ensure-transaction db)]
+          (-> tx
+            (docs/store-document "1" (pr-str { :foo "bar" }) ) 
+            (docs/store-document "2" (pr-str { :foo "bas" }) ) 
+            (docs/store-document "3" (pr-str { :foo "baz" }) )
+            (.commit!)))
+
+        (with-open [ie (indexengine/create-engine db)]
+          (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
+
+        (should= (integer-to-etag 4) 
+                 (indexes/get-last-indexed-etag-for-index db "test")))))) 
+
+;; Note: Perhaps I shouldn't be doing end-to-end here
+;; if it's too hard to set up a standalone indexing system
+;; then I should make it easier
 #_ (describe "Updating documents in the index"
   (it "will not return documents based on old data in the query"
     (with-test-server 
