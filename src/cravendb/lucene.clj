@@ -24,7 +24,7 @@
   (open-reader [this]))
 
 (defprotocol IndexReading
-  (query [this options]))
+  (query [this query-string amount]))
 
 (defprotocol IndexWriting
   (commit! [this]) 
@@ -63,15 +63,16 @@
 (defrecord LuceneIndexReading [reader analyzer]
   IndexReading
   Closeable
-  (query [this options]
+  (query [this query-string amount]
     (let [searcher (IndexSearcher. reader)
-          parser (QueryParser. Version/LUCENE_CURRENT "" analyzer) 
-          query (.parse parser (options :query))
-          result (.search searcher query nil 1000)
-          scoredocs (.scoreDocs result)
-          docs (for [x (range 0 (count scoredocs))] 
-                  (.doc searcher (.doc (aget scoredocs x))))]
-          (map (fn [d] (.get d "__document_id")) docs)))
+      parser (QueryParser. Version/LUCENE_CURRENT "" analyzer) 
+      query (.parse parser query-string)
+      result (.search searcher query nil amount)
+      scoredocs (.scoreDocs result)
+      docs (for [x (range 0 (count scoredocs))] 
+              (.doc searcher (.doc (aget scoredocs x))))]
+              (distinct (map (fn [d] (.get d "__document_id")) docs))))
+
   (close [this]
     (.close reader)))
 

@@ -5,6 +5,30 @@
     [cravendb.indexing :as indexing]
     [cravendb.documents :as docs]))
 
+(defn convert-results-to-documents [tx results]
+  (doall (filter boolean (map (partial docs/load-document tx) results))))
+
+(defn perform-query [tx reader query offset amount]
+  (loop [results ()
+         current-offset offset
+         total-collected 0
+         attempt 0 ]
+         (let [requested-amount (+ current-offset (min (- amount total-collected) 100))
+               raw-results (.query reader query requested-amount)
+               document-results (convert-results-to-documents tx (drop current-offset raw-results))
+               new-total (+ total-collected (count document-results))
+               new-offset (+ current-offset new-total) 
+               new-results (concat results document-results)]
+           (println new-total new-offset attempt)
+           (if (and (not= (count raw-results) 0)
+                    (not= new-total amount)
+                    (> 10 attempt))
+             (recur new-results 
+                    new-offset 
+                    new-total
+                    (inc attempt))
+             new-results))))
+
 (defn execute [db index-engine query]
   (if (query :wait) (indexing/wait-for-index-catch-up 
                       db 
@@ -12,8 +36,9 @@
                       (or (:wait-duration query) 5)))
   (with-open [reader (.open-reader index-engine (:index query))
               tx (.ensure-transaction db)]
-    (doall 
-      (filter boolean 
-        (map 
-          (partial docs/load-document tx) 
-            (.query reader query ))))))
+    (perform-query tx
+                   reader
+                   (:query query)
+                   (:offset query)
+                   (:amount query))))
+

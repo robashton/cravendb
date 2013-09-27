@@ -11,20 +11,24 @@
 - Basic client API around the HTTP API
 - Bulk imports
 - A rudimentary client-side session helper
+- Paging through query results
 
 # Pending/debt/etc
 
 ### Immediate priority
 
 - Perform indexing in chunks (at the moment it's all or nothing)
-- Allow restricting indexing to documents with a prefix (cats-/dogs-)
-- Allow paging through results by some means
-- Modification of an index means re-indexing
-
+- Can get an error if there is no indexing happening for a while and there have been no indexes but lots of documents
+- Querying a newly created index can result in an error as the reader isn't open yet
 
 ### Can wait
 
-- Can get an error if there is no indexing happening for a while and there have been no indexes but lots of documents
+
+- Allow restricting indexing to documents with a prefix (cats-/dogs-)
+- Modification of an index needs to mean re-indexing
+  - Can I get away with renaming the folder to 'to_delete-blah'
+  - Then deleting it?
+  - This won't work for scheduled data, need indirection there at least
 - Options for Lucene
 - Decide on how to expose Lucene queries to the consumer
 - Process to remove deleted documents from index
@@ -34,6 +38,7 @@
 - Client should be handling HTTP results properly
 - HTTP server should be sending back appropriate HTTP responses
 - Documents should be validated as valid clojure objects by HTTP API
+- HTTP API should be validating input
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 
