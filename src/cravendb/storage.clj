@@ -81,8 +81,8 @@
         (let [id (k 0)
               value (k 1)]
           (if (= value :deleted)
-            (.delete db (to-db id))
-            (.put db (to-db id) value))))
+            (.delete batch (to-db id))
+            (.put batch (to-db id) value))))
       (let [wo (WriteOptions.)]
         (.sync wo true)
         (.write db batch wo))) nil))

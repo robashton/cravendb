@@ -16,45 +16,49 @@
        [clojure.tools.logging :only (info debug error)] 
        [clojure.pprint]))
 
+(def test-index 
+  "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
 
-#_ (with-open [db (storage/create-storage "testdir")
-               engine (indexengine/create-engine db)
-               reader (.open-reader engine "by_whatever")]
-      (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))
-     
-      (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 10 :index "by_whatever"}))) 
+(defn add-by-whatever-index [db]
+  (with-open [tx (.ensure-transaction db)] 
+    (.commit! 
+      (indexes/put-index tx { 
+        :id "by_whatever" 
+        :map test-index} )))) 
 
-      (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 500 :offset 250 :index "by_whatever"}))) 
-     )
+(defn add-all-the-test-documents [db]
+  (with-open [tx (.ensure-transaction db)] 
+    (.commit! (reduce  
+        #(docs/store-document %1 (str "docs-" %2) (pr-str { :whatever (str %2)}))
+        tx
+        (range 0 1000)))))
 
+#_ (do
+  (with-full-setup
+    (fn [db engine]
+      (add-all-the-test-documents db)
+      (with-open [tx (.ensure-transaction db)]
+       (pprint (count (filter boolean (map #(docs/load-document tx (str "docs-" %1))
+            (range 0 1000)))))))))
 
-#_ (with-open [db (storage/create-storage "testdir")
-               engine (indexengine/create-engine db)]
-      (try       
-        (.start engine)
+#_ (do
+ (with-full-setup
+  (fn [db engine]
+    (add-by-whatever-index db) 
+    (add-all-the-test-documents db)
+    (indexing/wait-for-index-catch-up db 50)
+    (count (query/execute 
+             db 
+             engine 
+             { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))))
 
-        (with-open [tx (.ensure-transaction db)] 
-          (.commit! 
-            (indexes/put-index tx { 
-              :id "by_whatever" 
-              :map "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))"} )))
-
-        (with-open [tx (.ensure-transaction db)] 
-          (.commit! 
-            (reduce  
-              (fn [tx i] 
-                (docs/store-document 
-                  tx 
-                  (str "docs-" i) 
-                  (pr-str { :whatever (str i)})))
-              tx
-              (range 0 1000))))
-
-        (indexing/wait-for-index-catch-up db 50)
-
-        (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))))
-
-   ;;     (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 10 :index "by_whatever"})))
-
-
-
+#_ (do
+  (with-full-setup
+    (fn [db engine]
+      (add-by-whatever-index db) 
+      (add-all-the-test-documents db)
+      (indexing/wait-for-index-catch-up db 50)
+      (count (query/execute 
+               db 
+               engine 
+               { :query "*:*" :amount 10 :offset 995 :index "by_whatever"})))))
