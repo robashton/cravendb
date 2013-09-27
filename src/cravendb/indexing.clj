@@ -17,21 +17,12 @@
     (.get-integer db last-index-doc-count-key))
 
 (defn load-document-for-indexing [tx id] 
-   (debug "Loading " id "for indexing") 
-   (let [raw-doc (docs/load-document tx id)]
-    (if raw-doc
-      { 
-        :doc (read-string raw-doc)
-        :id id
-        :etag (docs/etag-for-doc tx id)
-      }
-      (do
-        (info "Couldn't load document with id " id)
-        {
-         :doc {}
-         :id id
-         :etag (zero-etag)
-         }))))
+  (debug "Loading " id "for indexing") 
+    { 
+      :doc (read-string (docs/load-document tx id))
+      :id id
+      :etag (docs/etag-for-doc tx id)
+    })
 
 (defn wait-for-index-catch-up 
   ([db] (wait-for-index-catch-up db 5))
