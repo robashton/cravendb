@@ -22,13 +22,12 @@
 - Indexing errors
   - Can get an error if there is no indexing happening for a while and there have been no indexes but lots of documents
   - Querying a newly created index can result in an error as the reader isn't open yet
-  - Getting all sorts of random errors during indexing large amounts of docs that need clearing
 
 ### Can wait
 
 - Allow restricting indexing to documents with a prefix (cats-/dogs-)
 - Modification of an index needs to mean re-indexing
-  - Can I get away with renaming the folder to 'to_delete-blah'
+  - Can I get away with renaming the folder to 'to-delete-blah'
   - Then deleting it?
   - This won't work for scheduled data, need indirection there at least
 - Options for Lucene

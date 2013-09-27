@@ -123,7 +123,6 @@
   ((.query reader { :query "*:*"})))
 
 
-
 #_ (client/query "http://localhost:9002" {
                                           :index "by_practice"
                                           :query "practice:E83030"
