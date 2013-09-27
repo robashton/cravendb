@@ -6,20 +6,24 @@
     [cravendb.documents :as docs]))
 
 (defn convert-results-to-documents [tx results]
-  (doall (filter boolean (map (partial docs/load-document tx) results))))
+  (filter boolean (map (partial docs/load-document tx) results)))
 
 (defn perform-query [tx reader query offset amount]
   (loop [results ()
          current-offset offset
          total-collected 0
          attempt 0 ]
-         (let [requested-amount (+ current-offset (min (- amount total-collected) 100))
+         (let [requested-amount (+ current-offset (max amount 100))
                raw-results (.query reader query requested-amount)
                document-results (convert-results-to-documents tx (drop current-offset raw-results))
-               new-total (+ total-collected (count document-results))
-               new-offset (+ current-offset new-total) 
-               new-results (concat results document-results)]
-           (println new-total new-offset attempt)
+               new-results (take amount (concat results document-results))
+               new-total (count new-results) 
+               new-offset (+ current-offset requested-amount)]
+
+           (debug "Requested" requested-amount 
+                    "CurrentTotal" total-collected 
+                    "Skipped" current-offset "Of"
+                    "Received" (count raw-results))
            (if (and (not= (count raw-results) 0)
                     (not= new-total amount)
                     (> 10 attempt))
@@ -39,6 +43,6 @@
     (perform-query tx
                    reader
                    (:query query)
-                   (:offset query)
-                   (:amount query))))
+                   (or (:offset query) 0)
+                   (or (:amount query) 1000))))
 

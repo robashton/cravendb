@@ -17,12 +17,18 @@
        [clojure.pprint]))
 
 
+#_ (with-open [db (storage/create-storage "testdir")
+               engine (indexengine/create-engine db)
+               reader (.open-reader engine "by_whatever")]
+      (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))
+     
+      (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 10 :index "by_whatever"}))) 
 
-#_ (def db (storage/create-storage "testdir"))
-#_ (.close db)
+      (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 500 :offset 250 :index "by_whatever"}))) 
+     )
 
-#_ (try
-     (with-open [db (storage/create-storage "testdir")
+
+#_ (with-open [db (storage/create-storage "testdir")
                engine (indexengine/create-engine db)]
       (try       
         (.start engine)
@@ -46,15 +52,9 @@
 
         (indexing/wait-for-index-catch-up db 50)
 
-        (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))
+        (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))))
 
    ;;     (println (map (comp :whatever read-string)  (query/execute db engine { :query "*:*" :amount 10 :offset 10 :index "by_whatever"})))
 
 
-
-        (finally
-          (.stop engine))))
-
-     (finally
-       (fs/delete-dir "testdir")))
 

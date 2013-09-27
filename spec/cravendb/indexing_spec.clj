@@ -66,7 +66,7 @@
         (write-three-documents db)
         (indexing/index-documents! db @test-indexes)
         (with-open [reader (.open-reader ((first @test-indexes) :storage))]
-            (should== '("doc-2") (.query reader { :query "author:vicky"})))))))
+            (should== '("doc-2") (.query reader "author:vicky" 10)))))))
 
 (describe "querying an index with content in it"
   (with test-indexes (create-test-indexes))

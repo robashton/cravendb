@@ -15,6 +15,18 @@
     (testfn db))
   (clear-test-data))
 
+
+(defn with-full-setup [testfn]
+  (clear-test-data)
+  (with-open [db (storage/create-storage "testdir")
+               engine (indexengine/create-engine db)]
+      (try       
+        (.start engine)
+        (try
+          (testfn db engine)
+          (finally (.stop engine)))))
+  (clear-test-data))
+
 (defn inside-tx [testfn]
   (with-db 
     (fn [db]
