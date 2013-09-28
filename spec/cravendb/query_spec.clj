@@ -37,10 +37,12 @@
       (add-by-whatever-index db) 
       (add-all-the-test-documents db)
       (indexing/wait-for-index-catch-up db 50)
-      (should= 10 (count (query/execute 
-                        db 
-                        engine 
-                        { :query "*:*" :amount 10 :offset 0 :index "by_whatever"}))))))
+      (should== (map str (range 0 10)) 
+                (map (comp :whatever read-string) 
+                     (query/execute 
+                      db 
+                      engine 
+                      { :query "*:*" :amount 10 :offset 0 :index "by_whatever"}))))))
 
    (it "will return the last 5 docs"
     (with-full-setup
@@ -48,7 +50,9 @@
       (add-by-whatever-index db) 
       (add-all-the-test-documents db)
       (indexing/wait-for-index-catch-up db 50)
-      (should= 5 (count (query/execute 
-                        db 
-                        engine 
-                        { :query "*:*" :amount 10 :offset 995 :index "by_whatever"})))))))
+      (should== (map str (range 995 1000)) 
+                (map (comp :whatever read-string) 
+                     (query/execute 
+                      db 
+                      engine 
+                      { :query "*:*" :amount 10 :offset 995 :index "by_whatever"})))))))
