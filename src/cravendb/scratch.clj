@@ -16,6 +16,7 @@
        [clojure.tools.logging :only (info debug error)] 
        [clojure.pprint]))
 
+
 (def test-index 
   "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
 
@@ -26,39 +27,31 @@
         :id "by_whatever" 
         :map test-index} )))) 
 
-(defn add-all-the-test-documents [db]
+(defn add-alpha-whatevers [db]
   (with-open [tx (.ensure-transaction db)] 
-    (.commit! (reduce  
-        #(docs/store-document %1 (str "docs-" %2) (pr-str { :whatever (str %2)}))
-        tx
-        (range 0 1000)))))
+    (-> tx
+      (docs/store-document "docs-1" (pr-str { :whatever "zebra"}))
+      (docs/store-document "docs-2" (pr-str { :whatever "aardvark"}))
+      (docs/store-document "docs-3" (pr-str { :whatever "giraffe"}))
+      (docs/store-document "docs-4" (pr-str { :whatever "anteater"}))
+      (.commit!))))
 
-#_ (do
-  (with-full-setup
-    (fn [db engine]
-      (add-all-the-test-documents db)
-      (with-open [tx (.ensure-transaction db)]
-       (pprint (count (filter boolean (map #(docs/load-document tx (str "docs-" %1))
-            (range 0 1000)))))))))
-
-#_ (do
- (with-full-setup
+#_ (with-full-setup
   (fn [db engine]
     (add-by-whatever-index db) 
-    (add-all-the-test-documents db)
+    (add-alpha-whatevers db)
     (indexing/wait-for-index-catch-up db 50)
-    (count (query/execute 
-             db 
-             engine 
-             { :query "*:*" :amount 10 :offset 0 :index "by_whatever"})))))
+    (println (query/execute 
+      db 
+      engine 
+      { :query "*:*" :sort-by "whatever" :index "by_whatever"})))) 
 
-#_ (do
-  (with-full-setup
-    (fn [db engine]
-      (add-by-whatever-index db) 
-      (add-all-the-test-documents db)
-      (indexing/wait-for-index-catch-up db 50)
-      (count (query/execute 
-               db 
-               engine 
-               { :query "*:*" :amount 10 :offset 995 :index "by_whatever"})))))
+#_ (with-full-setup
+  (fn [db engine]
+    (add-by-whatever-index db) 
+    (add-alpha-whatevers db)
+    (indexing/wait-for-index-catch-up db 50)
+    (println (query/execute 
+      db 
+      engine 
+      { :query "*:*" :sort-order :desc :sort-by "whatever" :index "by_whatever"})))) 

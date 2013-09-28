@@ -9,6 +9,9 @@
            (org.apache.lucene.index IndexWriter)
            (org.apache.lucene.index DirectoryReader)
            (org.apache.lucene.search IndexSearcher)
+           (org.apache.lucene.search Sort)
+           (org.apache.lucene.search SortField)
+           (org.apache.lucene.search SortField$Type)
            (org.apache.lucene.queryparser.classic QueryParser)
            (org.apache.lucene.document Document)
            (org.apache.lucene.document Field)
@@ -24,7 +27,7 @@
   (open-reader [this]))
 
 (defprotocol IndexReading
-  (query [this query-string amount]))
+  (query [this query-string amount sort-field sort-order]))
 
 (defprotocol IndexWriting
   (commit! [this]) 
@@ -60,14 +63,22 @@
   (close [this] 
     (.close writer)))
 
+
+
 (defrecord LuceneIndexReading [reader analyzer]
   IndexReading
   Closeable
-  (query [this query-string amount]
+  (query [this query-string amount sort-field sort-order]
     (let [searcher (IndexSearcher. reader)
       parser (QueryParser. Version/LUCENE_CURRENT "" analyzer) 
       query (.parse parser query-string)
-      result (.search searcher query nil amount)
+      sort-options (if sort-field 
+                       (Sort. (SortField. 
+                                sort-field 
+                                (SortField$Type/STRING)
+                                (if (= sort-order :asc) false true))) 
+                        (Sort.))
+      result (.search searcher query amount sort-options)
       scoredocs (.scoreDocs result)
       docs (for [x (range 0 (count scoredocs))] 
               (.doc searcher (.doc (aget scoredocs x))))]

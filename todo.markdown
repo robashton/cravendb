@@ -18,8 +18,7 @@
 
 ### Immediate priority
 
-- Allow sort orders to be specified
-  - Querying a newly created index can result in an error as the reader isn't open yet
+- Querying a newly created index can result in an error as the reader isn't open yet
 
 ### Can wait
 
@@ -29,6 +28,7 @@
   - Then deleting it?
   - This won't work for scheduled data, need indirection there at least
 - Options for Lucene
+  - Capture field types so we know how to sort (or use Lucene options as above)
 - Decide on how to expose Lucene queries to the consumer
 - Process to remove deleted documents from index
 - Some form of concurrency check over transactions (MVCC most likely)

@@ -8,13 +8,13 @@
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
-(defn perform-query [tx reader query offset amount]
+(defn perform-query [tx reader query offset amount sort-field sort-order]
   (loop [results ()
          current-offset offset
          total-collected 0
          attempt 0 ]
          (let [requested-amount (+ current-offset (max amount 100))
-               raw-results (.query reader query requested-amount)
+               raw-results (.query reader query requested-amount sort-field sort-order)
                document-results (convert-results-to-documents tx (drop current-offset raw-results))
                new-results (take amount (concat results document-results))
                new-total (count new-results) 
@@ -41,8 +41,10 @@
   (with-open [reader (.open-reader index-engine (:index query))
               tx (.ensure-transaction db)]
     (perform-query tx
-                   reader
+                   reader 
                    (:query query)
                    (or (:offset query) 0)
-                   (or (:amount query) 1000))))
+                   (or (:amount query) 1000)
+                   (:sort-by query)
+                   (or (:sort-order query) :asc))))
 
