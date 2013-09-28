@@ -1,6 +1,8 @@
 (ns cravendb.load
-  (use [cravendb.core])
+  (use [cravendb.core]
+       [clojure.tools.logging :only (info error debug)] )
    (require [clojure.data.csv :as csv]
+            [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
             [clojure.java.io :as io]
             [clojure.string :refer [trim]]
@@ -67,11 +69,9 @@
      (http/create-http-server db engine)
     { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
 
-#_ 
-
 #_ (.start engine)
-#_ (.stop engine)
 
+#_ (.stop engine)
 #_ (.stop server)
 #_ (.close engine)
 #_ (.close db)
@@ -82,29 +82,51 @@
 
 
 (defn add-sequential-doc-to-transaction [{:keys [tx prefix id total] :as state} item]
-  (if (< 1000 total)
+  (if (= 0 (mod total 1000))
     (do
+      (info "Flushing after" total)
       (.commit! tx)
       (-> state
         (assoc :tx (.store-document 
                      (trans/start "http://localhost:9002") 
                      (str prefix "-" id) item))       
         (assoc :id (inc id)) 
-        (assoc :total 0))   )
+        (assoc :total (inc total))))
     (do
       (-> state
         (assoc :tx (.store-document tx (str prefix "-" id) item))       
         (assoc :id (inc id)) 
         (assoc :total (inc total))))))
 
-#_ (time (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
+(defn import-prescriptions []
+  (time (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
      (.commit! (:tx (reduce add-sequential-doc-to-transaction {
         :tx (trans/start "http://localhost:9002")
         :id 0
         :total 0
         :prefix "scrips"
        }
-      (map prescription-row (csv/read-csv in-file)))))))
+      (map prescription-row (csv/read-csv in-file))))))))
+
+(defn insertindex []
+  (client/put-index "http://localhost:9002" 
+                     "by_practice" 
+                     "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")) 
+
+#_ (do
+    (fs/delete-dir "testdb")
+    (let [db (storage/create-storage "testdb")
+        engine (indexengine/create-engine db)
+        server (run-jetty 
+          (http/create-http-server db engine)
+          { :port (Integer/parseInt (or (System/getenv "]PORT") "9002")) :join? false})]
+      
+      (.start engine)
+      (import-prescriptions)
+      (println "About to add index")
+      (Thread/sleep 5000)
+      (insertindex)))
+ 
 
 #_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
      (.commit! (:tx (reduce add-sequential-doc-to-transaction {
@@ -113,11 +135,7 @@
         :total 0
         :prefix "gp"
      }
-      (map gp-row (csv/read-csv in-file)))))))
-
-#_ (client/put-index "http://localhost:9002" 
-                     "by_practice" 
-                     "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")
+      (take 5000 (map gp-row (csv/read-csv in-file))))))))
 
 #_ (with-open [reader (.open-reader engine "by_practice")]
   ((.query reader { :query "*:*"})))

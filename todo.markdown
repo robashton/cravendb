@@ -12,15 +12,13 @@
 - Bulk imports
 - A rudimentary client-side session helper
 - Paging through query results
+- Mapping happens in chunks so safe-shutdown can be had during repl tests
 
 # Pending/debt/etc
 
 ### Immediate priority
 
-- Perform indexing in chunks (at the moment it's all or nothing)
 - Allow sort orders to be specified
-- Indexing errors
-  - Can get an error if there is no indexing happening for a while and there have been no indexes but lots of documents
   - Querying a newly created index can result in an error as the reader isn't open yet
 
 ### Can wait

@@ -23,10 +23,10 @@
   (assoc index :map (load-string (index :map))))
 
 (defn compile-indexes [indexes db]
-  (doall (map (comp 
-                (partial open-storage-for-index (.path db))
-                compile-index)
-              indexes)))
+  (map (comp 
+         (partial open-storage-for-index (.path db))
+         compile-index)
+       indexes))
 
 (defn load-compiled-indexes [db]
   (compile-indexes (all-indexes db) db))
@@ -50,14 +50,18 @@
           (filter #(not-any? 
                      (partial = (:id %1)) 
                         (map :id (:compiled-indexes engine))) 
-                        (all-indexes (:db engine))) 
-          new-indexes (concat (:compiled-indexes engine) 
-                              (compile-indexes indexes-to-add (:db engine)))]
+                        (all-indexes (:db engine)))] 
 
-        (-> engine
-        (assoc :compiled-indexes new-indexes)
-        (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
 
+      (if (not-empty indexes-to-add)
+        (let [new-indexes (doall (concat (:compiled-indexes engine) 
+                            (compile-indexes indexes-to-add (:db engine))))]
+          (info "RELOADING INDEXES")
+          (-> engine
+            (assoc :compiled-indexes new-indexes)
+            (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i]))))  
+          )
+        engine))
     (catch Exception ex
       (ex-error "REFRESH FUCK" ex)
       engine)))
@@ -70,15 +74,18 @@
 
 (defn needs-a-new-chaser [engine index]
   (debug "Checking if we need a new chaser for" (:id index))
-   (and
-    (not= 
-     (indexing/last-indexed-etag (:db engine)) 
-      (indexes/get-last-indexed-etag-for-index 
-        (:db engine) 
-        (:id index)))
-      (not-any? 
-        (partial = (:id index))
-        (map :id (:chasers engine)))))
+    (try
+      (and
+      (not= 
+      (indexing/last-indexed-etag (:db engine)) 
+        (indexes/get-last-indexed-etag-for-index 
+          (:db engine) 
+          (:id index)))
+        (not-any? 
+          (partial = (:id index))
+          (map :id (:chasers engine))))
+      (catch Exception e
+        (ex-error "needs-a-new-chaser" e))))
 
 (defn create-chaser [engine index]
   (info "Starting a freaking chaser for " (:id index))
@@ -97,11 +104,12 @@
 (defn start-new-chasers [engine]
   (debug "Starting new chasers")
   (assoc engine :chasers
-    (concat 
+    (doall
+      (concat 
       (:chasers engine)
       (doall 
         (map #(create-chaser engine %1) 
-          (indexes-which-require-a-chaser engine))))))
+          (indexes-which-require-a-chaser engine)))))))
 
 (defn indexes-which-are-up-to-date [engine]
   (filter #(not-any? 
@@ -114,20 +122,23 @@
     (indexing/index-documents! 
       (:db engine) 
       (indexes-which-are-up-to-date engine))
+    engine
     (catch Exception ex
-      (ex-error "INDEXING FUCK" ex)))
-  engine) ;; no mutation here
+      (ex-error "INDEXING FUCK" ex))))
 
 (defn mark-pump-as-complete [engine]
   (debug "Index chaser complete")
   (assoc engine :running-pump false))
 
 (defn pump-indexes [engine]
-  (-> engine 
+  (try
+    (-> engine 
     remove-any-finished-chasers 
     start-new-chasers
     pump-indexes-at-head
-    mark-pump-as-complete))
+    mark-pump-as-complete)
+   (catch Exception e
+    (ex-error "pumping" e))))
 
 (defn try-pump-indexes [engine ea]
  (if (:running-pump engine) 
@@ -143,7 +154,7 @@
             (send ea refresh-indexes)
             (send ea try-pump-indexes ea)
             (catch Exception e
-              (ex-error "SHIT" e)))
+              (ex-error "SHIT STARTING" e)))
           (Thread/sleep 50)
           (recur)))]
    (assoc engine :worker-future task)))
@@ -178,12 +189,17 @@
     (send ea close-engine)
     (await ea)))
 
+(defn handle-agent-error [engine e]
+  (ex-error "SHIT-IN-AGENT" e))
+
+
 (defn create-engine [db]
-  (let [compiled-indexes (load-compiled-indexes db)]
-    (EngineHandle.
-      (agent {
+  (let [compiled-indexes (load-compiled-indexes db)
+        engine (agent {
               :chasers ()
               :db db
               :compiled-indexes compiled-indexes
               :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
-              })))) 
+              }) ]
+    (set-error-handler! engine handle-agent-error)
+    (EngineHandle. engine))) 

@@ -43,6 +43,7 @@
 
 
 (defn index-docs [tx indexes ids]
+  (debug "indexing documents with indexes" (map :id indexes))
   (if (or (empty? ids) (empty? indexes))
     (do
       (debug "Idle indexing process")
@@ -123,7 +124,7 @@
 
 (defn index-documents-from-etag! [tx indexes etag pulsefn]
   (with-open [iter (.get-iterator tx)] 
-    (->>  (docs/iterate-etags-after iter etag)
+    (->> (take 10000 (docs/iterate-etags-after iter etag)) 
           (index-docs tx indexes)
           (process-mapped-documents tx indexes pulsefn))) )
 

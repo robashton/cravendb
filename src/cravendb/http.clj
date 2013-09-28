@@ -47,7 +47,7 @@
 
     (POST "/bulk" { body-in :body }
       (let [body ((comp read-string slurp) body-in)]
-        (debug "Bulk operation: " body)
+        (debug "Bulk operation: ")
         (with-open [tx (.ensure-transaction db)]
           (.commit! 
             (reduce

@@ -1,5 +1,6 @@
 (ns cravendb.documents
   (use [cravendb.storage]
+       [clojure.tools.logging :only (info error debug)] 
        [cravendb.core]))
 
 (def etags-to-docs-prefix "etags-to-docs-")
@@ -49,6 +50,7 @@
     (map extract-value-from-expanded-iterator)) )
 
 (defn iterate-etags-after [iter etag]
+  (debug "About to iterate etags after" etag)
   (.seek iter (to-db (str etags-to-docs-prefix (next-etag etag))))
   (->> 
     (iterator-seq iter)
