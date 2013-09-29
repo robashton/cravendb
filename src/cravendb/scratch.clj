@@ -23,6 +23,8 @@
 (def test-index-filter
   "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
 
+
+
 (defn add-alpha-whatevers [db]
   (with-open [tx (.ensure-transaction db)] 
     (-> tx

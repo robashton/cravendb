@@ -6,6 +6,7 @@
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
+            [cravendb.query :as query]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
             [cravendb.client :as client]
@@ -20,6 +21,9 @@
                     :writer (.open-writer storage) }))
 
 (defn create-test-indexes [] [ (create-test-index) ])
+
+(defn parse-results [results]
+  (map read-string results))
 
 (def write-three-documents 
   (fn [db]
@@ -121,6 +125,37 @@
 
         (should= (integer-to-etag 4) 
                  (indexes/get-last-indexed-etag-for-index db "test")))))) 
+
+(def by-name-map 
+  "(fn [doc] { \"name\" (:name doc) })")
+
+(def by-name-animal-filter
+  "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
+
+(describe "Applying a filter to an index"
+  (with-all results (with-full-setup
+      (fn [db engine]
+        (with-open [tx (.ensure-transaction db)] 
+          (-> tx
+            (docs/store-document "animal-1" (pr-str { :name "zebra"}))
+            (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
+            (docs/store-document "animal-3" (pr-str { :name "giraffe"}))
+            (docs/store-document "animal-4" (pr-str { :name "anteater"}))
+            (docs/store-document "owner-1" (pr-str { :name "rob"}))
+            (indexes/put-index { 
+              :id "by_name" 
+              :filter by-name-animal-filter
+              :map by-name-map}) 
+            (.commit!)))
+        (parse-results
+          (query/execute db engine { :query "*:*" :index "by_name" :wait true })))))
+  (it "will not index documents not covered by the filter"
+      (should-not-contain { :name "rob"} @results))
+  (it "will index documents covered by the filter"
+      (should-contain { :name "zebra"} @results)
+      (should-contain { :name "aardvark"} @results)
+      (should-contain { :name "giraffe"} @results)
+      (should-contain { :name "anteater"} @results)))
 
 ;; Note: Perhaps I shouldn't be doing end-to-end here
 ;; if it's too hard to set up a standalone indexing system

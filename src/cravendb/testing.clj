@@ -20,12 +20,13 @@
   (clear-test-data)
   (with-open [db (storage/create-storage "testdir")
                engine (indexengine/create-engine db)]
-      (try       
+      (let [result (try       
         (.start engine)
         (try
           (testfn db engine)
-          (finally (.stop engine)))))
-  (clear-test-data))
+          (finally (.stop engine))))]
+        (clear-test-data)      
+        result)))
 
 (defn inside-tx [testfn]
   (with-db 

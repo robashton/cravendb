@@ -41,35 +41,30 @@
               (> last-etag (etag-to-integer (indexes/get-last-indexed-etag-for-index db index-id))))
       (Thread/sleep 100))))) 
 
+(defn apply-map-to-document [index doc id]
+  (if (and (:filter index) (not ((:filter index) doc { :id id})))
+    (do (debug "Skipping " id "because of filter on " (:id index)) nil)
+    (try ((:map index) doc)
+      (catch Exception ex
+        (debug "Failed to index " id "because of" ex) nil))))
 
 (defn index-docs [tx indexes ids]
   (debug "indexing documents with indexes" (map :id indexes))
   (if (or (empty? ids) (empty? indexes))
-    (do
-      (debug "Idle indexing process")
-      ()
-      )
+    (do (debug "Idle indexing process") ())
     (do
       (debug "Performing indexing task on stale documents")
       (for [item (map (partial load-document-for-indexing tx) ids)
-          index indexes] 
-        (try
+            index indexes] 
+        (do        
           (debug "indexing " (item :id) "with" (index :id))
           {
-            :id (item :id)
-            :etag (item :etag)
-            :index-id (index :id) 
-            :mapped ((index :map) (item :doc)) 
-          }
-          (catch Exception e
-            (error "Indexing document failed" (:id item) (:id index))
-            {
-             :id (item :id)
-             :etag (item :etag)
-             :index-id (index :id)
-             }
-            )
-          )))))
+          :id (item :id)
+          :etag (item :etag)
+          :index-id (:id index)
+          :mapped (apply-map-to-document index (:doc item) (item :id))
+          })
+          ))))
 
 (defn put-into-writer [writer doc-id mapped]
   (.put-entry writer doc-id mapped))
