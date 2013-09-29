@@ -16,42 +16,56 @@
        [clojure.tools.logging :only (info debug error)] 
        [clojure.pprint]))
 
+;;(declare document-description)
+;;(declare get-type-description)
+;;
+;;(defn get-type-description [v]
+;;  (if (string? v) :string
+;;    (if (integer? v) :integer
+;;      (if (list v) :list) 
+;;        (if (map? v) 
+;;        (for [[k sv] v] {  
+;;          k (get-type-description sv) })
+;;        ))))
+;;
+;;(get-type-description "hello")
+;;(get-type-description 1337)
+;;(get-type-description ())
+;;(get-type-description [])
+;;(get-type-description {})
+;;
+;;(get-type-description { :title "hello" :age 27 :children [] })
+;;
 
-(def test-index 
-  "(fn [doc] { \"name\" (:name doc) })")
+(defn generate-key-name [prefix k]
+  (clojure.string/replace (str (if prefix (str prefix "$")) k) ":" ""))
 
-(def test-index-filter
-  "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
+(defn flatten-document 
+  ([doc prefix]
+    (into {} (for [[k v] doc]
+      [
+       (generate-key-name prefix k) 
+       (if (map? v) (flatten-document v (generate-key-name prefix k))
+          v) ])))
+  ([doc] (flatten-document doc nil)))
 
+;; Array of strings should be indexed as array: [ "value" "value" "value" ]
+;; Array of objects should be indexed as multiple arrays 
+;; children$name [ "billy" "sally" ]
+;; children$gender ["male" "female" ]
+;; Note: This raises the usual issue of "how do I find people with children called billy who are male"
+;; Answer: Write your own sodding index "billy_male" and search for that.
 
-
-(defn add-alpha-whatevers [db]
-  (with-open [tx (.ensure-transaction db)] 
-    (-> tx
-      (docs/store-document "animal-1" (pr-str { :name "zebra"}))
-      (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
-      (docs/store-document "animal-3" (pr-str { :name "giraffe"}))
-      (docs/store-document "animal-4" (pr-str { :name "anteater"}))
-      (docs/store-document "owner-1" (pr-str { :name "rob"}))
-      (.commit!))))
-
-(defn add-by-whatever-index [db]
-  (with-open [tx (.ensure-transaction db)] 
-    (.commit! 
-      (indexes/put-index tx { 
-        :id "by_name" 
-        :filter test-index-filter
-        :map test-index} )))) 
-
-#_ (with-full-setup
-  (fn [db engine]
-    (add-by-whatever-index db) 
-    (add-alpha-whatevers db)
-    (pprint (query/execute 
-      db 
-      engine 
-      { :query 
-       "*:*" 
-       :index "by_name"
-       :wait true
-       })))) 
+#_ (flatten-document {
+                      :title "hello" 
+                      :age 27 
+                      :address 
+                        { 
+                         :line-one "3 Ridgeborough Hill" 
+                         :post-code "IM4 7AS"}
+                      :pets [ "bob" "harry" "dick"]
+                      :children [
+                        { :name "billy" :gender "male" }
+                        { :name "sally" :gender "female" }
+                      ] 
+                      })

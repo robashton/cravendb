@@ -18,13 +18,15 @@
 
 ### Immediate priority
 
-- Allow restricting indexing to documents with a prefix (cats-/dogs-)
 - Default indexes created per prefix
+  - Default options
+  - Default index to query
+  - Can I have a consistent query language between these and custom maps?
+  - Decide on how to expose Lucene queries to the consumer ^^
+    - Looks like a custom query language is more appropriate given auto-indexing
+
 - Options for Lucene
   - Capture field types so we know how to sort (or use Lucene options as above)
-- Decide on how to expose Lucene queries to the consumer
-- Think this should be largely automagic by default
-- Meta data storage for documents
 
 ### Can wait
 
@@ -44,3 +46,4 @@
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 - Look at threading indexing
+- Meta data storage for documents
