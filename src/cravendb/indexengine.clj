@@ -56,11 +56,10 @@
       (if (not-empty indexes-to-add)
         (let [new-indexes (doall (concat (:compiled-indexes engine) 
                             (compile-indexes indexes-to-add (:db engine))))]
-          (info "RELOADING INDEXES")
+          (debug "Loading new indexes from storage")
           (-> engine
             (assoc :compiled-indexes new-indexes)
-            (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i]))))  
-          )
+            (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
         engine))
     (catch Exception ex
       (ex-error "REFRESH FUCK" ex)
@@ -165,12 +164,11 @@
     (assoc engine :worker-future nil)
     (catch Exception ex
       (ex-error "STOPPING FUCK" (pprint ex))
-      engine
-      )))
+      engine)))
 
 (defprotocol EngineOperations
   (start [this])
-  (open-reader [this index-id])
+  (get-storage [this index-id])
   (stop [this])
   (close [this]))
 
@@ -178,8 +176,8 @@
   EngineOperations
   (start [this]
    (send ea start-indexing ea))
-  (open-reader [this index-id]
-    (.open-reader (get-in @ea [:indexes-by-name index-id :storage])))
+  (get-storage [this index-id]
+    (get-in @ea [:indexes-by-name index-id :storage]))
   (stop [this]
     (debug "Stopping indexing agents")
    (send ea stop-indexing)
@@ -191,7 +189,6 @@
 
 (defn handle-agent-error [engine e]
   (ex-error "SHIT-IN-AGENT" e))
-
 
 (defn create-engine [db]
   (let [compiled-indexes (load-compiled-indexes db)

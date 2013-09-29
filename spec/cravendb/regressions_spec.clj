@@ -7,6 +7,7 @@
             [cravendb.indexstore :as indexes]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
+            [cravendb.query :as query]
             [cravendb.client :as client]
             [cravendb.lucene :as lucene]))
 
@@ -28,3 +29,25 @@
 
         (should= (integer-to-etag 2) 
                  (indexes/get-last-indexed-etag-for-index db "test")))))) 
+
+(def test-index 
+  "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
+
+(defn add-by-whatever-index [db]
+  (with-open [tx (.ensure-transaction db)] 
+    (.commit! 
+      (indexes/put-index tx { 
+        :id "by_whatever" 
+        :map test-index} )))) 
+
+(describe "Querying a newly created index"
+  (it "will not fall over clutching a bottle of whisky"
+    (with-full-setup
+    (fn [db engine]
+      (add-by-whatever-index db) 
+      (should-not-throw 
+        (query/execute 
+          db 
+          engine 
+          { :query "*:*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))))
+ 

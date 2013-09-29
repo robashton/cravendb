@@ -1,5 +1,6 @@
 (ns cravendb.query
   (use [cravendb.core]
+       [cravendb.indexstore :as indexes]
        [clojure.tools.logging :only (info error debug)])
   (require    
     [cravendb.indexing :as indexing]
@@ -8,7 +9,8 @@
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
-(defn perform-query [tx reader query offset amount sort-field sort-order]
+(defn perform-query 
+  [tx reader query offset amount sort-field sort-order]
   (loop [results ()
          current-offset offset
          total-collected 0
@@ -33,18 +35,35 @@
                     (inc attempt))
              new-results))))
 
-(defn execute [db index-engine query]
-  (if (query :wait) (indexing/wait-for-index-catch-up 
-                      db 
-                      (:index query) 
-                      (or (:wait-duration query) 5)))
-  (with-open [reader (.open-reader index-engine (:index query))
-              tx (.ensure-transaction db)]
-    (perform-query tx
-                   reader 
-                   (:query query)
-                   (or (:offset query) 0)
-                   (or (:amount query) 1000)
-                   (:sort-by query)
-                   (or (:sort-order query) :asc))))
+(declare execute)
 
+(defn query-with-storage [db storage query]
+  (with-open [reader (.open-reader storage)
+              tx (.ensure-transaction db)]
+  (perform-query 
+    tx
+    reader 
+    (:query query)
+    (or (:offset query) 0)
+    (or (:amount query) 1000)
+    (:sort-by query)
+    (or (:sort-order query) :asc))))
+
+(defn wait-for-new-index [db index-engine query]
+  (execute db index-engine (assoc query :wait 5)))
+
+(defn query-without-storage [db index-engine query]
+  (if (indexes/load-index db (:index query))
+      (wait-for-new-index db index-engine query)
+      nil))
+
+(defn execute [db index-engine query]
+  (if (query :wait) 
+    (indexing/wait-for-index-catch-up 
+      db 
+      (:index query) 
+      (or (:wait-duration query) 5)))
+  (let [storage (.get-storage index-engine (:index query))]
+    (if storage 
+      (query-with-storage db storage query)
+      (query-without-storage db index-engine query))))

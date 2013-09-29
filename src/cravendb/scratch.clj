@@ -48,9 +48,8 @@
 
 #_ (with-full-setup
   (fn [db engine]
-    (add-by-whatever-index db) 
     (add-alpha-whatevers db)
-    (indexing/wait-for-index-catch-up db 50)
+    (add-by-whatever-index db) 
     (println (query/execute 
       db 
       engine 

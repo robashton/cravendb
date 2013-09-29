@@ -18,7 +18,7 @@
 
 ### Immediate priority
 
-- Querying a newly created index can result in an error as the reader isn't open yet
+- NOTHING AT ALL YAY
 
 ### Can wait
 
