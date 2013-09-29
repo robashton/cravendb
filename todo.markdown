@@ -18,21 +18,24 @@
 
 ### Immediate priority
 
-- NOTHING AT ALL YAY
+- Allow restricting indexing to documents with a prefix (cats-/dogs-)
+- Default indexes created per prefix
+- Options for Lucene
+  - Capture field types so we know how to sort (or use Lucene options as above)
+- Decide on how to expose Lucene queries to the consumer
+- Think this should be largely automagic by default
+- Meta data storage for documents
 
 ### Can wait
 
-- Allow restricting indexing to documents with a prefix (cats-/dogs-)
+- Indexes can be properly broken, they need disabling and reporting
+- Handle indexes that can't be compiled for some reason
 - Modification of an index needs to mean re-indexing
   - Can I get away with renaming the folder to 'to-delete-blah'
   - Then deleting it?
   - This won't work for scheduled data, need indirection there at least
-- Options for Lucene
-  - Capture field types so we know how to sort (or use Lucene options as above)
-- Decide on how to expose Lucene queries to the consumer
 - Process to remove deleted documents from index
 - Some form of concurrency check over transactions (MVCC most likely)
-- Handle errors during indexing so it doesn't infini-loop
 - The index engine shouldn't be swallowing agent exceptions
 - Client should be handling HTTP results properly
 - HTTP server should be sending back appropriate HTTP responses
@@ -40,4 +43,4 @@
 - HTTP API should be validating input
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
-
+- Look at threading indexing

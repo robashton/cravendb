@@ -18,39 +18,38 @@
 
 
 (def test-index 
-  "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
+  "(fn [doc] { \"name\" (:name doc) })")
+
+(def test-index-filter
+  "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
+
+(defn add-alpha-whatevers [db]
+  (with-open [tx (.ensure-transaction db)] 
+    (-> tx
+      (docs/store-document "animal-1" (pr-str { :name "zebra"}))
+      (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
+      (docs/store-document "animal-3" (pr-str { :name "giraffe"}))
+      (docs/store-document "animal-4" (pr-str { :name "anteater"}))
+      (docs/store-document "owner-1" (pr-str { :name "rob"}))
+      (.commit!))))
 
 (defn add-by-whatever-index [db]
   (with-open [tx (.ensure-transaction db)] 
     (.commit! 
       (indexes/put-index tx { 
-        :id "by_whatever" 
+        :id "by_name" 
+        :filter test-index-filter
         :map test-index} )))) 
 
-(defn add-alpha-whatevers [db]
-  (with-open [tx (.ensure-transaction db)] 
-    (-> tx
-      (docs/store-document "docs-1" (pr-str { :whatever "zebra"}))
-      (docs/store-document "docs-2" (pr-str { :whatever "aardvark"}))
-      (docs/store-document "docs-3" (pr-str { :whatever "giraffe"}))
-      (docs/store-document "docs-4" (pr-str { :whatever "anteater"}))
-      (.commit!))))
-
 #_ (with-full-setup
   (fn [db engine]
     (add-by-whatever-index db) 
     (add-alpha-whatevers db)
-    (indexing/wait-for-index-catch-up db 50)
-    (println (query/execute 
+    (pprint (query/execute 
       db 
       engine 
-      { :query "*:*" :sort-by "whatever" :index "by_whatever"})))) 
-
-#_ (with-full-setup
-  (fn [db engine]
-    (add-alpha-whatevers db)
-    (add-by-whatever-index db) 
-    (println (query/execute 
-      db 
-      engine 
-      { :query "*:*" :sort-order :desc :sort-by "whatever" :index "by_whatever"})))) 
+      { :query 
+       "*:*" 
+       :index "by_name"
+       :wait true
+       })))) 

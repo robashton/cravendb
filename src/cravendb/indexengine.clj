@@ -20,7 +20,9 @@
     (doall (map read-string (indexes/iterate-indexes iter)))))
 
 (defn compile-index [index]
-  (assoc index :map (load-string (index :map))))
+  (assoc index 
+         :map (load-string (index :map))
+         :filter (if (:filter index) (load-string (:filter index)) nil)))
 
 (defn compile-indexes [indexes db]
   (map (comp 

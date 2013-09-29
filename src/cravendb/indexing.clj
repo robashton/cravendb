@@ -63,7 +63,11 @@
           }
           (catch Exception e
             (error "Indexing document failed" (:id item) (:id index))
-            nil
+            {
+             :id (item :id)
+             :etag (item :etag)
+             :index-id (index :id)
+             }
             )
           )))))
 
@@ -107,7 +111,7 @@
   ([output] (finish-map-process! output false))
   ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do (info "Flushing main map process at " doc-count max-etag)
+    (do (debug "Flushing main map process at " doc-count max-etag)
       (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
         (.store last-indexed-etag-key max-etag)
         (.store last-index-doc-count-key doc-count)
@@ -118,7 +122,7 @@
   ([output] (finish-partial-map-process! output false))
   ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do (info "Flushing chaser process at " doc-count max-etag)
+    (do (debug "Flushing chaser process at " doc-count max-etag)
       (.commit! (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers)))))
     output))
 
