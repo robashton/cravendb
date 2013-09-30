@@ -85,9 +85,9 @@
   (if (= 0 (mod total 1000))
     (do
       (info "Flushing after" total)
-      (.commit! tx)
+      (trans/commit! tx)
       (-> state
-        (assoc :tx (.store-document 
+        (assoc :tx (trans/store-document 
                      (trans/start "http://localhost:9002") 
                      (str prefix "-" id) item))       
         (assoc :id (inc id)) 
@@ -100,7 +100,7 @@
 
 (defn import-prescriptions []
   (time (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
-     (.commit! (:tx (reduce add-sequential-doc-to-transaction {
+     (trans/commit! (:tx (reduce add-sequential-doc-to-transaction {
         :tx (trans/start "http://localhost:9002")
         :id 0
         :total 0
