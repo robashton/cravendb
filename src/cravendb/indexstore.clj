@@ -1,18 +1,19 @@
 (ns cravendb.indexstore
   (:require [cravendb.core]
-            [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [cravendb.documents :as docs])
   (:import (java.io File File))
-  (use [cravendb.core]))
+  (:use [cravendb.core]))
 
 (def index-prefix "index-")
 (def index-last-etag-prefix "indexlastetag-")
 
 (defn set-last-indexed-etag-for-index [tx id etag]
-  (.store tx (str index-last-etag-prefix id) etag))
+  (s/store tx (str index-last-etag-prefix id) etag))
 
 (defn get-last-indexed-etag-for-index [tx id]
-  (.get-string tx (str index-last-etag-prefix id)))
+  (or (s/get-string tx (str index-last-etag-prefix id))
+      (zero-etag)))
 
 (defn index-doc-id [id]
   (str index-prefix id))

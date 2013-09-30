@@ -1,5 +1,5 @@
 (ns cravendb.client
-  (require [http.async.client :as http]))
+  (:require [http.async.client :as http]))
 
 (defn url-for-doc-id [url id]
   (str url "/doc/" id))

@@ -3,7 +3,7 @@
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.documents :as docs]
             [cravendb.indexengine :as indexengine]
-            [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [cravendb.http :as http]))
 
 (defn clear-test-data []
@@ -11,35 +11,35 @@
 
 (defn with-db [testfn]
   (clear-test-data)
-  (with-open [db (storage/create-storage "testdir")]
+  (with-open [db (s/create-storage "testdir")]
     (testfn db))
   (clear-test-data))
 
 
 (defn with-full-setup [testfn]
   (clear-test-data)
-  (with-open [db (storage/create-storage "testdir")
+  (with-open [db (s/create-storage "testdir")
                engine (indexengine/create-engine db)]
       (let [result (try       
-        (.start engine)
+        (indexengine/start engine)
         (try
           (testfn db engine)
-          (finally (.stop engine))))]
+          (finally (indexengine/stop engine))))]
         (clear-test-data)      
         result)))
 
 (defn inside-tx [testfn]
   (with-db 
     (fn [db]
-      (with-open [tx (.ensure-transaction db)]
+      (with-open [tx (s/ensure-transaction db)]
         (testfn tx)))))
 
 (defn with-test-server [testfn]
   (clear-test-data)
-  (with-open [db (storage/create-storage "testdir")
+  (with-open [db (s/create-storage "testdir")
               index-engine (indexengine/create-engine db)]
     (try
-      (.start index-engine)
+      (indexengine/start index-engine)
       (let [server (run-jetty 
                    (http/create-http-server db index-engine) 
                     { :port 9000 :join? false} )]
@@ -48,5 +48,5 @@
         (finally
           (.stop server))))
       (finally
-        (.stop index-engine))))
+        (indexengine/stop index-engine))))
   (clear-test-data))

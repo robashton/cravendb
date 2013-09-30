@@ -1,22 +1,23 @@
 (ns cravendb.indexengine
-  (use [cravendb.core]
+  (:use [cravendb.core]
        [clojure.pprint]
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
-  (require [cravendb.lucene :as lucene]
+  (:require [cravendb.lucene :as lucene]
+           [cravendb.storage :as s]
            [cravendb.indexstore :as indexes]
+           [cravendb.defaultindexes :as di]
            [cravendb.indexing :as indexing]))
 
 (defn open-storage-for-index [path index]
   (let [storage (lucene/create-index (File. path (index :id)))]
     (-> index
       (assoc :storage storage)
-      (assoc :writer (.open-writer storage)))))
-
+      (assoc :writer (lucene/open-writer storage)))))
 
 (defn all-indexes [db]
-  (with-open [tx (.ensure-transaction db)
-              iter (.get-iterator tx)]
+  (with-open [tx (s/ensure-transaction db)
+              iter (s/get-iterator tx)]
     (doall (map read-string (indexes/iterate-indexes iter)))))
 
 (defn compile-index [index]
@@ -24,14 +25,10 @@
          :map (load-string (index :map))
          :filter (if (:filter index) (load-string (:filter index)) nil)))
 
-(defn compile-indexes [indexes db]
-  (map (comp 
-         (partial open-storage-for-index (.path db))
-         compile-index)
-       indexes))
-
-(defn load-compiled-indexes [db]
-  (compile-indexes (all-indexes db) db))
+(defn load-initial-indexes [db]
+  (doall 
+    (map (partial open-storage-for-index (:path db))  
+         (concat (di/all) (map compile-index (all-indexes db))))))
 
 (defn close-engine [engine]
   (debug "Closing the engine")
@@ -46,22 +43,27 @@
 (defn ex-error [prefix ex]
   (error prefix (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))))
 
-(defn refresh-indexes [engine]
+(defn load-new-indexes [indexes db]
+  (map (comp 
+         (partial open-storage-for-index (:path db)) 
+         compile-index) indexes))
+
+(defn refresh-indexes [{:keys [db compiled-indexes] :as engine}]
   (try 
     (let [indexes-to-add 
           (filter #(not-any? 
                      (partial = (:id %1)) 
-                        (map :id (:compiled-indexes engine))) 
-                        (all-indexes (:db engine)))] 
-
+                        (map :id compiled-indexes)) 
+                        (all-indexes db))] 
 
       (if (not-empty indexes-to-add)
-        (let [new-indexes (doall (concat (:compiled-indexes engine) 
-                            (compile-indexes indexes-to-add (:db engine))))]
+        (let [new-indexes 
+              (doall (concat compiled-indexes 
+                             (load-new-indexes indexes-to-add db)))]
           (debug "Loading new indexes from storage")
-          (-> engine
-            (assoc :compiled-indexes new-indexes)
-            (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
+          (assoc engine :compiled-indexes new-indexes
+            :indexes-by-name (into {} (for [i new-indexes] [(i :id) i]))))
+
         engine))
     (catch Exception ex
       (ex-error "REFRESH FUCK" ex)
@@ -169,31 +171,31 @@
       engine)))
 
 (defprotocol EngineOperations
-  (start [this])
-  (get-storage [this index-id])
-  (stop [this])
   (close [this]))
 
 (defrecord EngineHandle [ea]
   EngineOperations
-  (start [this]
-   (send ea start-indexing ea))
-  (get-storage [this index-id]
-    (get-in @ea [:indexes-by-name index-id :storage]))
-  (stop [this]
-    (debug "Stopping indexing agents")
-   (send ea stop-indexing)
-   (await ea))
   (close [this]
     (debug "Closing engine handle")
     (send ea close-engine)
     (await ea)))
 
+(defn start [ops]
+  (send (:ea ops) start-indexing (:ea ops)))
+
+(defn get-index-storage [ops index-id]
+  (get-in @(:ea ops) [:indexes-by-name index-id :storage]))
+
+(defn stop [ops]
+ (debug "Stopping indexing agents")
+ (send (:ea ops) stop-indexing)
+ (await (:ea ops)))
+
 (defn handle-agent-error [engine e]
   (ex-error "SHIT-IN-AGENT" e))
 
 (defn create-engine [db]
-  (let [compiled-indexes (load-compiled-indexes db)
+  (let [compiled-indexes (load-initial-indexes db)
         engine (agent {
               :chasers ()
               :db db

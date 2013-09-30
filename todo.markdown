@@ -18,16 +18,18 @@
 
 ### Immediate priority
 
-- Allow restricting indexing to documents with a prefix (cats-/dogs-)
-- Default indexes created per prefix
+- Default to the "default" index when querying
+- Stick a license in the repo!!
+- Can I have a consistent query language between these and custom maps?
+- Decide on how to expose Lucene queries to the consumer ^^
+  - Looks like a custom query language is more appropriate given auto-indexing
 - Options for Lucene
-  - Capture field types so we know how to sort (or use Lucene options as above)
-- Decide on how to expose Lucene queries to the consumer
-- Think this should be largely automagic by default
-- Meta data storage for documents
 
 ### Can wait
 
+- Consider those small functions as inline functions
+- Safe reading of maps
+- Etag generation is not thread safe, it needs to be a shared incrementable atom
 - Indexes can be properly broken, they need disabling and reporting
 - Handle indexes that can't be compiled for some reason
 - Modification of an index needs to mean re-indexing
@@ -44,3 +46,19 @@
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 - Look at threading indexing
+
+- Look at ex-info/ex-data
+- Meta data storage for documents
+- Try to use the Clojure string library rather than all the .startsWith etc
+- Look at using reducers to queue up the indexing operation
+
+###
+
+To look at - Jig (repl restart helpers)
+           - Route One - generating URLs
+           - clj-http library 
+           - Use clout
+           - See if slingshot is deprecated or not
+           - Ribol - Have a gander, but only a gander
+           - Look at lamina for async operations           
+

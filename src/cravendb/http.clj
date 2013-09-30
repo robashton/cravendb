@@ -2,7 +2,7 @@
   (:require [ring.adapter.jetty :refer [run-jetty]]
             [compojure.route :as route]
             [compojure.handler :as handler]
-            [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [cravendb.indexing :as indexing] 
             [cravendb.query :as query] 
             [cravendb.indexstore :as indexes] 
@@ -18,11 +18,8 @@
     :docs-put (docs/store-document tx (:id op) (pr-str (:document op)))) ;;  TODO: NO
   )
 
-(defn create-http-server [db index-engine]
-  (info "Setting up the bomb")
-
-  (defroutes app-routes
-
+(defn create-db-routes [db index-engine]
+  (routes
     (GET "/query/:index/:query" { params :params  }
       (let [q (params :query)
             w (params :wait)]
@@ -32,24 +29,24 @@
     (PUT "/doc/:id" { params :params body :body }
       (let [id (params :id) body (slurp body)]
         (debug "putting a document in with id " id " and body " body)
-        (with-open [tx (.ensure-transaction db)]
-          (.commit! (docs/store-document tx id body)))))
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! (docs/store-document tx id body)))))
 
     (GET "/doc/:id" [id] 
       (debug "getting a document with id " id)
-         (with-open [tx (.ensure-transaction db)]
+         (with-open [tx (s/ensure-transaction db)]
            (or (docs/load-document tx id) { :status 404 })))
 
     (DELETE "/doc/:id" [id]
       (debug "deleting a document with id " id)
-        (with-open [tx (.ensure-transaction db)]
-          (.commit! (docs/delete-document tx id))))
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! (docs/delete-document tx id))))
 
     (POST "/bulk" { body-in :body }
       (let [body ((comp read-string slurp) body-in)]
         (debug "Bulk operation: ")
-        (with-open [tx (.ensure-transaction db)]
-          (.commit! 
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! 
             (reduce
               interpret-bulk-operation
               tx
@@ -59,8 +56,8 @@
     (PUT "/index/:id" { params :params body :body }
       (let [id (params :id) body ((comp read-string slurp) body)]
         (debug "putting an in with id " id " and body " body)
-        (with-open [tx (.ensure-transaction db)]
-          (.commit! 
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! 
             (indexes/put-index 
               tx {
                   :id id
@@ -70,26 +67,29 @@
 
     (GET "/index/:id" [id] 
       (debug "getting an index with id " id)
-         (with-open [tx (.ensure-transaction db)]
-           (let [index (indexes/load-index tx id)]
-             (if index
-               (pr-str index)
-               { :status 404 }))))
+         (with-open [tx (s/ensure-transaction db)]
+           (if-let [index (indexes/load-index tx id)]
+              (pr-str index)
+               { :status 404 })))
 
-    (route/not-found "ZOMG NO, THIS IS NOT A VALID URL"))
+    (route/not-found "ZOMG NO, THIS IS NOT A VALID URL")))
 
-  (handler/api app-routes))
+(defn create-http-server [db index-engine]
+  (info "Setting up the bomb")
+
+  (let [db-routes (create-db-routes db index-engine)]
+    (handler/api db-routes)))
 
 (defn -main []
-  (with-open [db (storage/create-storage "testdb")
+  (with-open [db (s/create-storage "testdb")
               engine (indexengine/create-engine db)]
     (try
-      (.start engine)
+      (indexengine/start engine)
       (run-jetty 
         (create-http-server db engine) 
         { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true})   
       (finally
-        (.stop engine)))
+        (indexengine/stop engine)))
     
     (debug "Shutting down")))
 
