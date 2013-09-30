@@ -1,14 +1,11 @@
 (ns cravendb.storage
   (:use [clojure.tools.logging :only (info debug error)])
-  (:require [clojure.core.incubator :refer [dissoc-in]]))
+  (:require [clojure.core.incubator :refer [dissoc-in]])
+  (:import (org.iq80.leveldb Options ReadOptions WriteOptions DBIterator )
+           (org.fusesource.leveldbjni JniDBFactory)
+           (java.io File)
+           (java.nio ByteBuffer)))
 
-(:import 'org.iq80.leveldb.Options)
-(:import 'org.iq80.leveldb.ReadOptions)
-(:import 'org.iq80.leveldb.WriteOptions)
-(:import 'org.iq80.leveldb.DBIterator)
-(:import 'org.fusesource.leveldbjni.JniDBFactory)
-(:import 'java.io.File)
-(:import 'java.nio.ByteBuffer)
 
 (defn to-db [input]
   (if (string? input)
