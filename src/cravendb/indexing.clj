@@ -89,7 +89,7 @@
   (debug "About to reduce")
   (pulsefn 
     (reduce process-mapped-document 
-          {:writers (into {} (for [i compiled-indexes] [ (i :id) (i :writer)])) 
+          {:writers (into {} (map (juxt :id :writer) compiled-indexes)) 
            :max-etag (last-indexed-etag tx) 
            :tx tx 
            :doc-count 0

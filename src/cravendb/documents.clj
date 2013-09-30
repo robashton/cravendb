@@ -8,7 +8,7 @@
 (def document-prefix "doc-")
 (def last-etag-key "last-etag")
 
-(defn is-document-key [k]
+(defn is-document-key [^String k]
   (.startsWith k document-prefix))
 
 (defn is-document-key-prefixed-with [prefix entry]
@@ -29,10 +29,10 @@
 (defn store-document [db id document] 
   (let [etag (next-etag (last-etag db))]
     (-> db
-      (.store (str document-prefix id) document)
-      (.store last-etag-key etag)
-      (.store (str etags-to-docs-prefix etag) id)
-      (.store (str docs-to-etags-prefix id) etag))))
+      (store (str document-prefix id) document)
+      (store last-etag-key etag)
+      (store (str etags-to-docs-prefix etag) id)
+      (store (str docs-to-etags-prefix id) etag))))
 
 
 (defn load-document [session id] 

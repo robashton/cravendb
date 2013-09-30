@@ -14,7 +14,33 @@
   (use [cravendb.testing]
        [cravendb.core]
        [clojure.tools.logging :only (info debug error)] 
-       [clojure.pprint]))
+       [clojure.pprint])
+  (:import 
+           (org.apache.lucene.analysis.standard StandardAnalyzer)
+           (org.apache.lucene.store FSDirectory)
+           (org.apache.lucene.store RAMDirectory)
+           (org.apache.lucene.util Version)
+           (org.apache.lucene.index IndexWriterConfig)
+           (org.apache.lucene.index IndexWriter)
+           (org.apache.lucene.index DirectoryReader)
+           (org.apache.lucene.search IndexSearcher)
+           (org.apache.lucene.search Sort)
+           (org.apache.lucene.search SortField)
+           (org.apache.lucene.search SortField$Type)
+           (org.apache.lucene.queryparser.classic QueryParser)
+           (org.apache.lucene.document Document)
+           (org.apache.lucene.document Field)
+           (org.apache.lucene.document Field$Store)
+           (org.apache.lucene.document Field$Index)
+           (org.apache.lucene.document TextField)
+           (org.apache.lucene.document StringField)
+           (org.apache.lucene.document IntField)
+           (org.apache.lucene.document FloatField)
+           (java.util Collection Random)
+           (java.io File File PushbackReader IOException FileNotFoundException )) 
+  )
+
+  
 
 ;;(declare document-description)
 ;;(declare get-type-description)
@@ -89,8 +115,29 @@
         (assoc output k [existing v]))
       (assoc output k v))))
 
-#_ (reduce put-pairs-into-obj {} (two-at-a-time results))
      
+(.length "hello")
+
+(defn map-to-lucene [input]
+  (let [doc (Document.)
+        fields 
+       (filter boolean (for [[k v] input] 
+         (cond
+           (and (string? v) (< (.length v) 10)) (Field. k v StringField/TYPE_STORED) 
+           (and (string? v) (>= (.length v) 10)) (Field. k v TextField/TYPE_STORED) 
+           (integer? v) (Field. k v IntField/TYPE_STORED)
+           :else nil
+           )))]
+    fields
+;;    (doseq [f fields] (.add doc f))
+;;    doc
+    ))
+
+;; Could I map fields twice? One for complex queries, one for exact matches?
+;; I think I could!
+
+#_ (pprint (map-to-lucene (reduce put-pairs-into-obj {} (two-at-a-time results))))
+#_ (reduce put-pairs-into-obj {} (two-at-a-time results))
 
 #_(strip-document {
                    :title "hello" 
@@ -102,7 +149,6 @@
                    :pets [ "bob" "harry" "dick"]
                    :children [
                               { :name "billy" :gender "male" }
-                              { :name "sally" :gender "female" }
-                              ] 
+                              { :name "sally" :gender "female" } ] 
                    }) 
 

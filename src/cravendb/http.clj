@@ -18,11 +18,8 @@
     :docs-put (docs/store-document tx (:id op) (pr-str (:document op)))) ;;  TODO: NO
   )
 
-(defn create-http-server [db index-engine]
-  (info "Setting up the bomb")
-
-  (defroutes app-routes
-
+(defn create-db-routes [db index-engine]
+  (routes
     (GET "/query/:index/:query" { params :params  }
       (let [q (params :query)
             w (params :wait)]
@@ -71,14 +68,17 @@
     (GET "/index/:id" [id] 
       (debug "getting an index with id " id)
          (with-open [tx (.ensure-transaction db)]
-           (let [index (indexes/load-index tx id)]
-             (if index
-               (pr-str index)
-               { :status 404 }))))
+           (if-let [index (indexes/load-index tx id)]
+              (pr-str index)
+               { :status 404 })))
 
-    (route/not-found "ZOMG NO, THIS IS NOT A VALID URL"))
+    (route/not-found "ZOMG NO, THIS IS NOT A VALID URL")))
 
-  (handler/api app-routes))
+(defn create-http-server [db index-engine]
+  (info "Setting up the bomb")
+
+  (let [db-routes (create-db-routes db index-engine)]
+    (handler/api db-routes)))
 
 (defn -main []
   (with-open [db (storage/create-storage "testdb")

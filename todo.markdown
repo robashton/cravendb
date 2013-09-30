@@ -18,6 +18,7 @@
 
 ### Immediate priority
 
+- Stick a license in the repo!!
 - Default indexes created per prefix
   - Default options
   - Default index to query
@@ -30,6 +31,10 @@
 
 ### Can wait
 
+- Consider those small functions as inline functions
+- Tidy up my namespaces - use the colon prefixed stuffs
+  - Try to get rid of the uses
+- Safe reading of maps
 - Etag generation is not thread safe, it needs to be a shared incrementable atom
 - Indexes can be properly broken, they need disabling and reporting
 - Handle indexes that can't be compiled for some reason
@@ -47,4 +52,22 @@
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 - Look at threading indexing
+
+
+- Look at ex-info/ex-data
 - Meta data storage for documents
+- I don't need the dots
+- I should probably move the methods off the protocols
+- Try to use the Clojure string library rather than all the .startsWith etc
+- Look at using reducers to queue up the indexing operation
+
+###
+
+To look at - Jig (repl restart helpers)
+           - Route One - generating URLs
+           - clj-http library 
+           - Use clout
+           - See if slingshot is deprecated or not
+           - Ribol - Have a gander, but only a gander
+           - Look at lamina for async operations           
+

@@ -1,9 +1,9 @@
 (ns cravendb.indexengine
-  (use [cravendb.core]
+  (:use [cravendb.core]
        [clojure.pprint]
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
-  (require [cravendb.lucene :as lucene]
+  (:require [cravendb.lucene :as lucene]
            [cravendb.indexstore :as indexes]
            [cravendb.indexing :as indexing]))
 
@@ -46,22 +46,22 @@
 (defn ex-error [prefix ex]
   (error prefix (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))))
 
-(defn refresh-indexes [engine]
+(defn refresh-indexes [{:keys [db compiled-indexes] :as engine}]
   (try 
     (let [indexes-to-add 
           (filter #(not-any? 
                      (partial = (:id %1)) 
-                        (map :id (:compiled-indexes engine))) 
-                        (all-indexes (:db engine)))] 
+                        (map :id compiled-indexes)) 
+                        (all-indexes db))] 
 
 
       (if (not-empty indexes-to-add)
-        (let [new-indexes (doall (concat (:compiled-indexes engine) 
-                            (compile-indexes indexes-to-add (:db engine))))]
+        (let [new-indexes (doall (concat compiled-indexes 
+                            (compile-indexes indexes-to-add db)))]
           (debug "Loading new indexes from storage")
-          (-> engine
-            (assoc :compiled-indexes new-indexes)
-            (assoc :indexes-by-name (into {} (for [i new-indexes] [(i :id) i])))))
+          (assoc engine :compiled-indexes new-indexes
+            :indexes-by-name (into {} (for [i new-indexes] [(i :id) i]))))
+
         engine))
     (catch Exception ex
       (ex-error "REFRESH FUCK" ex)
