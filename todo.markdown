@@ -25,17 +25,13 @@
   - Can I have a consistent query language between these and custom maps?
   - Decide on how to expose Lucene queries to the consumer ^^
     - Looks like a custom query language is more appropriate given auto-indexing
-
 - Options for Lucene
   - Capture field types so we know how to sort (or use Lucene options as above)
 
 ### Can wait
 
 - Consider those small functions as inline functions
-- Tidy up my namespaces - use the colon prefixed stuffs
-  - Try to get rid of the uses
 - Safe reading of maps
-
 - Etag generation is not thread safe, it needs to be a shared incrementable atom
 - Indexes can be properly broken, they need disabling and reporting
 - Handle indexes that can't be compiled for some reason
