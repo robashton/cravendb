@@ -1,29 +1,23 @@
 (ns cravendb.clienttransaction
-   (require [cravendb.client :as client]))
+   (:require [cravendb.client :as client]))
 
+(defn store [tx id data]
+  (assoc-in tx [:cache id] data))
 
-(defprotocol DocumentOperations
-  (store-document [this id data])
-  (load-document [this id])
-  (delete-document [this id])
-  (commit! [this]))
+(defn delete-document [tx id]
+  (assoc-in tx [:cache id] :deleted))
 
-(defrecord HttpTransaction [href]
-  DocumentOperations
-  (store-document [this id data]
-    (assoc-in this [:cache id] data))
-  (delete-document [this id]
-    (assoc-in this [:cache id] :deleted))
-  (load-document [this id]
-    (let [cached (get-in this [:cache id])]
-      (if (= cached :deleted) nil
-        (or cached (client/get-document href id)))))
-  (commit! [this]
-    (client/bulk-operation href
-      (into () 
-      (for [[k v] (:cache this)]
-        (if (= v :deleted)
-          { :operation :docs-delete :id k }
-          { :operation :docs-put :id k :document v }))))))
+(defn load-document [{:keys [href] :as tx} id]
+  (let [cached (get-in tx [:cache id])]
+    (if (= cached :deleted) nil
+      (or cached (client/get-document href id)))))
 
-(defn start [href] (HttpTransaction. href))
+(defn commit! [{:keys [href] :as tx}]
+  (client/bulk-operation href
+    (into () 
+    (for [[k v] (:cache tx)]
+      (if (= v :deleted)
+        { :operation :docs-delete :id k }
+        { :operation :docs-put :id k :document v })))))
+
+(defn start [href] ({ :href href}))

@@ -25,15 +25,12 @@
   - Can I have a consistent query language between these and custom maps?
   - Decide on how to expose Lucene queries to the consumer ^^
     - Looks like a custom query language is more appropriate given auto-indexing
-
 - Options for Lucene
   - Capture field types so we know how to sort (or use Lucene options as above)
 
 ### Can wait
 
 - Consider those small functions as inline functions
-- Tidy up my namespaces - use the colon prefixed stuffs
-  - Try to get rid of the uses
 - Safe reading of maps
 - Etag generation is not thread safe, it needs to be a shared incrementable atom
 - Indexes can be properly broken, they need disabling and reporting
@@ -53,11 +50,8 @@
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 - Look at threading indexing
 
-
 - Look at ex-info/ex-data
 - Meta data storage for documents
-- I don't need the dots
-- I should probably move the methods off the protocols
 - Try to use the Clojure string library rather than all the .startsWith etc
 - Look at using reducers to queue up the indexing operation
 

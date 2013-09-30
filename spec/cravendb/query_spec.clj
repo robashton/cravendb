@@ -7,7 +7,7 @@
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
             [cravendb.indexengine :as indexengine]
-            [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [cravendb.client :as client]
             [cravendb.query :as query]
             [cravendb.lucene :as lucene]))
@@ -17,27 +17,27 @@
   "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
 
 (defn add-by-whatever-index [db]
-  (with-open [tx (.ensure-transaction db)] 
-    (.commit! 
+  (with-open [tx (s/ensure-transaction db)] 
+    (s/commit! 
       (indexes/put-index tx { 
         :id "by_whatever" 
         :map test-index} )))) 
 
 (defn add-1000-documents [db]
-  (with-open [tx (.ensure-transaction db)] 
-    (.commit! (reduce  
+  (with-open [tx (s/ensure-transaction db)] 
+    (s/commit! (reduce  
         #(docs/store-document %1 (str "docs-" %2) (pr-str { :whatever (str %2)}))
         tx
         (range 0 1000)))))
 
 (defn add-alpha-whatevers [db]
-  (with-open [tx (.ensure-transaction db)] 
+  (with-open [tx (s/ensure-transaction db)] 
     (-> tx
       (docs/store-document "docs-1" (pr-str { :whatever "zebra"}))
       (docs/store-document "docs-2" (pr-str { :whatever "aardvark"}))
       (docs/store-document "docs-3" (pr-str { :whatever "giraffe"}))
       (docs/store-document "docs-4" (pr-str { :whatever "anteater"}))
-      (.commit!))))
+      (s/commit!))))
 
 (describe "paging like a boss"
   (it "will return the first 10 docs"

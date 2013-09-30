@@ -4,6 +4,7 @@
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
+           [cravendb.storage :as s]
            [cravendb.indexstore :as indexes]
            [cravendb.indexing :as indexing]))
 
@@ -11,12 +12,12 @@
   (let [storage (lucene/create-index (File. path (index :id)))]
     (-> index
       (assoc :storage storage)
-      (assoc :writer (.open-writer storage)))))
+      (assoc :writer (lucene/open-writer storage)))))
 
 
 (defn all-indexes [db]
-  (with-open [tx (.ensure-transaction db)
-              iter (.get-iterator tx)]
+  (with-open [tx (s/ensure-transaction db)
+              iter (s/get-iterator tx)]
     (doall (map read-string (indexes/iterate-indexes iter)))))
 
 (defn compile-index [index]
@@ -26,7 +27,7 @@
 
 (defn compile-indexes [indexes db]
   (map (comp 
-         (partial open-storage-for-index (.path db))
+         (partial open-storage-for-index (:path db))
          compile-index)
        indexes))
 
@@ -169,25 +170,25 @@
       engine)))
 
 (defprotocol EngineOperations
-  (start [this])
-  (get-storage [this index-id])
-  (stop [this])
   (close [this]))
 
 (defrecord EngineHandle [ea]
   EngineOperations
-  (start [this]
-   (send ea start-indexing ea))
-  (get-storage [this index-id]
-    (get-in @ea [:indexes-by-name index-id :storage]))
-  (stop [this]
-    (debug "Stopping indexing agents")
-   (send ea stop-indexing)
-   (await ea))
   (close [this]
     (debug "Closing engine handle")
     (send ea close-engine)
     (await ea)))
+
+(defn start [ops]
+  (send (:ea ops) start-indexing (:ea ops)))
+
+(defn get-index-storage [ops index-id]
+  (get-in @(:ea ops) [:indexes-by-name index-id :storage]))
+
+(defn stop [ops]
+ (debug "Stopping indexing agents")
+ (send (:ea ops) stop-indexing)
+ (await (:ea ops)))
 
 (defn handle-agent-error [engine e]
   (ex-error "SHIT-IN-AGENT" e))

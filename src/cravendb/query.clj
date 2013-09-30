@@ -1,10 +1,13 @@
 (ns cravendb.query
-  (use [cravendb.core]
+  (:use [cravendb.core]
        [cravendb.indexstore :as indexes]
        [clojure.tools.logging :only (info error debug)])
-  (require    
+  (:require    
     [cravendb.indexing :as indexing]
-    [cravendb.documents :as docs]))
+    [cravendb.indexengine :as indexengine]
+    [cravendb.documents :as docs]
+    [cravendb.lucene :as lucene]
+    [cravendb.storage :as s]))
 
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
@@ -16,7 +19,7 @@
          total-collected 0
          attempt 0 ]
          (let [requested-amount (+ current-offset (max amount 100))
-               raw-results (.query reader query requested-amount sort-field sort-order)
+               raw-results (lucene/query reader query requested-amount sort-field sort-order)
                document-results (convert-results-to-documents tx (drop current-offset raw-results))
                new-results (take amount (concat results document-results))
                new-total (count new-results) 
@@ -38,8 +41,8 @@
 (declare execute)
 
 (defn query-with-storage [db storage query]
-  (with-open [reader (.open-reader storage)
-              tx (.ensure-transaction db)]
+  (with-open [reader (lucene/open-reader storage)
+              tx (s/ensure-transaction db)]
   (perform-query 
     tx
     reader 
@@ -63,7 +66,7 @@
       db 
       (:index query) 
       (or (:wait-duration query) 5)))
-  (let [storage (.get-storage index-engine (:index query))]
+  (let [storage (indexengine/get-index-storage index-engine (:index query))]
     (if storage 
       (query-with-storage db storage query)
       (query-without-storage db index-engine query))))

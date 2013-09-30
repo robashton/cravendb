@@ -1,5 +1,5 @@
 (ns cravendb.lucene
-  (use [clojure.tools.logging :only (info error debug)])
+  (:use [clojure.tools.logging :only (info error debug)])
   (:import 
            (org.apache.lucene.analysis.standard StandardAnalyzer)
            (org.apache.lucene.store FSDirectory)
@@ -21,56 +21,49 @@
            (java.util Collection Random)
            (java.io File File PushbackReader IOException FileNotFoundException )))
 
-
-(defprotocol IndexStore
-  (open-writer [this])
-  (open-reader [this]))
-
-(defprotocol IndexReading
-  (query [this query-string amount sort-field sort-order]))
-
-(defprotocol IndexWriting
-  (commit! [this]) 
-  (delete-all-entries-for [this ref-id])
-  (put-entry [this ref-id content]))
-
-(defprotocol Closeable ;; How do I even??
+(defprotocol Closeable
   (close [this]))
 
 (defrecord LuceneIndexWriting [writer analyzer]
-  IndexWriting
   Closeable
-  (delete-all-entries-for [this ref-id]
-    (.deleteDocuments 
-      writer 
-       (.parse 
-        (QueryParser. Version/LUCENE_CURRENT "" analyzer)
-        (str "__document_id:" (QueryParser/escape ref-id))))
-    this)
-  (put-entry [this ref-id content]
-    (let [doc (Document.)
-          fields (for [[k v] content] 
-                   (if v
-                     (Field. k v TextField/TYPE_STORED) 
-                     nil))]
-      (doseq [f (filter boolean fields)] (.add doc f))
-      (.add doc (Field. "__document_id" ref-id Field$Store/YES Field$Index/NOT_ANALYZED))
-      (.addDocument writer doc))
-      this) 
-  (commit! [this]
-    (.commit writer) 
-    this)
   (close [this] 
     (.close writer)))
-
-
-
 (defrecord LuceneIndexReading [reader analyzer]
-  IndexReading
   Closeable
-  (query [this query-string amount sort-field sort-order]
-    (let [searcher (IndexSearcher. reader)
-      parser (QueryParser. Version/LUCENE_CURRENT "" analyzer) 
+  (close [this]
+    (.close reader)))
+(defrecord LuceneIndex [analyzer directory config]
+  Closeable
+  (close [this] 
+    (.close directory)))
+
+(defn delete-all-entries-for [index ref-id]
+  (.deleteDocuments 
+    (:writer index) 
+      (.parse 
+        (QueryParser. Version/LUCENE_CURRENT "" (:analyzer index))
+        (str "__document_id:" (QueryParser/escape ref-id))))
+  index)
+
+(defn put-entry [index ref-id content]
+  (let [doc (Document.)
+      fields (for [[k v] content] 
+                (if v
+                  (Field. k v TextField/TYPE_STORED) 
+                  nil))]
+    (doseq [f (filter boolean fields)] (.add doc f))
+    (.add doc (Field. "__document_id" ref-id Field$Store/YES Field$Index/NOT_ANALYZED))
+    (.addDocument (:writer index) doc))
+  index) 
+
+(defn commit! [index]
+  (.commit (:writer index)) 
+  index)
+
+
+(defn query [index query-string amount sort-field sort-order]
+    (let [searcher (IndexSearcher. (:reader index))
+      parser (QueryParser. Version/LUCENE_CURRENT "" (:analyzer index)) 
       query (.parse parser query-string)
       sort-options (if sort-field 
                        (Sort. (SortField. 
@@ -82,21 +75,15 @@
       scoredocs (.scoreDocs result)
       docs (for [x (range 0 (count scoredocs))] 
               (.doc searcher (.doc (aget scoredocs x))))]
-              (distinct (map (fn [d] (.get d "__document_id")) docs))))
+              (distinct (map (fn [d] (.get d "__document_id")) docs)))) 
 
-  (close [this]
-    (.close reader)))
 
-(defrecord LuceneIndex [analyzer directory config]
-  IndexStore
-  Closeable
-  (open-writer [this] (LuceneIndexWriting. 
-                        (IndexWriter. directory config)
-                         analyzer))
-  (open-reader [this] (LuceneIndexReading. 
-                        (DirectoryReader/open directory) analyzer))
-  (close [this] 
-    (.close directory)))
+(defn open-writer [index] (LuceneIndexWriting. 
+                      (IndexWriter. (:directory index) (:config index))
+                        (:analyzer index)))
+
+(defn open-reader [index] (LuceneIndexReading. 
+                      (DirectoryReader/open (:directory index)) (:analyzer index)))
 
 (defn create-index [file]
   (let [analyzer (StandardAnalyzer. Version/LUCENE_CURRENT)

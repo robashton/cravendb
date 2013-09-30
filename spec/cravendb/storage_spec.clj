@@ -1,71 +1,71 @@
 (ns cravendb.storage-spec
   (:use [speclj.core]
         [cravendb.testing])
-  (:require [cravendb.storage :as storage]
+  (:require [cravendb.storage :as s]
             [me.raynes.fs :as fs]))
    
 
 (describe "Putting and retrieving an object during a transaction"
   (it "will be able to retrieve the object"
     (with-db (fn [db]
-      (with-open [tx (.ensure-transaction db)]
+      (with-open [tx (s/ensure-transaction db)]
         (should= "hello"
           (-> tx
-            (.store "1" "hello")
-            (.get-string "1"))))))))
+            (s/store "1" "hello")
+            (s/get-string "1"))))))))
 
 (describe "Storing, deleting, and getting an object during a transaction"
   (it "will be able to retrieve the object"
     (with-db (fn [db]
-      (with-open [tx (.ensure-transaction db)]
+      (with-open [tx (s/ensure-transaction db)]
         (should= nil
           (-> tx
-            (.store "1" "hello")
-            (.delete "1")
-            (.get-string "1"))))))))
+            (s/store "1" "hello")
+            (s/delete "1")
+            (s/get-string "1"))))))))
 
 (describe "Storing, deleting, storing and getting an object during a transaction"
   (it "will be able to retrieve the object"
     (with-db (fn [db]
-      (with-open [tx (.ensure-transaction db)]
+      (with-open [tx (s/ensure-transaction db)]
         (should= "hello again"
           (-> tx
-            (.store "1" "hello")
-            (.delete "1")
-            (.store "1" "hello again")
-            (.get-string "1"))))))))
+            (s/store "1" "hello")
+            (s/delete "1")
+            (s/store "1" "hello again")
+            (s/get-string "1"))))))))
 
 (describe "Asking for an object that doesn't exist in the transaction, but exists in the backing store"
   (it "will receive the object from the backing store"
       (with-db 
         (fn [db]
-          (with-open [tx (.ensure-transaction db)]
+          (with-open [tx (s/ensure-transaction db)]
              (-> tx
-               (.store "1" "hello")
-               (.commit!)))
-          (with-open [tx (.ensure-transaction db)]
+               (s/store "1" "hello")
+               (s/commit!)))
+          (with-open [tx (s/ensure-transaction db)]
              (should= "hello"
               (-> tx
-                (.get-string "1"))))))))
+                (s/get-string "1"))))))))
 
 (describe "Asking for an object written during this transaction"
   (it "will not receive the object"
       (with-db 
         (fn [db]
-          (with-open [tx (.ensure-transaction db)
-                      tx2 (.ensure-transaction db)]
+          (with-open [tx (s/ensure-transaction db)
+                      tx2 (s/ensure-transaction db)]
              (-> tx
-               (.store "1" "hello")
-               (.commit!))
-            (should= nil (.get-string tx2 "1")))))))
+               (s/store "1" "hello")
+               (s/commit!))
+            (should= nil (s/get-string tx2 "1")))))))
 
 (describe "Deleting an object that does not exist"
   (it "will achieve nothing"
       (with-db 
         (fn [db]
-          (with-open [tx (.ensure-transaction db)
-                      tx2 (.ensure-transaction db)]
+          (with-open [tx (s/ensure-transaction db)
+                      tx2 (s/ensure-transaction db)]
              (-> tx
-               (.delete "1")
-               (.commit!))
-            (should= nil (.get-string tx2 "1")))))))
+               (s/delete "1")
+               (s/commit!))
+            (should= nil (s/get-string tx2 "1")))))))

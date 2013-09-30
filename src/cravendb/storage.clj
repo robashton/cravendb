@@ -1,14 +1,14 @@
 (ns cravendb.storage
-  (use [clojure.tools.logging :only (info debug error)])
-  (require [clojure.core.incubator :refer [dissoc-in]]))
+  (:use [clojure.tools.logging :only (info debug error)])
+  (:require [clojure.core.incubator :refer [dissoc-in]]))
 
-(import 'org.iq80.leveldb.Options)
-(import 'org.iq80.leveldb.ReadOptions)
-(import 'org.iq80.leveldb.WriteOptions)
-(import 'org.iq80.leveldb.DBIterator)
-(import 'org.fusesource.leveldbjni.JniDBFactory)
-(import 'java.io.File)
-(import 'java.nio.ByteBuffer)
+(:import 'org.iq80.leveldb.Options)
+(:import 'org.iq80.leveldb.ReadOptions)
+(:import 'org.iq80.leveldb.WriteOptions)
+(:import 'org.iq80.leveldb.DBIterator)
+(:import 'org.fusesource.leveldbjni.JniDBFactory)
+(:import 'java.io.File)
+(:import 'java.nio.ByteBuffer)
 
 (defn to-db [input]
   (if (string? input)
@@ -33,51 +33,48 @@
       (println e) 
       nil)))
 
-(defprotocol Reader
-  (get-blob [this id])
-  (get-integer [this id])
-  (get-string [this id]))
-
-(defprotocol Transaction
-  (store [this id data])
-  (delete [this id])
-  (commit! [this]))
-
 (defprotocol Storage 
-  (path [this])
-  (get-iterator [this])
-  (close [this]) 
-  (ensure-transaction [this]))
+  (close [this])) 
 
-(defrecord LevelTransaction [db options]
-  Transaction
+(defrecord LevelTransaction [db options path]
   Storage
-  Reader
-  (path [this] (.path db))
-  (store [this id data]
-    (assoc-in this [:cache id] (to-db data)))
-  (delete [this id]
-    (assoc-in this [:cache id] :deleted))
-  (get-integer [this id]
-    (from-db-int (.get-blob this id)))
-  (get-string [this id]
-    (from-db-str (.get-blob this id)))
-  (get-blob [this id]
-    (let [cached (get-in this [:cache id])]
-      (if (= cached :deleted) nil
-        (or 
-          cached
-          (.get db (to-db id) options)))))
   (close [this]
     (debug "Closing the snapshot")
-    (.close (.snapshot options)))
-  (ensure-transaction [this] 
-    (info "Wuh oh, nested transaction")
-    this)
-  (get-iterator [this] (.iterator db options))
-  (commit! [this]
-    (with-open [batch (.createWriteBatch db)]
-      (doseq [k (map #(vector  (first %) (second %)) (get this :cache))]
+    (.close (.snapshot options))))
+
+(defrecord LevelStorage [path db]
+  Storage
+  (close [this] 
+    (debug "Closing the actual storage engine")
+    (.close db) 
+    nil))
+
+(defn store [ops id data]
+  (assoc-in ops [:cache id] (to-db data))) 
+
+(defn delete [ops id]
+  (assoc-in ops [:cache id] :deleted))
+
+(defn get-blob [ops id]
+  (let [cached (get-in ops [:cache id])]
+    (if (= cached :deleted) nil
+      (or cached 
+          (if (:options ops)
+            (.get (:db ops) (to-db id) (:options ops)) 
+            (.get (:db ops) (to-db id)))))))
+
+(defn get-integer [ops id]
+  (from-db-int (get-blob ops id)))
+
+(defn get-string [ops id]
+  (from-db-str (get-blob ops id)))
+
+(defn get-iterator [ops]
+  (.iterator (:db ops) (:options ops)))
+
+(defn commit! [ops]
+  (with-open [batch (.createWriteBatch (:db ops))]
+      (doseq [k (map #(vector  (first %) (second %)) (get ops :cache))]
         (let [id (k 0)
               value (k 1)]
           (if (= value :deleted)
@@ -85,28 +82,15 @@
             (.put batch (to-db id) value))))
       (let [wo (WriteOptions.)]
         (.sync wo true)
-        (.write db batch wo))) nil))
+        (.write (:db ops) batch wo)))
+  nil)
 
-(defrecord LevelStorage [path db]
-  Storage
-  Reader
-  (path [this] path)
-  (close [this] 
-    (debug "Closing the actual storage engine")
-    (.close db) 
-    nil) 
-  (get-integer [this id]
-    (from-db-int (.get-blob this id)))
-  (get-string [this id]
-    (from-db-str (.get-blob this id)))
-  (get-blob [this id]
-    (.get db (to-db id)))
-  (ensure-transaction [this] 
-    (debug "Opening transaction")
-    (let [options (ReadOptions.)
-          snapshot (.getSnapshot db)]
-      (.snapshot options snapshot)
-      (LevelTransaction. db options))))
+(defn ensure-transaction [ops]
+  (debug "Opening transaction")
+  (let [options (ReadOptions.)
+        snapshot (.getSnapshot (:db ops))]
+    (.snapshot options snapshot)
+    (LevelTransaction. (:db ops) options (:path ops))))
 
 (defn create-db [dir]
   (let [options (Options.)]
@@ -115,4 +99,3 @@
 
 (defn create-storage [dir]
   (LevelStorage. dir (create-db dir)))
-
