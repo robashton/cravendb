@@ -18,15 +18,12 @@
 
 ### Immediate priority
 
+- Default to the "default" index when querying
 - Stick a license in the repo!!
-- Default indexes created per prefix
-  - Default options
-  - Default index to query
-  - Can I have a consistent query language between these and custom maps?
-  - Decide on how to expose Lucene queries to the consumer ^^
-    - Looks like a custom query language is more appropriate given auto-indexing
+- Can I have a consistent query language between these and custom maps?
+- Decide on how to expose Lucene queries to the consumer ^^
+  - Looks like a custom query language is more appropriate given auto-indexing
 - Options for Lucene
-  - Capture field types so we know how to sort (or use Lucene options as above)
 
 ### Can wait
 

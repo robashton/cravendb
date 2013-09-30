@@ -122,6 +122,21 @@
                               { :name "sally" :gender "female" } ] 
                    }) 
 
+#_ (with-test-server
+     (fn []
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob" :pets [ "harold" "nigel"]})
+        (client/put-document 
+          "http://localhost:9000" 
+          "2" { :username "alice" :pets [ "biscuit" "cookie" "bottom"]})
+        (client/put-document 
+          "http://localhost:9000" 
+          "3" { :username "craig" :pets ["ophelia" "titmus" "bottom"]})
+        (pprint (client/query 
+          "http://localhost:9000" 
+          { :query "pets:biscuit" :index "default" :wait true}))))
+
 
 #_ (do
      (with-test-server 
