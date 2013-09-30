@@ -1,5 +1,5 @@
 (ns cravendb.indexing
-  (use [cravendb.core]
+  (:use [cravendb.core]
        [clojure.tools.logging :only (info error debug)])
   (:require [cravendb.storage :as storage]
             [clj-time.core :as tc]

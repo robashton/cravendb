@@ -3,7 +3,7 @@
             [cravendb.storage :as s]
             [cravendb.documents :as docs])
   (:import (java.io File File))
-  (use [cravendb.core]))
+  (:use [cravendb.core]))
 
 (def index-prefix "index-")
 (def index-last-etag-prefix "indexlastetag-")

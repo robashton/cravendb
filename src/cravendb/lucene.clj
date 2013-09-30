@@ -1,5 +1,5 @@
 (ns cravendb.lucene
-  (use [clojure.tools.logging :only (info error debug)])
+  (:use [clojure.tools.logging :only (info error debug)])
   (:import 
            (org.apache.lucene.analysis.standard StandardAnalyzer)
            (org.apache.lucene.store FSDirectory)

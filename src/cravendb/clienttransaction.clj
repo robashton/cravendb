@@ -1,5 +1,5 @@
 (ns cravendb.clienttransaction
-   (require [cravendb.client :as client]))
+   (:require [cravendb.client :as client]))
 
 (defn store [tx id data]
   (assoc-in tx [:cache id] data))

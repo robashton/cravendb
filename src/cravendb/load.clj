@@ -1,7 +1,7 @@
 (ns cravendb.load
-  (use [cravendb.core]
+  (:use [cravendb.core]
        [clojure.tools.logging :only (info error debug)] )
-   (require [clojure.data.csv :as csv]
+   (:require [clojure.data.csv :as csv]
             [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
             [clojure.java.io :as io]

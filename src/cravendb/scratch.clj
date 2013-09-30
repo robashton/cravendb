@@ -11,7 +11,7 @@
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
             [cravendb.lucene :as lucene])
-  (use [cravendb.testing]
+  (:use [cravendb.testing]
        [cravendb.core]
        [clojure.tools.logging :only (info debug error)] 
        [clojure.pprint])
