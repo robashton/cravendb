@@ -69,9 +69,9 @@
      (http/create-http-server db engine)
     { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
 
-#_ (.start engine)
+#_ (indexengine/start engine)
 
-#_ (.stop engine)
+#_ (indexengine/stop engine)
 #_ (.stop server)
 #_ (.close engine)
 #_ (.close db)
@@ -121,7 +121,7 @@
           (http/create-http-server db engine)
           { :port (Integer/parseInt (or (System/getenv "]PORT") "9002")) :join? false})]
       
-      (.start engine)
+      (indexengine/start engine)
       (import-prescriptions)
       (println "About to add index")
       (Thread/sleep 5000)

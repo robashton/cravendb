@@ -4,6 +4,7 @@
        [clojure.tools.logging :only (info error debug)])
   (:require    
     [cravendb.indexing :as indexing]
+    [cravendb.indexengine :as indexengine]
     [cravendb.documents :as docs]
     [cravendb.storage :as s]))
 
@@ -64,7 +65,7 @@
       db 
       (:index query) 
       (or (:wait-duration query) 5)))
-  (let [storage (.get-storage index-engine (:index query))]
+  (let [storage (indexengine/get-index-storage index-engine (:index query))]
     (if storage 
       (query-with-storage db storage query)
       (query-without-storage db index-engine query))))

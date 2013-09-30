@@ -79,7 +79,7 @@
     (with-db (fn [db]
       (with-open [ie (indexengine/create-engine db)]        
         (try 
-          (.start ie)
+          (indexengine/start ie)
 
           (with-open [tx (s/ensure-transaction db)]
             (s/commit! (indexes/put-index tx 
@@ -103,4 +103,4 @@
           (should= (integer-to-etag 5) 
                   (indexes/get-last-indexed-etag-for-index db "test2"))
           
-          (finally (.stop ie)))))))) 
+          (finally (indexengine/stop ie)))))))) 
