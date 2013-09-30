@@ -6,6 +6,7 @@
     [cravendb.indexing :as indexing]
     [cravendb.indexengine :as indexengine]
     [cravendb.documents :as docs]
+    [cravendb.lucene :as lucene]
     [cravendb.storage :as s]))
 
 (defn convert-results-to-documents [tx results]
@@ -18,7 +19,7 @@
          total-collected 0
          attempt 0 ]
          (let [requested-amount (+ current-offset (max amount 100))
-               raw-results (.query reader query requested-amount sort-field sort-order)
+               raw-results (lucene/query reader query requested-amount sort-field sort-order)
                document-results (convert-results-to-documents tx (drop current-offset raw-results))
                new-results (take amount (concat results document-results))
                new-total (count new-results) 
@@ -40,7 +41,7 @@
 (declare execute)
 
 (defn query-with-storage [db storage query]
-  (with-open [reader (.open-reader storage)
+  (with-open [reader (lucene/open-reader storage)
               tx (s/ensure-transaction db)]
   (perform-query 
     tx

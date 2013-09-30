@@ -6,6 +6,7 @@
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
+            [cravendb.lucene :as lucene]
             [cravendb.query :as query]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as s]
@@ -18,7 +19,7 @@
                     :id "test" 
                     :map (fn [doc] {"author" (doc :author)})
                     :storage storage
-                    :writer (.open-writer storage) }))
+                    :writer (lucene/open-writer storage) }))
 
 (defn create-test-indexes [] [ (create-test-index) ])
 
@@ -69,8 +70,8 @@
     (with-db (fn [db]
         (write-three-documents db)
         (indexing/index-documents! db @test-indexes)
-        (with-open [reader (.open-reader ((first @test-indexes) :storage))]
-            (should== '("doc-2") (.query reader "author:vicky" 10 nil nil)))))))
+        (with-open [reader (lucene/open-reader ((first @test-indexes) :storage))]
+            (should== '("doc-2") (lucene/query reader "author:vicky" 10 nil nil)))))))
 
 (describe "querying an index with content in it"
   (with test-indexes (create-test-indexes))

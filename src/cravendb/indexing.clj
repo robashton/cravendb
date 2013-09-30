@@ -5,6 +5,7 @@
             [clj-time.core :as tc]
             [clj-time.local :as tl]
             [cravendb.storage :as s]
+            [cravendb.lucene :as lucene]
             [cravendb.indexstore :as indexes]
             [cravendb.documents :as docs])) 
 
@@ -68,10 +69,10 @@
           ))))
 
 (defn put-into-writer [writer doc-id mapped]
-  (.put-entry writer doc-id mapped))
+  (lucene/put-entry writer doc-id mapped))
 
 (defn delete-from-writer [writer doc-id]
-  (.delete-all-entries-for writer doc-id))
+  (lucene/delete-all-entries-for writer doc-id))
 
 (defn process-mapped-document 
   [ {:keys [max-etag tx doc-count] :as output} 
@@ -99,7 +100,7 @@
     true))
 
 (defn finish-map-process-for-writer! [{:keys [max-etag tx] :as output} writer]
-  (.commit! (get writer 1))
+  (lucene/commit! (get writer 1))
   (assoc output :tx 
     (indexes/set-last-indexed-etag-for-index tx (get writer 0) max-etag)))
 

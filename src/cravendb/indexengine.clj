@@ -12,7 +12,7 @@
   (let [storage (lucene/create-index (File. path (index :id)))]
     (-> index
       (assoc :storage storage)
-      (assoc :writer (.open-writer storage)))))
+      (assoc :writer (lucene/open-writer storage)))))
 
 
 (defn all-indexes [db]
