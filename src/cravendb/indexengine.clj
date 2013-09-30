@@ -4,6 +4,7 @@
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
+           [cravendb.storage :as s]
            [cravendb.indexstore :as indexes]
            [cravendb.indexing :as indexing]))
 
@@ -15,8 +16,8 @@
 
 
 (defn all-indexes [db]
-  (with-open [tx (.ensure-transaction db)
-              iter (.get-iterator tx)]
+  (with-open [tx (s/ensure-transaction db)
+              iter (s/get-iterator tx)]
     (doall (map read-string (indexes/iterate-indexes iter)))))
 
 (defn compile-index [index]
@@ -26,7 +27,7 @@
 
 (defn compile-indexes [indexes db]
   (map (comp 
-         (partial open-storage-for-index (.path db))
+         (partial open-storage-for-index (:path db))
          compile-index)
        indexes))
 

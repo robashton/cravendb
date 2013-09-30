@@ -1,6 +1,6 @@
 (ns cravendb.documents-spec
   (:require [cravendb.documents :as docs])
-  (:require [cravendb.storage :as storage])
+  (:require [cravendb.storage :as s])
   (:use [speclj.core]
         [cravendb.testing]
         [cravendb.core]))
@@ -28,9 +28,9 @@
   (it "will load a document from a committed transaction"
       (with-db 
         (fn [db]
-          (with-open [tx (.ensure-transaction db)]
-            (.commit! (docs/store-document tx "1" "hello")))
-          (with-open [tx (.ensure-transaction db)]
+          (with-open [tx (s/ensure-transaction db)]
+            (s/commit! (docs/store-document tx "1" "hello")))
+          (with-open [tx (s/ensure-transaction db)]
             (should= "hello" (docs/load-document tx "1")))))))
 
 (describe "Etags"
@@ -57,13 +57,13 @@
 
   (it "can retrieve documents written since an etag"
     (with-db (fn [db]
-      (with-open [tx (.ensure-transaction db)] 
+      (with-open [tx (s/ensure-transaction db)] 
         (let [tx (docs/store-document tx "1" "hello")
              etag (docs/last-etag tx) ]
           (-> tx
             (docs/store-document "2" "hello")
             (docs/store-document "3" "hello")
-            (.commit!))
-          (with-open [tx (.ensure-transaction db)]
-            (with-open [iter (.get-iterator tx)]
+            (s/commit!))
+          (with-open [tx (s/ensure-transaction db)]
+            (with-open [iter (s/get-iterator tx)]
               (should== '("2" "3") (docs/iterate-etags-after iter etag))))))))))

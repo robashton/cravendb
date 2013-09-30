@@ -1,10 +1,11 @@
 (ns cravendb.query
-  (use [cravendb.core]
+  (:use [cravendb.core]
        [cravendb.indexstore :as indexes]
        [clojure.tools.logging :only (info error debug)])
-  (require    
+  (:require    
     [cravendb.indexing :as indexing]
-    [cravendb.documents :as docs]))
+    [cravendb.documents :as docs]
+    [cravendb.storage :as s]))
 
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
@@ -39,7 +40,7 @@
 
 (defn query-with-storage [db storage query]
   (with-open [reader (.open-reader storage)
-              tx (.ensure-transaction db)]
+              tx (s/ensure-transaction db)]
   (perform-query 
     tx
     reader 

@@ -6,24 +6,24 @@
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
             [cravendb.indexengine :as indexengine]
-            [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [cravendb.client :as client]
             [cravendb.lucene :as lucene]))
 
 (def index-id "blah")
 
 (defn set-etags-of-index-and-head [db index-etag-int head-etag-int]
-  (with-open [tx (.ensure-transaction db)]
+  (with-open [tx (s/ensure-transaction db)]
     (-> tx
       (indexes/set-last-indexed-etag-for-index index-id (integer-to-etag index-etag-int))
-      (.store (str indexing/last-indexed-etag-key) (integer-to-etag head-etag-int))
-      (.commit!))))
+      (s/store (str indexing/last-indexed-etag-key) (integer-to-etag head-etag-int))
+      (s/commit!))))
 
 (describe "Deciding which indexes to execute as a chaser"
   (it "will return indexes which are behind the head"
     (with-db (fn [db]
        (set-etags-of-index-and-head db 0 10)
-       (with-open [tx (.ensure-transaction db)] 
+       (with-open [tx (s/ensure-transaction db)] 
         (should (indexengine/needs-a-new-chaser 
             {
               :db tx
@@ -37,7 +37,7 @@
   (it "will not return indexes that are up to head"
     (with-db (fn [db]
       (set-etags-of-index-and-head db 10 10)
-      (with-open [tx (.ensure-transaction db)] 
+      (with-open [tx (s/ensure-transaction db)] 
         (should-not (indexengine/needs-a-new-chaser 
             {
               :db tx
@@ -51,7 +51,7 @@
   (it "will not return indexes which are already running as chasers"
     (with-db (fn [db]
       (set-etags-of-index-and-head db 0 10)
-      (with-open [tx (.ensure-transaction db)] 
+      (with-open [tx (s/ensure-transaction db)] 
         (should-not (indexengine/needs-a-new-chaser 
             {
               :db tx
@@ -81,21 +81,21 @@
         (try 
           (.start ie)
 
-          (with-open [tx (.ensure-transaction db)]
-            (.commit! (indexes/put-index tx 
+          (with-open [tx (s/ensure-transaction db)]
+            (s/commit! (indexes/put-index tx 
               { :id "test1" :map "(fn [doc] {\"foo\" (:foo doc)})"} )))
 
-          (with-open [tx (.ensure-transaction db)]
+          (with-open [tx (s/ensure-transaction db)]
             (-> tx
               (docs/store-document "1" (pr-str { :foo "bar" }) ) 
               (docs/store-document "2" (pr-str { :foo "bas" }) ) 
               (docs/store-document "3" (pr-str { :foo "baz" }) )
-              (.commit!)))
+              (s/commit!)))
 
           (indexing/wait-for-index-catch-up db 1)
 
-          (with-open [tx (.ensure-transaction db)]
-            (.commit! (indexes/put-index tx 
+          (with-open [tx (s/ensure-transaction db)]
+            (s/commit! (indexes/put-index tx 
               { :id "test2" :map "(fn [doc] {\"foo\" (:foo doc)})"} )))
 
           (indexing/wait-for-index-catch-up db "test2" 1)

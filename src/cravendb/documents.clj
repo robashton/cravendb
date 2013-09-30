@@ -1,7 +1,7 @@
 (ns cravendb.documents
-  (use [cravendb.storage]
-       [clojure.tools.logging :only (info error debug)] 
-       [cravendb.core]))
+  (:use [clojure.tools.logging :only (info error debug)] 
+       [cravendb.core])
+  (:require [cravendb.storage :as s]))
 
 (def etags-to-docs-prefix "etags-to-docs-")
 (def docs-to-etags-prefix "docs-to-etags-")
@@ -21,28 +21,27 @@
   (is-etags-to-docs-key (m :k)))
 
 (defn last-etag [db]
-  (or (.get-string db last-etag-key) (zero-etag)))
+  (or (s/get-string db last-etag-key) (zero-etag)))
 
 (defn etag-for-doc [db doc-id]
-  (.get-string db (str docs-to-etags-prefix doc-id)))
+  (s/get-string db (str docs-to-etags-prefix doc-id)))
 
 (defn store-document [db id document] 
   (let [etag (next-etag (last-etag db))]
     (-> db
-      (store (str document-prefix id) document)
-      (store last-etag-key etag)
-      (store (str etags-to-docs-prefix etag) id)
-      (store (str docs-to-etags-prefix id) etag))))
-
+      (s/store (str document-prefix id) document)
+      (s/store last-etag-key etag)
+      (s/store (str etags-to-docs-prefix etag) id)
+      (s/store (str docs-to-etags-prefix id) etag))))
 
 (defn load-document [session id] 
-  (.get-string session (str document-prefix id)))
+  (s/get-string session (str document-prefix id)))
 
 (defn delete-document [session id]
-  (.delete session (str document-prefix id)))
+  (s/delete session (str document-prefix id)))
 
 (defn iterate-documents-prefixed-with [iter prefix]
-  (.seek iter (to-db (str document-prefix prefix)))
+  (.seek iter (s/to-db (str document-prefix prefix)))
   (->> 
     (iterator-seq iter)
     (map expand-iterator-str)
@@ -51,11 +50,10 @@
 
 (defn iterate-etags-after [iter etag]
   (debug "About to iterate etags after" etag)
-  (.seek iter (to-db (str etags-to-docs-prefix (next-etag etag))))
+  (.seek iter (s/to-db (str etags-to-docs-prefix (next-etag etag))))
   (->> 
     (iterator-seq iter)
     (map expand-iterator-str)
     (take-while is-etag-docs-entry)
     (map extract-value-from-expanded-iterator)
     (distinct)))
-

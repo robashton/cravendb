@@ -4,6 +4,7 @@
   (:require [cravendb.storage :as storage]
             [clj-time.core :as tc]
             [clj-time.local :as tl]
+            [cravendb.storage :as s]
             [cravendb.indexstore :as indexes]
             [cravendb.documents :as docs])) 
 
@@ -11,10 +12,10 @@
 (def last-index-doc-count-key "last-index-doc-count")
 
 (defn last-indexed-etag [db]
-  (or (.get-string db last-indexed-etag-key) (zero-etag)))
+  (or (s/get-string db last-indexed-etag-key) (zero-etag)))
 
 (defn last-index-doc-count [db]
-    (.get-integer db last-index-doc-count-key))
+    (s/get-integer db last-index-doc-count-key))
 
 (defn load-document-for-indexing [tx id] 
   (debug "Loading " id "for indexing") 
@@ -108,9 +109,9 @@
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
     (do (debug "Flushing main map process at " doc-count max-etag)
       (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
-        (.store last-indexed-etag-key max-etag)
-        (.store last-index-doc-count-key doc-count)
-        (.commit!))))
+        (s/store last-indexed-etag-key max-etag)
+        (s/store last-index-doc-count-key doc-count)
+        (s/commit!))))
    output)) 
 
 (defn finish-partial-map-process! 
@@ -118,21 +119,21 @@
   ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
     (do (debug "Flushing chaser process at " doc-count max-etag)
-      (.commit! (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers)))))
+      (s/commit! (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers)))))
     output))
 
 (defn index-documents-from-etag! [tx indexes etag pulsefn]
-  (with-open [iter (.get-iterator tx)] 
+  (with-open [iter (s/get-iterator tx)] 
     (->> (take 10000 (docs/iterate-etags-after iter etag)) 
           (index-docs tx indexes)
           (process-mapped-documents tx indexes pulsefn))) )
 
 (defn index-catchup! [db index]
-  (with-open [tx (.ensure-transaction db)]
+  (with-open [tx (s/ensure-transaction db)]
     (let [last-etag (indexes/get-last-indexed-etag-for-index tx (:id index))]
       (index-documents-from-etag! tx [index] last-etag finish-partial-map-process!))))
 
 (defn index-documents! [db compiled-indexes]
-  (with-open [tx (.ensure-transaction db)]
+  (with-open [tx (s/ensure-transaction db)]
     (let [last-etag (last-indexed-etag tx)]
       (index-documents-from-etag! tx compiled-indexes last-etag finish-map-process!))))
