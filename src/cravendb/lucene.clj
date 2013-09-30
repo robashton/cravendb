@@ -7,8 +7,8 @@
            (org.apache.lucene.index IndexWriterConfig IndexWriter DirectoryReader)
            (org.apache.lucene.search IndexSearcher Sort SortField SortField$Type)
            (org.apache.lucene.queryparser.classic QueryParser)
-           (org.apache.lucene.document Document Field Field$Store 
-                                       Field$Index TextField)))
+           (org.apache.lucene.document Document Field Field$Store Field$Index 
+                                      TextField IntField FloatField StringField)))
 
 (defprotocol Closeable
   (close [this]))
@@ -26,6 +26,21 @@
   (close [this] 
     (.close directory)))
 
+(defn map-to-lucene 
+  ([k v]
+   (cond
+    (and (string? v) (< (.length v) 10)) (StringField. k v Field$Store/NO) 
+    (and (string? v) (>= (.length v) 10)) (TextField. k v Field$Store/NO) 
+    (integer? v) (IntField. (str k) (int v) Field$Store/NO)
+    (float? v) (FloatField. (str k) (float v) Field$Store/NO)
+    (decimal? v) (FloatField. (str k) (bigdec v) Field$Store/NO)
+    (coll? v) (map #(map-to-lucene k %1) v)
+    :else v))
+  ([input] 
+   (flatten (filter 
+    boolean 
+    (for [[k v] input] (map-to-lucene k v))))))
+
 (defn delete-all-entries-for [index ref-id]
   (.deleteDocuments 
     (:writer index) 
@@ -35,12 +50,8 @@
   index)
 
 (defn put-entry [index ref-id content]
-  (let [doc (Document.)
-      fields (for [[k v] content] 
-                (if v
-                  (Field. k v TextField/TYPE_STORED) 
-                  nil))]
-    (doseq [f (filter boolean fields)] (.add doc f))
+  (let [doc (Document.)]
+    (doseq [f (map-to-lucene content)] (.add doc f))
     (.add doc (Field. "__document_id" ref-id Field$Store/YES Field$Index/NOT_ANALYZED))
     (.addDocument (:writer index) doc))
   index) 

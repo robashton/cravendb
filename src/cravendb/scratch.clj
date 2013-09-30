@@ -37,10 +37,10 @@
            (org.apache.lucene.document IntField)
            (org.apache.lucene.document FloatField)
            (java.util Collection Random)
-           (java.io File File PushbackReader IOException FileNotFoundException )) 
-  )
+           (java.io File File PushbackReader IOException FileNotFoundException )))
 
-  
+(defn generate-key-name [prefix k]
+  (clojure.string/replace (str (if prefix (str prefix "$")) k) ":" ""))
 
 (defn strip-document 
   ([prefix doc]
@@ -97,15 +97,13 @@
                    :title "hello" 
                    :age 27 
                    :height 5.60
-                   :address 
-                   { 
+                   :address { 
                     :line-one "3 Ridgeborough Hill" 
-                    :post-code "IM4 7AS"}
+                    :post-code "IM4 7AS" }
                    :pets [ "bob" "harry" "dick"]
                    :children [
                               { :name "billy" :gender "male" }
                               { :name "sally" :gender "female" } ] }))
-
 
 #_ (pprint (map-to-lucene (reduce put-pairs-into-obj {} (two-at-a-time results))))
 #_ (reduce put-pairs-into-obj {} (two-at-a-time results))
