@@ -42,63 +42,17 @@
 
   
 
-;;(declare document-description)
-;;(declare get-type-description)
-;;
-;;(defn get-type-description [v]
-;;  (if (string? v) :string
-;;    (if (integer? v) :integer
-;;      (if (list v) :list) 
-;;        (if (map? v) 
-;;        (for [[k sv] v] {  
-;;          k (get-type-description sv) })
-;;        ))))
-;;
-;;(get-type-description "hello")
-;;(get-type-description 1337)
-;;(get-type-description ())
-;;(get-type-description [])
-;;(get-type-description {})
-;;
-;;(get-type-description { :title "hello" :age 27 :children [] })
-;;
-
-(defn generate-key-name [prefix k]
-  (clojure.string/replace (str (if prefix (str prefix "$")) k) ":" ""))
-
 (defn strip-document 
   ([prefix doc]
    (cond 
      (string? doc) [prefix doc]
      (integer? doc) [prefix doc]
+     (float? doc) [prefix doc]
+     (decimal? doc) [prefix doc]
      (or (list? doc) (seq? doc) (vector? doc)) (flatten (map #(strip-document prefix %1) doc))
      (map? doc) (for [[k v] doc]
                   (flatten (strip-document (generate-key-name prefix k) v)) )))
   ([doc] (flatten (strip-document nil doc))))
-
-(def counter (atom 0))
-(swap! counter inc)
-
-
-;; Array of strings should be indexed as array: [ "value" "value" "value" ]
-;; Array of objects should be indexed as multiple arrays 
-;; children$name [ "billy" "sally" ]
-;; children$gender ["male" "female" ]
-;; Note: This raises the usual issue of "how do I find people with children called billy who are male"
-;; Answer: Write your own sodding index "billy_male" and search for that.
-;;
-
-(def results (strip-document {
-                   :title "hello" 
-                   :age 27 
-                   :address 
-                   { 
-                    :line-one "3 Ridgeborough Hill" 
-                    :post-code "IM4 7AS"}
-                   :pets [ "bob" "harry" "dick"]
-                   :children [
-                              { :name "billy" :gender "male" }
-                              { :name "sally" :gender "female" } ] }))
 
 (defn two-at-a-time [remaining]
      (if (empty? remaining) nil
@@ -115,26 +69,43 @@
         (assoc output k [existing v]))
       (assoc output k v))))
 
-     
-(.length "hello")
+(defn map-to-lucene 
+  ([k v]
+   (cond
+    (and (string? v) (< (.length v) 10)) (StringField. k v Field$Store/NO) 
+    (and (string? v) (>= (.length v) 10)) (TextField. k v Field$Store/NO) 
+    (integer? v) (IntField. (str k) (int v) Field$Store/NO)
+    (float? v) (FloatField. (str k) (float v) Field$Store/NO)
+    (decimal? v) (FloatField. (str k) (bigdec v) Field$Store/NO)
+    (coll? v) (map #(map-to-lucene k %1) v)
+    :else v))
+  ([input] 
+   (flatten (filter 
+    boolean 
+    (for [[k v] input] (map-to-lucene k v))))))
 
-(defn map-to-lucene [input]
-  (let [doc (Document.)
-        fields 
-       (filter boolean (for [[k v] input] 
-         (cond
-           (and (string? v) (< (.length v) 10)) (Field. k v StringField/TYPE_STORED) 
-           (and (string? v) (>= (.length v) 10)) (Field. k v TextField/TYPE_STORED) 
-           (integer? v) (Field. k v IntField/TYPE_STORED)
-           :else nil
-           )))]
-    fields
-;;    (doseq [f fields] (.add doc f))
-;;    doc
-    ))
 
-;; Could I map fields twice? One for complex queries, one for exact matches?
-;; I think I could!
+;; Array of strings should be indexed as array: [ "value" "value" "value" ]
+;; Array of objects should be indexed as multiple arrays 
+;; children$name [ "billy" "sally" ]
+;; children$gender ["male" "female" ]
+;; Note: This raises the usual issue of "how do I find people with children called billy who are male"
+;; Answer: Write your own sodding index "billy_male" and search for that.
+;;
+
+(def results (strip-document {
+                   :title "hello" 
+                   :age 27 
+                   :height 5.60
+                   :address 
+                   { 
+                    :line-one "3 Ridgeborough Hill" 
+                    :post-code "IM4 7AS"}
+                   :pets [ "bob" "harry" "dick"]
+                   :children [
+                              { :name "billy" :gender "male" }
+                              { :name "sally" :gender "female" } ] }))
+
 
 #_ (pprint (map-to-lucene (reduce put-pairs-into-obj {} (two-at-a-time results))))
 #_ (reduce put-pairs-into-obj {} (two-at-a-time results))
@@ -142,6 +113,7 @@
 #_(strip-document {
                    :title "hello" 
                    :age 27 
+                   :height 5.6
                    :address 
                    { 
                     :line-one "3 Ridgeborough Hill" 

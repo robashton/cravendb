@@ -6,7 +6,6 @@
            (java.io File)
            (java.nio ByteBuffer)))
 
-
 (defn to-db [input]
   (if (string? input)
    (.getBytes input "UTF-8")
