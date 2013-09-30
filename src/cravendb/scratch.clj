@@ -40,14 +40,19 @@
 (defn generate-key-name [prefix k]
   (clojure.string/replace (str (if prefix (str prefix "$")) k) ":" ""))
 
-(defn flatten-document 
-  ([doc prefix]
-    (into {} (for [[k v] doc]
-      [
-       (generate-key-name prefix k) 
-       (if (map? v) (flatten-document v (generate-key-name prefix k))
-          v) ])))
-  ([doc] (flatten-document doc nil)))
+(defn strip-document 
+  ([prefix doc]
+   (cond 
+     (string? doc) [prefix doc]
+     (integer? doc) [prefix doc]
+     (or (list? doc) (seq? doc) (vector? doc)) (flatten (map #(strip-document prefix %1) doc))
+     (map? doc) (for [[k v] doc]
+                  (flatten (strip-document (generate-key-name prefix k) v)) )))
+  ([doc] (flatten (strip-document nil doc))))
+
+(def counter (atom 0))
+(swap! counter inc)
+
 
 ;; Array of strings should be indexed as array: [ "value" "value" "value" ]
 ;; Array of objects should be indexed as multiple arrays 
@@ -55,17 +60,49 @@
 ;; children$gender ["male" "female" ]
 ;; Note: This raises the usual issue of "how do I find people with children called billy who are male"
 ;; Answer: Write your own sodding index "billy_male" and search for that.
+;;
 
-#_ (flatten-document {
-                      :title "hello" 
-                      :age 27 
-                      :address 
-                        { 
-                         :line-one "3 Ridgeborough Hill" 
-                         :post-code "IM4 7AS"}
-                      :pets [ "bob" "harry" "dick"]
-                      :children [
-                        { :name "billy" :gender "male" }
-                        { :name "sally" :gender "female" }
-                      ] 
-                      })
+(def results (strip-document {
+                   :title "hello" 
+                   :age 27 
+                   :address 
+                   { 
+                    :line-one "3 Ridgeborough Hill" 
+                    :post-code "IM4 7AS"}
+                   :pets [ "bob" "harry" "dick"]
+                   :children [
+                              { :name "billy" :gender "male" }
+                              { :name "sally" :gender "female" } ] }))
+
+(defn two-at-a-time [remaining]
+     (if (empty? remaining) nil
+         (cons (take 2 remaining) 
+         (lazy-seq (two-at-a-time (drop 2 remaining))))))
+
+(defn put-pairs-into-obj [output item]
+  (let [k (first item)
+        v (last item)
+        existing (get output k) ]
+    (if existing 
+      (if (coll? existing)
+        (assoc output k (conj existing v))
+        (assoc output k [existing v]))
+      (assoc output k v))))
+
+#_ (reduce put-pairs-into-obj {} (two-at-a-time results))
+     
+
+#_(strip-document {
+                   :title "hello" 
+                   :age 27 
+                   :address 
+                   { 
+                    :line-one "3 Ridgeborough Hill" 
+                    :post-code "IM4 7AS"}
+                   :pets [ "bob" "harry" "dick"]
+                   :children [
+                              { :name "billy" :gender "male" }
+                              { :name "sally" :gender "female" }
+                              ] 
+                   }) 
+

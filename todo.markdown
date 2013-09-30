@@ -30,6 +30,7 @@
 
 ### Can wait
 
+- Etag generation is not thread safe, it needs to be a shared incrementable atom
 - Indexes can be properly broken, they need disabling and reporting
 - Handle indexes that can't be compiled for some reason
 - Modification of an index needs to mean re-indexing
