@@ -6,6 +6,7 @@
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
            [cravendb.indexstore :as indexes]
+           [cravendb.defaultindexes :as di]
            [cravendb.indexing :as indexing]))
 
 (defn open-storage-for-index [path index]
@@ -13,7 +14,6 @@
     (-> index
       (assoc :storage storage)
       (assoc :writer (lucene/open-writer storage)))))
-
 
 (defn all-indexes [db]
   (with-open [tx (s/ensure-transaction db)
@@ -25,14 +25,10 @@
          :map (load-string (index :map))
          :filter (if (:filter index) (load-string (:filter index)) nil)))
 
-(defn compile-indexes [indexes db]
-  (map (comp 
-         (partial open-storage-for-index (:path db))
-         compile-index)
-       indexes))
-
-(defn load-compiled-indexes [db]
-  (compile-indexes (all-indexes db) db))
+(defn load-initial-indexes [db]
+  (doall 
+    (map (partial open-storage-for-index (:path db))  
+         (concat (di/all) (map compile-index (all-indexes db))))))
 
 (defn close-engine [engine]
   (debug "Closing the engine")
@@ -47,6 +43,11 @@
 (defn ex-error [prefix ex]
   (error prefix (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))))
 
+(defn load-new-indexes [indexes db]
+  (map (comp 
+         (partial open-storage-for-index (:path db)) 
+         compile-index) indexes))
+
 (defn refresh-indexes [{:keys [db compiled-indexes] :as engine}]
   (try 
     (let [indexes-to-add 
@@ -55,10 +56,10 @@
                         (map :id compiled-indexes)) 
                         (all-indexes db))] 
 
-
       (if (not-empty indexes-to-add)
-        (let [new-indexes (doall (concat compiled-indexes 
-                            (compile-indexes indexes-to-add db)))]
+        (let [new-indexes 
+              (doall (concat compiled-indexes 
+                             (load-new-indexes indexes-to-add db)))]
           (debug "Loading new indexes from storage")
           (assoc engine :compiled-indexes new-indexes
             :indexes-by-name (into {} (for [i new-indexes] [(i :id) i]))))
@@ -194,7 +195,7 @@
   (ex-error "SHIT-IN-AGENT" e))
 
 (defn create-engine [db]
-  (let [compiled-indexes (load-compiled-indexes db)
+  (let [compiled-indexes (load-initial-indexes db)
         engine (agent {
               :chasers ()
               :db db

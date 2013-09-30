@@ -122,3 +122,28 @@
                               { :name "sally" :gender "female" } ] 
                    }) 
 
+
+#_ (do
+     (with-test-server 
+      (fn []
+        (client/put-index 
+          "http://localhost:9000" 
+          "by_username" 
+          "(fn [doc] {\"username\" (:username doc)})")
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob"})
+        (client/query 
+          "http://localhost:9000" 
+          { :query "username:bob" :index "by_username" :wait true})    
+        (client/delete-document "http://localhost:9000" "1" )
+        (println (count 
+          (client/query 
+            "http://localhost:9000" 
+            { :query "username:bob" :index "by_username" :wait true})))))
+
+      (with-test-server (fn [] 
+        (client/put-document "http://localhost:9000" "1" "hello world")
+        (client/delete-document "http://localhost:9000" "1")
+        (println (client/get-document "http://localhost:9000" "1")))) 
+     )  

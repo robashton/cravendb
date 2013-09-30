@@ -12,7 +12,8 @@
   (s/store tx (str index-last-etag-prefix id) etag))
 
 (defn get-last-indexed-etag-for-index [tx id]
-  (s/get-string tx (str index-last-etag-prefix id)))
+  (or (s/get-string tx (str index-last-etag-prefix id))
+      (zero-etag)))
 
 (defn index-doc-id [id]
   (str index-prefix id))

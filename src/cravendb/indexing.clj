@@ -21,7 +21,7 @@
 (defn load-document-for-indexing [tx id] 
   (debug "Loading " id "for indexing") 
     { 
-      :doc (read-string (docs/load-document tx id))
+      :doc (if-let [doc (docs/load-document tx id)] (read-string doc))
       :id id
       :etag (docs/etag-for-doc tx id)
     })

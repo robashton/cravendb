@@ -49,10 +49,13 @@
         (str "__document_id:" (QueryParser/escape ref-id))))
   index)
 
+(defn document-id-field [ref-id]
+  (Field. "__document_id" ref-id Field$Store/YES Field$Index/NOT_ANALYZED))
+
 (defn put-entry [index ref-id content]
   (let [doc (Document.)]
     (doseq [f (map-to-lucene content)] (.add doc f))
-    (.add doc (Field. "__document_id" ref-id Field$Store/YES Field$Index/NOT_ANALYZED))
+    (.add doc (document-id-field ref-id))
     (.addDocument (:writer index) doc))
   index) 
 

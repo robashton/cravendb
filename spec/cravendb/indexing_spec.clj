@@ -88,7 +88,7 @@
           (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
 
         (with-open [tx (s/ensure-transaction db)]
-          (should= 4 (indexing/last-index-doc-count tx)) ;; The index counts
+          (should= 8 (indexing/last-index-doc-count tx)) ;; The index counts and there is a default index
           (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
 
 (describe "Running indexing with no documents or indexes"
