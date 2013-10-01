@@ -20,6 +20,7 @@
 
 - Stick a license in the repo!!
 - Options for Lucene
+- How do I get int max/min in Clojure?
 
 ### Can wait
 

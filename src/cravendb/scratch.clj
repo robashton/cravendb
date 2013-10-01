@@ -62,8 +62,8 @@
 
 #_ (.commit writer)
 
-#_ (.toString (NumericRangeQuery/newIntRange "age" (int 26) (int 28) true true)) 
-#_ (.toString (.parse parser "age:[26 TO 28]"))
+#_ (.toString (NumericRangeQuery/newIntRange "age" (in -100000) (int 28) true true)) 
+#_ (.toString (.parse parser "age:[26 TO *]"))
 
 #_ (def reader (DirectoryReader/open dir))
 #_ (def searcher (IndexSearcher. reader))

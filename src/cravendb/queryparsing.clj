@@ -14,19 +14,22 @@
     "S = (Function | Wildcard) 
     Wildcard = '*'
     Whitespace = #'\\s+'
-    <Function> = <'('>  (AndCall | OrCall | EqualsCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
+    <Function> = <'('>  (LessThanCall | GreaterThanCall | GreaterThanOrEqualCall | LessThanOrEqualCall | 
+                            AndCall | OrCall | EqualsCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
     <Argument> = (Function | LiteralValue)
 
     AndCall = <'and'> (<Whitespace> Argument)*
     OrCall = <'or'> (<Whitespace> Argument )*
     EqualsCall = <'='> <Whitespace> FieldName <Whitespace> LiteralValue
+    LessThanCall = <'<'> <Whitespace> FieldName <Whitespace> LiteralValue
+    GreaterThanCall = <'>'> <Whitespace> FieldName <Whitespace> LiteralValue
+    LessThanOrEqualCall = <'<='> <Whitespace> FieldName <Whitespace> LiteralValue
+    GreaterThanOrEqualCall = <'>='> <Whitespace> FieldName <Whitespace> LiteralValue
     StartsWithCall = <'starts-with'> <Whitespace> FieldName <Whitespace> LiteralValue
     NotEqualsCall = <'not='> <Whitespace> FieldName <Whitespace> LiteralValue
     ContainsCall = <'contains'> <Whitespace> FieldName <Whitespace> StringValue
-
     <LiteralValue> = (NumericValue | StringValue)
     <FieldName> =  (StringValue | Symbol)
-    
     Symbol =  #':([a-zA-Z]+)'
     StringValue = <'\"'> #'[a-zA-Z]+' <'\"'>
     NumericValue = #'[0-9]+' "
@@ -41,6 +44,22 @@
   (case value-type
     :StringValue (PrefixQuery. (Term. field-name value-value))))
 
+(defn create-less-than-clause [[field-type field-name] [value-type value-value]]
+  (case value-type
+    :NumericValue (NumericRangeQuery/newIntRange field-name (int -10000000) (Integer/parseInt value-value) false false)))
+
+(defn create-greater-than-clause [[field-type field-name] [value-type value-value]]
+  (case value-type
+    :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) (int 10000000) false false)))
+
+(defn create-less-than-or-equal-clause [[field-type field-name] [value-type value-value]]
+  (case value-type
+    :NumericValue (NumericRangeQuery/newIntRange field-name (int -10000000) (Integer/parseInt value-value) true true)))
+
+(defn create-greater-than-or-equal-clause [[field-type field-name] [value-type value-value]]
+  (case value-type
+    :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) (int 10000000) true true)))
+
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
 
@@ -50,8 +69,11 @@
     {
      :S nil
      :EqualsCall create-equals-clause 
+     :LessThanCall create-less-than-clause
+     :GreaterThanCall create-greater-than-clause
+     :GreaterThanOrEqualCall create-greater-than-or-equal-clause
+     :LessThanOrEqualCall create-less-than-or-equal-clause
      :StartsWithCall create-starts-with-clause
      :Wildcard create-wildcard
      }
     (query-parser query)))))
-

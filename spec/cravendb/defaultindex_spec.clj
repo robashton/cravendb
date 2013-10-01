@@ -67,8 +67,58 @@
         (should= "anteater" 
           (extract-name-from-result 
             (query/execute db engine { :index "default" :query "(= \"number\" 50)" }) )))))
-     
 
+     (it "will do less than matching on integers"
+     (with-full-setup
+      (fn [db engine]
+        (add-standard-data-set db)
+        (indexing/wait-for-index-catch-up db 50)
+        (should= "zebra" 
+          (extract-name-from-result 
+            (query/execute db engine { :index "default" :query "(< \"number\" 30)" }) )))))
+
+      (it "will do greater than matching on integers"
+        (with-full-setup
+        (fn [db engine]
+          (add-standard-data-set db)
+          (indexing/wait-for-index-catch-up db 50)
+          (should= "aardvark" 
+            (extract-name-from-result 
+              (query/execute db engine { :index "default" :query "(> \"number\" 499)" }) )))))
+
+     (it "will exclude the literal from the less than range"
+     (with-full-setup
+      (fn [db engine]
+        (add-standard-data-set db)
+        (indexing/wait-for-index-catch-up db 50)
+        (should= 1 
+          (count (query/execute db engine { :index "default" :query "(< \"number\" 50)" }))))))
+
+      (it "will exclude the literal from the greater than range "
+        (with-full-setup
+        (fn [db engine]
+          (add-standard-data-set db)
+          (indexing/wait-for-index-catch-up db 50)
+          (should= 1
+            (count (query/execute db engine { :index "default" :query "(> \"number\" 100)" }) )))))
+
+      (it "will do less than or equal than matching on integers"
+        (with-full-setup
+          (fn [db engine]
+            (add-standard-data-set db)
+            (indexing/wait-for-index-catch-up db 50)
+            (should= "zebra" 
+              (extract-name-from-result 
+                (query/execute db engine { :index "default" :query "(<= \"number\" 25)" }) )))))
+
+        (it "will do greater than or equal than matching on integers"
+         (with-full-setup
+          (fn [db engine]
+            (add-standard-data-set db)
+            (indexing/wait-for-index-catch-up db 50)
+            (should= "aardvark" 
+              (extract-name-from-result 
+                (query/execute db engine { :index "default" :query "(>= \"number\" 500)" }) )))))
 
           )
 
