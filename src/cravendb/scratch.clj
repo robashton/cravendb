@@ -10,7 +10,9 @@
             [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
-            [cravendb.lucene :as lucene])
+            [cravendb.lucene :as lucene]
+            [instaparse.core :as insta]
+            )
   (:use [cravendb.testing]
        [cravendb.core]
        [clojure.tools.logging :only (info debug error)] 
@@ -27,6 +29,7 @@
            (org.apache.lucene.search Sort)
            (org.apache.lucene.search SortField)
            (org.apache.lucene.search SortField$Type)
+           (org.apache.lucene.search NumericRangeQuery)
            (org.apache.lucene.queryparser.classic QueryParser)
            (org.apache.lucene.document Document)
            (org.apache.lucene.document Field)
@@ -39,140 +42,50 @@
            (java.util Collection Random)
            (java.io File File PushbackReader IOException FileNotFoundException )))
 
-(defn generate-key-name [prefix k]
-  (clojure.string/replace (str (if prefix (str prefix "$")) k) ":" ""))
+(defn allowed-function-names)
 
-(defn strip-document 
-  ([prefix doc]
-   (cond 
-     (string? doc) [prefix doc]
-     (integer? doc) [prefix doc]
-     (float? doc) [prefix doc]
-     (decimal? doc) [prefix doc]
-     (or (list? doc) (seq? doc) (vector? doc)) (flatten (map #(strip-document prefix %1) doc))
-     (map? doc) (for [[k v] doc]
-                  (flatten (strip-document (generate-key-name prefix k) v)) )))
-  ([doc] (flatten (strip-document nil doc))))
+(def query-format 
+  (insta/parser
+    "S = Function
+    whitespace = #'\\s+'
+    Function = <'('> AndCall|OrCall|EqualsCall|NotEqualsCall|ContainsCall <')'>   
+    Argument = Function | LiteralValue
 
-(defn two-at-a-time [remaining]
-     (if (empty? remaining) nil
-         (cons (take 2 remaining) 
-         (lazy-seq (two-at-a-time (drop 2 remaining))))))
+    AndCall = <'and'> (<whitespace> Argument)+
+    OrCall = <'or'> (<whitespace> Argument )+
+    EqualsCall = <'='> <whitespace> FieldName <whitespace> LiteralValue
+    NotEqualsCall = <'not='> <whitespace> FieldName <whitespace> LiteralValue
+    ContainsCall = <'contains'> <whitespace> FieldName <whitespace> StringValue
 
-(defn put-pairs-into-obj [output item]
-  (let [k (first item)
-        v (last item)
-        existing (get output k) ]
-    (if existing 
-      (if (coll? existing)
-        (assoc output k (conj existing v))
-        (assoc output k [existing v]))
-      (assoc output k v))))
+    LiteralValue = NumericValue | StringValue
+    FieldName = #'[a-zA-Z]+'
+    StringValue =  #'[a-zA-Z]+'
+    NumericValue = #'[0-9]+' 
+    "
+  ))
 
-(defn map-to-lucene 
-  ([k v]
-   (cond
-    (and (string? v) (< (.length v) 10)) (StringField. k v Field$Store/NO) 
-    (and (string? v) (>= (.length v) 10)) (TextField. k v Field$Store/NO) 
-    (integer? v) (IntField. (str k) (int v) Field$Store/NO)
-    (float? v) (FloatField. (str k) (float v) Field$Store/NO)
-    (decimal? v) (FloatField. (str k) (bigdec v) Field$Store/NO)
-    (coll? v) (map #(map-to-lucene k %1) v)
-    :else v))
-  ([input] 
-   (flatten (filter 
-    boolean 
-    (for [[k v] input] (map-to-lucene k v))))))
+#_ (query-format "(and foo)")
 
 
-;; Array of strings should be indexed as array: [ "value" "value" "value" ]
-;; Array of objects should be indexed as multiple arrays 
-;; children$name [ "billy" "sally" ]
-;; children$gender ["male" "female" ]
-;; Note: This raises the usual issue of "how do I find people with children called billy who are male"
-;; Answer: Write your own sodding index "billy_male" and search for that.
-;;
+#_ (def dir (RAMDirectory.))
+#_ (def analyzer (StandardAnalyzer. Version/LUCENE_CURRENT))
+#_ (def config (IndexWriterConfig. Version/LUCENE_CURRENT analyzer))
+#_ (def writer (IndexWriter. dir config))
 
-(def results (strip-document {
-                   :title "hello" 
-                   :age 27 
-                   :height 5.60
-                   :address { 
-                    :line-one "3 Ridgeborough Hill" 
-                    :post-code "IM4 7AS" }
-                   :pets [ "bob" "harry" "dick"]
-                   :children [
-                              { :name "billy" :gender "male" }
-                              { :name "sally" :gender "female" } ] }))
+#_ (let [doc (Document.)]
+     (doseq [f (lucene/map-to-lucene { "name" "bob" "age" 27})] (.add doc f))
+     (.addDocument writer doc))
 
-#_ (pprint (map-to-lucene (reduce put-pairs-into-obj {} (two-at-a-time results))))
-#_ (reduce put-pairs-into-obj {} (two-at-a-time results))
+#_ (.commit writer)
 
-#_(strip-document {
-                   :title "hello" 
-                   :age 27 
-                   :height 5.6
-                   :address 
-                   { 
-                    :line-one "3 Ridgeborough Hill" 
-                    :post-code "IM4 7AS"}
-                   :pets [ "bob" "harry" "dick"]
-                   :children [
-                              { :name "billy" :gender "male" }
-                              { :name "sally" :gender "female" } ] 
-                   }) 
+(.toString (NumericRangeQuery/newIntRange "age" (int 26) (int 28) true true)) 
+(.toString (.parse parser "age:[26 TO 28]"))
 
-#_ (with-test-server
-     (fn []
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "bob" :pets [ "harold" "nigel"]})
-        (client/put-document 
-          "http://localhost:9000" 
-          "2" { :username "alice" :pets [ "biscuit" "cookie" "bottom"]})
-        (client/put-document 
-          "http://localhost:9000" 
-          "3" { :username "craig" :pets ["ophelia" "titmus" "bottom"]})
-        (pprint (client/query 
-          "http://localhost:9000" 
-          { :query "pets:biscuit" :index "default" :wait true}))))
-
-#_ (with-test-server
-     (fn []
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" [ "bob" "carol" "david"])
-        (client/put-document 
-          "http://localhost:9000" 
-          "2" [ "james" "edward" "george"])
-        (client/put-document 
-          "http://localhost:9000" 
-          "3" [ "harold" "jake" "sarah"])
-        (pprint (client/query 
-          "http://localhost:9000" 
-          { :query "value:sarah" :index "default" :wait true}))))
-
-#_ (do
-     (with-test-server 
-      (fn []
-        (client/put-index 
-          "http://localhost:9000" 
-          "by_username" 
-          "(fn [doc] {\"username\" (:username doc)})")
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "bob"})
-        (client/query 
-          "http://localhost:9000" 
-          { :query "username:bob" :index "by_username" :wait true})    
-        (client/delete-document "http://localhost:9000" "1" )
-        (println (count 
-          (client/query 
-            "http://localhost:9000" 
-            { :query "username:bob" :index "by_username" :wait true})))))
-
-      (with-test-server (fn [] 
-        (client/put-document "http://localhost:9000" "1" "hello world")
-        (client/delete-document "http://localhost:9000" "1")
-        (println (client/get-document "http://localhost:9000" "1")))) 
-     )  
+#_ (def reader (DirectoryReader/open dir))
+#_ (def searcher (IndexSearcher. reader))
+#_ (def parser (QueryParser. Version/LUCENE_CURRENT "" analyzer))
+#_ (def query (.parse parser "age:[26 TO 28]"))
+#_ (def results (.search searcher query 100))
+#_ (def results (.search searcher (NumericRangeQuery/newIntRange "age" (int 26) (int 28) true true) 100))
+#_ (def docs (.scoreDocs results))
+#_ (count docs)
