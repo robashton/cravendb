@@ -1,5 +1,6 @@
 (ns cravendb.client
-  (:require [http.async.client :as http]))
+  (:require [http.async.client :as http])
+  (:require [cemerick.url :refer (url-encode)] ))
 
 (defn url-for-doc-id [url id]
   (str url "/doc/" id))
@@ -14,7 +15,7 @@
   (str 
     url "/query/"
     (opts :index) "/"
-    (opts :query)
+    (url-encode (opts :query))
     (if (opts :wait) "?wait=true")))
 
 (defn to-db [data]

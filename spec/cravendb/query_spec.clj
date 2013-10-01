@@ -51,7 +51,7 @@
                      (query/execute 
                       db 
                       engine 
-                      { :query "*:*" :amount 10 :offset 0 :index "by_whatever"}))))))
+                      { :query "*" :amount 10 :offset 0 :index "by_whatever"}))))))
 
    (it "will return the last 5 docs"
     (with-full-setup
@@ -64,7 +64,7 @@
                      (query/execute 
                       db 
                       engine 
-                      { :query "*:*" :amount 10 :offset 995 :index "by_whatever"})))))))
+                      { :query "*" :amount 10 :offset 995 :index "by_whatever"})))))))
 
 (describe "sorting"
   (it "will default to ascending order on a string"
@@ -79,7 +79,7 @@
             (query/execute 
               db 
               engine 
-              { :query "*:*" :sort-by "whatever" :index "by_whatever"}))))) 
+              { :query "*" :sort-by "whatever" :index "by_whatever"}))))) 
               )
   (it "will accept descending order on a string"
     (with-full-setup
@@ -93,7 +93,5 @@
             (query/execute 
               db 
               engine 
-              { :query "*:*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))) 
+              { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))) 
               ))
-
-

@@ -49,5 +49,5 @@
         (query/execute 
           db 
           engine 
-          { :query "*:*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))))
+          { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))))
  

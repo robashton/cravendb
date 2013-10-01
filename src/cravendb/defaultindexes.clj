@@ -17,7 +17,9 @@
      (or (list? doc) (seq? doc) (vector? doc)) (flatten (map #(strip-document prefix %1) doc))
      (map? doc) (for [[k v] doc]
                   (flatten (strip-document (generate-key-name prefix k) v)) )))
-  ([doc] (flatten (strip-document nil doc))))
+  ([doc] (let [result (flatten (strip-document nil doc))]
+           (debug "Mapped to" result)
+           result)))
 
 (defn two-at-a-time [remaining]
      (if (empty? remaining) nil
@@ -35,7 +37,7 @@
       (assoc output k v))))
 
 (defn map-document [doc]
-  (info "Mapping" doc)
+  (debug "Mapping" doc)
   (reduce put-pairs-into-obj {} (two-at-a-time (strip-document doc))) )
 
 (defn all [] [
