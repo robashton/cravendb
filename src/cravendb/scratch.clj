@@ -137,6 +137,20 @@
           "http://localhost:9000" 
           { :query "pets:biscuit" :index "default" :wait true}))))
 
+#_ (with-test-server
+     (fn []
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" [ "bob" "carol" "david"])
+        (client/put-document 
+          "http://localhost:9000" 
+          "2" [ "james" "edward" "george"])
+        (client/put-document 
+          "http://localhost:9000" 
+          "3" [ "harold" "jake" "sarah"])
+        (pprint (client/query 
+          "http://localhost:9000" 
+          { :query "value:sarah" :index "default" :wait true}))))
 
 #_ (do
      (with-test-server 

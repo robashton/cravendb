@@ -64,7 +64,7 @@
   (if (query :wait) 
     (indexing/wait-for-index-catch-up 
       db 
-      (:index query) 
+      (or (:index query) "default") 
       (or (:wait-duration query) 5)))
   (let [storage (indexengine/get-index-storage index-engine (:index query))]
     (if storage 

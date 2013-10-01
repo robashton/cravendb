@@ -1,7 +1,7 @@
 (ns cravendb.clienttransaction
    (:require [cravendb.client :as client]))
 
-(defn store [tx id data]
+(defn store-document [tx id data]
   (assoc-in tx [:cache id] data))
 
 (defn delete-document [tx id]
@@ -20,4 +20,4 @@
         { :operation :docs-delete :id k }
         { :operation :docs-put :id k :document v })))))
 
-(defn start [href] ({ :href href}))
+(defn start [href] { :href href})

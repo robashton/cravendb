@@ -37,9 +37,11 @@
     (coll? v) (map #(map-to-lucene k %1) v)
     :else v))
   ([input] 
-   (flatten (filter 
+   (let [result (flatten (filter 
     boolean 
-    (for [[k v] input] (map-to-lucene k v))))))
+    (for [[k v] input] (map-to-lucene k v))))]
+     (debug "Created lucene fields for" input "to" result)
+     result)))
 
 (defn delete-all-entries-for [index ref-id]
   (.deleteDocuments 

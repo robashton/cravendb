@@ -94,7 +94,7 @@
         (assoc :total (inc total))))
     (do
       (-> state
-        (assoc :tx (.store-document tx (str prefix "-" id) item))       
+        (assoc :tx (trans/store-document tx (str prefix "-" id) item))       
         (assoc :id (inc id)) 
         (assoc :total (inc total))))))
 
@@ -112,24 +112,10 @@
   (client/put-index "http://localhost:9002" 
                      "by_practice" 
                      "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")) 
-
-#_ (do
-    (fs/delete-dir "testdb")
-    (let [db (storage/create-storage "testdb")
-        engine (indexengine/create-engine db)
-        server (run-jetty 
-          (http/create-http-server db engine)
-          { :port (Integer/parseInt (or (System/getenv "]PORT") "9002")) :join? false})]
-      
-      (indexengine/start engine)
-      (import-prescriptions)
-      (println "About to add index")
-      (Thread/sleep 5000)
-      (insertindex)))
  
 
 #_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
-     (.commit! (:tx (reduce add-sequential-doc-to-transaction {
+     (trans/commit! (:tx (reduce add-sequential-doc-to-transaction {
         :tx (trans/start "http://localhost:9002") 
         :id 0
         :total 0
