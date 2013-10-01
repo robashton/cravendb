@@ -18,15 +18,12 @@
 
 ### Immediate priority
 
-- Default to the "default" index when querying
 - Stick a license in the repo!!
-- Can I have a consistent query language between these and custom maps?
-- Decide on how to expose Lucene queries to the consumer ^^
-  - Looks like a custom query language is more appropriate given auto-indexing
 - Options for Lucene
 
 ### Can wait
 
+- I need to show sensible parsing errors on parsing failure
 - Consider those small functions as inline functions
 - Safe reading of maps
 - Etag generation is not thread safe, it needs to be a shared incrementable atom

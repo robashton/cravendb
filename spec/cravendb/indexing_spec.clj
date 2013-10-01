@@ -71,7 +71,7 @@
         (write-three-documents db)
         (indexing/index-documents! db @test-indexes)
         (with-open [reader (lucene/open-reader ((first @test-indexes) :storage))]
-            (should== '("doc-2") (lucene/query reader "author:vicky" 10 nil nil)))))))
+            (should== '("doc-2") (lucene/query reader "(= \"author\" \"vicky\")" 10 nil nil)))))))
 
 (describe "querying an index with content in it"
   (with test-indexes (create-test-indexes))
@@ -149,7 +149,7 @@
               :map by-name-map}) 
             (s/commit!)))
         (parse-results
-          (query/execute db engine { :query "*:*" :index "by_name" :wait true })))))
+          (query/execute db engine { :query "*" :index "by_name" :wait true })))))
   (it "will not index documents not covered by the filter"
       (should-not-contain { :name "rob"} @results))
   (it "will index documents covered by the filter"
@@ -175,7 +175,7 @@
         (should== 
           '({:username "bob"}) 
           (client/query "http://localhost:9000" 
-            { :query "username:bob" :index "by_username" :wait true}))
+            { :query "(= \"username\" \"bob\")" :index "by_username" :wait true}))
        (client/put-document 
           "http://localhost:9000" 
           "1" { :username "alice"})
