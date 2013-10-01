@@ -32,7 +32,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "name:zebra" }))))))
+            (query/execute db engine { :index "default" :query "(= \"name\" \"zebra\")" }))))))
    (it "will search on partial short strings"
      (with-full-setup
       (fn [db engine]
@@ -40,7 +40,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "name:zeb*" }))))))
+            (query/execute db engine { :index "default" :query "(starts-with \"name\" \"zeb\")" }))))))
     (it "will do word-based matching on long strings"
      (with-full-setup
       (fn [db engine]
@@ -48,7 +48,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "description:horse" }) )))))
+            (query/execute db engine { :index "default" :query "(= \"description\" \"horse\")" }) )))))
           
     (it "will do partial-word-based matching on long strings"
      (with-full-setup
@@ -57,7 +57,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "anteater" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "description:stup*" }) )))))
+            (query/execute db engine { :index "default" :query "(starts-with \"description\" \"stup\")" }))))))
 
      (it "will do exact matching on integers"
      (with-full-setup
@@ -66,7 +66,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "anteater" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "number:[50 TO 50]" }) )))))
+            (query/execute db engine { :index "default" :query "(= \"number\" 50)" }) )))))
      
 
 

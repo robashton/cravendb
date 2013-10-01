@@ -1,5 +1,6 @@
 (ns cravendb.lucene
   (:use [clojure.tools.logging :only (info error debug)])
+  (:require [cravendb.queryparsing :as qp])
   (:import 
            (org.apache.lucene.analysis.standard StandardAnalyzer)
            (org.apache.lucene.store FSDirectory RAMDirectory)
@@ -65,11 +66,9 @@
   (.commit (:writer index)) 
   index)
 
-
 (defn query [index query-string amount sort-field sort-order]
     (let [searcher (IndexSearcher. (:reader index))
-      parser (QueryParser. Version/LUCENE_CURRENT "" (:analyzer index)) 
-      query (.parse parser query-string)
+      query (qp/to-lucene query-string) 
       sort-options (if sort-field 
                        (Sort. (SortField. 
                                 sort-field 

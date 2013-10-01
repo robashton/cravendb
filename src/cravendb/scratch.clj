@@ -5,6 +5,7 @@
             [cravendb.client :as client]
             [cravendb.query :as query]
             [cravendb.indexstore :as indexes]
+            [cravendb.queryparsing :as qp]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
             [me.raynes.fs :as fs]
@@ -25,11 +26,13 @@
            (org.apache.lucene.index IndexWriterConfig)
            (org.apache.lucene.index IndexWriter)
            (org.apache.lucene.index DirectoryReader)
+           (org.apache.lucene.index Term)
            (org.apache.lucene.search IndexSearcher)
            (org.apache.lucene.search Sort)
            (org.apache.lucene.search SortField)
            (org.apache.lucene.search SortField$Type)
            (org.apache.lucene.search NumericRangeQuery)
+           (org.apache.lucene.search TermQuery)
            (org.apache.lucene.queryparser.classic QueryParser)
            (org.apache.lucene.document Document)
            (org.apache.lucene.document Field)
@@ -42,29 +45,10 @@
            (java.util Collection Random)
            (java.io File File PushbackReader IOException FileNotFoundException )))
 
-(defn allowed-function-names)
 
-(def query-format 
-  (insta/parser
-    "S = Function
-    whitespace = #'\\s+'
-    Function = <'('> AndCall|OrCall|EqualsCall|NotEqualsCall|ContainsCall <')'>   
-    Argument = Function | LiteralValue
-
-    AndCall = <'and'> (<whitespace> Argument)+
-    OrCall = <'or'> (<whitespace> Argument )+
-    EqualsCall = <'='> <whitespace> FieldName <whitespace> LiteralValue
-    NotEqualsCall = <'not='> <whitespace> FieldName <whitespace> LiteralValue
-    ContainsCall = <'contains'> <whitespace> FieldName <whitespace> StringValue
-
-    LiteralValue = NumericValue | StringValue
-    FieldName = #'[a-zA-Z]+'
-    StringValue =  #'[a-zA-Z]+'
-    NumericValue = #'[0-9]+' 
-    "
-  ))
-
-#_ (query-format "(and foo)")
+#_ (qp/to-lucene "(= \"foo\" 2)") 
+#_ (qp/to-lucene "(= \"foo\" \"blah\")") 
+#_ (qp/to-lucene "(starts-with \"foo\" \"blah\")") 
 
 
 #_ (def dir (RAMDirectory.))
@@ -78,14 +62,16 @@
 
 #_ (.commit writer)
 
-(.toString (NumericRangeQuery/newIntRange "age" (int 26) (int 28) true true)) 
-(.toString (.parse parser "age:[26 TO 28]"))
+#_ (.toString (NumericRangeQuery/newIntRange "age" (int 26) (int 28) true true)) 
+#_ (.toString (.parse parser "age:[26 TO 28]"))
 
 #_ (def reader (DirectoryReader/open dir))
 #_ (def searcher (IndexSearcher. reader))
 #_ (def parser (QueryParser. Version/LUCENE_CURRENT "" analyzer))
-#_ (def query (.parse parser "age:[26 TO 28]"))
+#_ (def query (.parse parser "Vlah:egw*"))
 #_ (def results (.search searcher query 100))
 #_ (def results (.search searcher (NumericRangeQuery/newIntRange "age" (int 26) (int 28) true true) 100))
+#_ (def results (.search searcher (first (drop 1 (query-to-lucene (query-format "(= \"age\" 27)")))) 100))
+
 #_ (def docs (.scoreDocs results))
 #_ (count docs)
