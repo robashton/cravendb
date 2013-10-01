@@ -4,6 +4,7 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [clj-http "0.7.6"]
                  [org.clojure/data.csv "0.1.2"] ;; For load  purposes
+                 [com.cemerick/url "0.1.0"]
                  [instaparse "1.2.2"]
                  [ring "1.2.0"]
                  [compojure "1.1.5"]

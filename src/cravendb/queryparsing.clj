@@ -1,5 +1,6 @@
 (ns cravendb.queryparsing
   (:require [instaparse.core :as insta])
+  (:require [clojure.tools.logging :refer [info error debug]])
   (:import 
            (org.apache.lucene.index Term)
            (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery
@@ -43,10 +44,9 @@
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
 
-(defn extract-query [q] q)
-
 (defn to-lucene [query]
-  (first (drop 1(insta/transform 
+  (debug "Interpreting" query)
+  (first (drop 1 (insta/transform 
     {
      :S nil
      :EqualsCall create-equals-clause 
