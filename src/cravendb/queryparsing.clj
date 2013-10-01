@@ -2,14 +2,17 @@
   (:require [instaparse.core :as insta])
   (:import 
            (org.apache.lucene.index Term)
-           (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery)
+           (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery
+                                     MatchAllDocsQuery)
            (org.apache.lucene.document Document Field Field$Store Field$Index 
                                       TextField IntField FloatField StringField)))
 
 
 (def query-parser 
   (insta/parser
-    "S = Function Whitespace = #'\\s+'
+    "S = (Function | Wildcard) 
+    Wildcard = '*'
+    Whitespace = #'\\s+'
     <Function> = <'('>  (AndCall | OrCall | EqualsCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
     <Argument> = (Function | LiteralValue)
 
@@ -37,6 +40,9 @@
   (case value-type
     :StringValue (PrefixQuery. (Term. field-name value-value))))
 
+(defn create-wildcard [in]
+  (MatchAllDocsQuery.))
+
 (defn extract-query [q] q)
 
 (defn to-lucene [query]
@@ -45,6 +51,7 @@
      :S nil
      :EqualsCall create-equals-clause 
      :StartsWithCall create-starts-with-clause
+     :Wildcard create-wildcard
      }
     (query-parser query)))))
 
