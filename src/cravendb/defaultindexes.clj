@@ -2,7 +2,7 @@
   (:require [clojure.tools.logging :refer [info debug error]] ))
 
 (defn generate-key-name [prefix k]
-  (clojure.string/replace (str (if prefix (str prefix "$")) k) ":" ""))
+  (str (if prefix (str prefix "$")) k))
 
 (defn normalize [prefix]
   (or prefix "value"))

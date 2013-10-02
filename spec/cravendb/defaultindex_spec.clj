@@ -20,6 +20,7 @@
       (docs/store-document "docs-2" (pr-str { "name" "aardvark" "description" "the aardvaark has a lot of a's in his name, kinda silly really" "number" 500}))
       (docs/store-document "docs-3" (pr-str { "name" "giraffe" "description" "the giraffe looks a bit silly with its big long neck" "number" 100}))
       (docs/store-document "docs-4" (pr-str { "name" "anteater" "description" "the anteater has a stupid looking long nose" "number" 50}))
+      (docs/store-document "docs-5" (pr-str { :name "Air" :album "Talkie Walkie"}))
       (s/commit!))))
 
 
@@ -121,6 +122,15 @@
             (should= "aardvark" 
               (extract-name-from-result 
                 (query/execute db engine { :index "default" :query (>=? "number" 500) }) )))))
+
+      (it "will allow queries against symbol based keys"
+         (with-full-setup
+          (fn [db engine]
+            (add-standard-data-set db)
+            (indexing/wait-for-index-catch-up db 50)
+            (should== { :name "Air" :album "Talkie Walkie" } 
+              (read-string (first 
+                (query/execute db engine { :index "default" :query (=? :name "Air") }) ))))))
 
           )
 
