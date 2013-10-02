@@ -1,7 +1,9 @@
 (ns cravendb.defaultindex-spec
   (:use [speclj.core]
         [cravendb.testing]
-        [cravendb.core])
+        [cravendb.core]
+        [cravendb.querylanguage])
+
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
@@ -32,7 +34,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "(= \"name\" \"zebra\")" }))))))
+            (query/execute db engine { :index "default" :query (=? "name" "zebra")}))))))
    (it "will search on partial short strings"
      (with-full-setup
       (fn [db engine]
@@ -40,7 +42,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "(starts-with \"name\" \"zeb\")" }))))))
+            (query/execute db engine { :index "default" :query (starts-with? "name" "zeb")}))))))
     (it "will do word-based matching on long strings"
      (with-full-setup
       (fn [db engine]
@@ -48,7 +50,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "(= \"description\" \"horse\")" }) )))))
+            (query/execute db engine { :index "default" :query (has-word? "description" "horse")}) )))))
           
     (it "will do partial-word-based matching on long strings"
      (with-full-setup
@@ -57,7 +59,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "anteater" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "(starts-with \"description\" \"stup\")" }))))))
+            (query/execute db engine { :index "default" :query (has-word-starting-with? "description" "stup")}))))))
 
      (it "will do exact matching on integers"
      (with-full-setup
@@ -66,7 +68,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "anteater" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "(= \"number\" 50)" }) )))))
+            (query/execute db engine { :index "default" :query (=? "number" 50) }) )))))
 
      (it "will do less than matching on integers"
      (with-full-setup
@@ -75,7 +77,7 @@
         (indexing/wait-for-index-catch-up db 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query "(< \"number\" 30)" }) )))))
+            (query/execute db engine { :index "default" :query (<? "number" 30) }) )))))
 
       (it "will do greater than matching on integers"
         (with-full-setup
@@ -84,7 +86,7 @@
           (indexing/wait-for-index-catch-up db 50)
           (should= "aardvark" 
             (extract-name-from-result 
-              (query/execute db engine { :index "default" :query "(> \"number\" 499)" }) )))))
+              (query/execute db engine { :index "default" :query (>? "number" 499) }) )))))
 
      (it "will exclude the literal from the less than range"
      (with-full-setup
@@ -92,7 +94,7 @@
         (add-standard-data-set db)
         (indexing/wait-for-index-catch-up db 50)
         (should= 1 
-          (count (query/execute db engine { :index "default" :query "(< \"number\" 50)" }))))))
+          (count (query/execute db engine { :index "default" :query (<? "number" 50) }))))))
 
       (it "will exclude the literal from the greater than range "
         (with-full-setup
@@ -100,7 +102,7 @@
           (add-standard-data-set db)
           (indexing/wait-for-index-catch-up db 50)
           (should= 1
-            (count (query/execute db engine { :index "default" :query "(> \"number\" 100)" }) )))))
+            (count (query/execute db engine { :index "default" :query (>? "number" 100) }) )))))
 
       (it "will do less than or equal than matching on integers"
         (with-full-setup
@@ -109,7 +111,7 @@
             (indexing/wait-for-index-catch-up db 50)
             (should= "zebra" 
               (extract-name-from-result 
-                (query/execute db engine { :index "default" :query "(<= \"number\" 25)" }) )))))
+                (query/execute db engine { :index "default" :query (<=? "number" 25) }) )))))
 
         (it "will do greater than or equal than matching on integers"
          (with-full-setup
@@ -118,7 +120,7 @@
             (indexing/wait-for-index-catch-up db 50)
             (should= "aardvark" 
               (extract-name-from-result 
-                (query/execute db engine { :index "default" :query "(>= \"number\" 500)" }) )))))
+                (query/execute db engine { :index "default" :query (>=? "number" 500) }) )))))
 
           )
 
