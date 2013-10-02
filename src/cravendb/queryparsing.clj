@@ -4,6 +4,7 @@
   (:import 
            (org.apache.lucene.index Term)
            (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery
+                                     BooleanQuery BooleanClause
                                      MatchAllDocsQuery)
            (org.apache.lucene.document Document Field Field$Store Field$Index 
                                       TextField IntField FloatField StringField)))
@@ -18,7 +19,7 @@
                             AndCall | OrCall | EqualsCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
     <Argument> = (Function | LiteralValue)
 
-    AndCall = <'and'> (<Whitespace> Argument)*
+    AndCall = <'and'> (<Whitespace>* Argument)*
     OrCall = <'or'> (<Whitespace> Argument )*
     EqualsCall = <'='> <Whitespace> FieldName <Whitespace> LiteralValue
     LessThanCall = <'<'> <Whitespace> FieldName <Whitespace> LiteralValue
@@ -34,6 +35,7 @@
     StringValue = <'\"'> #'[a-zA-Z]+' <'\"'>
     NumericValue = #'[0-9]+' "
   ))
+
 
 (defn create-equals-clause [[field-type field-name] [value-type value-value] ]
   (case value-type
@@ -60,6 +62,10 @@
   (case value-type
     :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) Integer/MAX_VALUE true true)))
 
+(defn create-and-call [expressions]
+
+  )
+
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
 
@@ -75,5 +81,6 @@
      :LessThanOrEqualCall create-less-than-or-equal-clause
      :StartsWithCall create-starts-with-clause
      :Wildcard create-wildcard
+     :AndCall create-and-call
      }
     (query-parser query)))))
