@@ -46,19 +46,19 @@
 
 (defn create-less-than-clause [[field-type field-name] [value-type value-value]]
   (case value-type
-    :NumericValue (NumericRangeQuery/newIntRange field-name (int -10000000) (Integer/parseInt value-value) false false)))
+    :NumericValue (NumericRangeQuery/newIntRange field-name Integer/MIN_VALUE (Integer/parseInt value-value) false false)))
 
 (defn create-greater-than-clause [[field-type field-name] [value-type value-value]]
   (case value-type
-    :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) (int 10000000) false false)))
+    :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) Integer/MAX_VALUE false false)))
 
 (defn create-less-than-or-equal-clause [[field-type field-name] [value-type value-value]]
   (case value-type
-    :NumericValue (NumericRangeQuery/newIntRange field-name (int -10000000) (Integer/parseInt value-value) true true)))
+    :NumericValue (NumericRangeQuery/newIntRange field-name Integer/MIN_VALUE (Integer/parseInt value-value) true true)))
 
 (defn create-greater-than-or-equal-clause [[field-type field-name] [value-type value-value]]
   (case value-type
-    :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) (int 10000000) true true)))
+    :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) Integer/MAX_VALUE true true)))
 
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))

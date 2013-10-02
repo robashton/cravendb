@@ -20,7 +20,7 @@
 
 ### Immediate priority
 
-- How do I get int max/min in Clojure?
+- Flesh out query capabilities so we know what we can achieve
 
 ### Can wait
 
