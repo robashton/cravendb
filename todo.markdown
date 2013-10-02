@@ -13,13 +13,13 @@
 - A rudimentary client-side session helper
 - Paging through query results
 - Mapping happens in chunks so safe-shutdown can be had during repl tests
+- Dynamic queries (no creation of index required!)
+- A temporary query language against documents
 
 # Pending/debt/etc
 
 ### Immediate priority
 
-- Stick a license in the repo!!
-- Options for Lucene
 - How do I get int max/min in Clojure?
 
 ### Can wait

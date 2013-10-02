@@ -1,17 +1,13 @@
 (ns cravendb.defaultindex-spec
   (:use [speclj.core]
         [cravendb.testing]
-        [cravendb.core]
         [cravendb.querylanguage])
 
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
-            [cravendb.indexstore :as indexes]
             [cravendb.indexengine :as indexengine]
-            [cravendb.storage :as s]
-            [cravendb.client :as client]
             [cravendb.query :as query]
-            [cravendb.lucene :as lucene]))
+            [cravendb.storage :as s]))
 
 (defn add-standard-data-set [db]
   (with-open [tx (s/ensure-transaction db)] 
