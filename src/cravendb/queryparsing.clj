@@ -20,7 +20,8 @@
     <Argument> = (Function | LiteralValue)
 
     AndCall = <'and'> (<Whitespace>* Argument)*
-    OrCall = <'or'> (<Whitespace> Argument )*
+    OrCall = <'or'> (<Whitespace>* Argument )*
+
     EqualsCall = <'='> <Whitespace> FieldName <Whitespace> LiteralValue
     LessThanCall = <'<'> <Whitespace> FieldName <Whitespace> LiteralValue
     GreaterThanCall = <'>'> <Whitespace> FieldName <Whitespace> LiteralValue
@@ -62,10 +63,17 @@
   (case value-type
     :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) Integer/MAX_VALUE true true)))
 
-(defn create-and-call [& expressions]
+(defn create-boolean-query [occur expressions]
   (let [query (BooleanQuery.)]
-    (doseq [sub-query expressions] (.add query sub-query BooleanClause$Occur/MUST ))
+    (doseq [sub-query expressions] (.add query sub-query occur ))
     query))
+
+(defn create-and-call [& expressions]
+  (create-boolean-query BooleanClause$Occur/MUST expressions))
+
+(defn create-or-call [& expressions]
+  (create-boolean-query BooleanClause$Occur/SHOULD expressions))
+
 
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
@@ -83,5 +91,6 @@
      :StartsWithCall create-starts-with-clause
      :Wildcard create-wildcard
      :AndCall create-and-call
+     :OrCall create-or-call
      }
     (query-parser query)))))

@@ -19,5 +19,6 @@
 (defn has-word-starting-with? [k v] (binary-condition "starts-with" k v))  ;; for now
 (defn has-item? [k v] (binary-condition "=" k v))  ;; for now
 (defn AND [& v] (str "(and" (reduce str (map (partial str " ") v)) ")"))
+(defn OR [& v] (str "(or" (reduce str (map (partial str " ") v)) ")"))
 
 
