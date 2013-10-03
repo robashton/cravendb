@@ -151,9 +151,9 @@
                 (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
                 (s/commit!)))
             (indexing/wait-for-index-catch-up db 50)
-            (should= "bob"
-              (extract-name-from-result
-                (query/execute db engine { :index "default" :query (AND (=? "name" "alice") (has-item? :collection "two")) }))))))  
+            (should== { "name" "alice" :collection [ "two" "three" "four"]}
+              (read-string (first 
+                             (query/execute db engine { :index "default" :query (AND (=? "name" "alice") (has-item? :collection "two")) })))))))  
 
 )
 

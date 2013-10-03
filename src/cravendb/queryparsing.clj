@@ -4,7 +4,7 @@
   (:import 
            (org.apache.lucene.index Term)
            (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery
-                                     BooleanQuery BooleanClause
+                                     BooleanQuery BooleanClause  BooleanClause$Occur
                                      MatchAllDocsQuery)
            (org.apache.lucene.document Document Field Field$Store Field$Index 
                                       TextField IntField FloatField StringField)))
@@ -62,9 +62,10 @@
   (case value-type
     :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) Integer/MAX_VALUE true true)))
 
-(defn create-and-call [expressions]
-
-  )
+(defn create-and-call [& expressions]
+  (let [query (BooleanQuery.)]
+    (doseq [sub-query expressions] (.add query sub-query BooleanClause$Occur/MUST ))
+    query))
 
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
