@@ -86,7 +86,10 @@
           (update-in [:writers index-id] delete-from-writer id)
           (update-in [:writers index-id] put-into-writer id mapped)
           (update-in [:stats index-id :index-count] inc )) 
-      :else (update-in output [:stats index-id :error-count] inc))
+      :else 
+      (-> output
+        (update-in [:stats index-id :error-count] inc)
+        (update-in [:stats index-id :errors] conj (ex-expand (:__exception mapped)))))
     (update-in [:max-etag] (partial newest-etag etag))
     (update-in [:doc-count] inc)
     (update-in [:stats index-id :total-docs] inc)
@@ -96,7 +99,9 @@
   [(:id i) 
    { :index-count 0
      :error-count 0
-     :total-docs 0 }])
+     :total-docs 0 
+     :errors ()
+    }])
 
 (defn process-mapped-documents [tx compiled-indexes pulsefn results] 
   (debug "About to reduce")

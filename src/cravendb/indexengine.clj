@@ -20,6 +20,9 @@
               iter (s/get-iterator tx)]
     (doall (map read-string (indexes/iterate-indexes iter)))))
 
+(defn ex-error [prefix ex]
+  (error prefix (ex-expand ex)))
+
 (defn compile-index [index]
   (assoc index 
          :map (load-string (index :map))
@@ -40,8 +43,6 @@
 (defn get-compiled-indexes [handle] 
   (:compiled-indexes @(:ea handle)))
 
-(defn ex-error [prefix ex]
-  (error prefix (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))))
 
 (defn load-new-indexes [indexes db]
   (map (comp 

@@ -110,7 +110,8 @@
 #_ (with-db (fn [db]
         (write-three-documents db)
         (indexing/index-documents! db (create-test-indexes))
-        (println (indexes/is-failed db "test"))))
+        (println (indexes/is-failed db "test"))
+        (println (indexes/errors db "test"))))
 
 ;; Even better
 #_ (with-db (fn [db]

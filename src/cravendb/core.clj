@@ -20,3 +20,7 @@
 
 (defn next-etag [etag]
   (integer-to-etag (inc (etag-to-integer etag))))
+
+(defn ex-expand [ex]
+  [ (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))])
+

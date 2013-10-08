@@ -33,6 +33,9 @@
 (defn is-failed [tx index-id]
   (boolean (docs/load-document tx (index-error-id index-id))))
 
+(defn errors [tx index-id]
+  (docs/load-document tx (index-error-id index-id)))
+
 (defn reset-index [tx index-id]
   (-> tx
     (docs/delete-document (index-error-id index-id))

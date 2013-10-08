@@ -28,7 +28,8 @@
   - Can I get away with renaming the folder to 'to-delete-blah'
   - Then deleting it?
   - This won't work for scheduled data, need indirection there at least
-
+  - Should use the etag of the index to determine storage location
+- I should be able to delete an index!!
 - Handle indexes that can't be compiled for some reason
 
 ### Can wait
