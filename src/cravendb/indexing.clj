@@ -48,7 +48,9 @@
     (do (debug "Skipping " id "because of filter on " (:id index)) nil)
     (try ((:map index) doc)
       (catch Exception ex
-        (debug "Failed to index " id "because of" ex) nil))))
+        (debug "Failed to index " id "because of" ex) 
+        { :__exception ex}
+        ))))
 
 (defn index-docs [tx indexes ids]
   (debug "indexing documents with indexes" (map :id indexes))
@@ -75,23 +77,33 @@
   (lucene/delete-all-entries-for writer doc-id))
 
 (defn process-mapped-document 
-  [ {:keys [max-etag tx doc-count] :as output} 
-    {:keys [etag index-id id mapped]}] 
+  [ output {:keys [etag index-id id mapped]}] 
   (-> 
-    (if mapped
-      (do
-        (-> ((:pulsefn output) output)
+    (cond
+      (not mapped) output
+      (not (:__exception mapped))
+        (-> output 
           (update-in [:writers index-id] delete-from-writer id)
-          (update-in [:writers index-id] put-into-writer id mapped)))
-        output)
-      (assoc :max-etag (newest-etag max-etag etag))
-      (assoc :doc-count (inc doc-count)) ))
+          (update-in [:writers index-id] put-into-writer id mapped)
+          (update-in [:stats index-id :index-count] inc )) 
+      :else (update-in output [:stats index-id :error-count] inc))
+    (update-in [:max-etag] (partial newest-etag etag))
+    (update-in [:doc-count] inc)
+    (update-in [:stats index-id :total-docs] inc)
+    ((:pulsefn output))))
+
+(defn create-index-stats [i]
+  [(:id i) 
+   { :index-count 0
+     :error-count 0
+     :total-docs 0 }])
 
 (defn process-mapped-documents [tx compiled-indexes pulsefn results] 
   (debug "About to reduce")
   (pulsefn 
     (reduce process-mapped-document 
           {:writers (into {} (map (juxt :id :writer) compiled-indexes)) 
+           :stats (into {} (map create-index-stats compiled-indexes))
            :max-etag (last-indexed-etag tx) 
            :tx tx 
            :doc-count 0
@@ -99,28 +111,38 @@
            } results)
     true))
 
-(defn finish-map-process-for-writer! [{:keys [max-etag tx] :as output} writer]
+(defn mark-index-as-failed-maybe [tx index-id stats]
+  (if (> (/ (:error-count stats) (:total-docs stats)) 0.8)
+    (indexes/mark-failed tx index-id stats) tx))
+
+(defn finish-map-process-for-writer! [{:keys [max-etag tx stats] :as output} writer]
   (lucene/commit! (get writer 1))
-  (assoc output :tx 
-    (indexes/set-last-indexed-etag-for-index tx (get writer 0) max-etag)))
+  (assoc output :tx
+    (-> tx
+      (indexes/set-last-indexed-etag-for-index (get writer 0) max-etag)
+      (mark-index-as-failed-maybe (get writer 0) (stats (get writer 0))))))
 
 (defn finish-map-process! 
   ([output] (finish-map-process! output false))
-  ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
+  ([{:keys [writers max-etag tx doc-count stats] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do (debug "Flushing main map process at " doc-count max-etag)
-      (-> (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers))
+    (do 
+      (debug "Flushing main map process at " doc-count max-etag)
+      (-> (:tx (reduce finish-map-process-for-writer!
+                       {:tx tx :max-etag max-etag :stats stats} writers))
         (s/store last-indexed-etag-key max-etag)
         (s/store last-index-doc-count-key doc-count)
         (s/commit!))))
-   output)) 
+   output))
 
 (defn finish-partial-map-process! 
   ([output] (finish-partial-map-process! output false))
-  ([{:keys [writers max-etag tx doc-count] :as output} force-flush]
+  ([{:keys [writers max-etag tx doc-count stats] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
     (do (debug "Flushing chaser process at " doc-count max-etag)
-      (s/commit! (:tx (reduce finish-map-process-for-writer! {:tx tx :max-etag max-etag} writers)))))
+      (s/commit! 
+        (:tx (reduce finish-map-process-for-writer! 
+               {:tx tx :max-etag max-etag :stats stats} writers)))))
     output))
 
 (defn index-documents-from-etag! [tx indexes etag pulsefn]

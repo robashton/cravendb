@@ -21,11 +21,14 @@
 ### Immediate priority
 
 - Etag generation is not thread safe, it needs to be a shared incrementable atom
+  - Trying this in a branch, think I'll have to make it another pass-around like index engine
+
 - Indexes can be properly broken, they need disabling and reporting
 - Modification of an index needs to mean re-indexing
   - Can I get away with renaming the folder to 'to-delete-blah'
   - Then deleting it?
   - This won't work for scheduled data, need indirection there at least
+
 - Handle indexes that can't be compiled for some reason
 
 ### Can wait

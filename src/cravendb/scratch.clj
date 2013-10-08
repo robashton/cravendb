@@ -8,6 +8,7 @@
             [cravendb.queryparsing :as qp]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
@@ -76,14 +77,40 @@
 
 #_ (def docs (.scoreDocs results))
 
-#_ (with-full-setup
-    (fn [db engine]
-      (with-open [tx (storage/ensure-transaction db)]
-        (-> tx
-          (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
-          (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
-          (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
-          (storage/commit!)))
-      (indexing/wait-for-index-catch-up db 50)
-      (println
-        (query/execute db engine { :index "default" :query (NOT (=? "name" "alice")) }))))
+
+(defn create-test-index []  
+  (let [storage (lucene/create-memory-index)]
+                    {
+                    :id "test" 
+                    :map (fn [doc] {"hello" ((:blah doc) :foo)})
+                    :storage storage
+                    :writer (lucene/open-writer storage) }))
+
+(defn create-valid-index []  
+  (let [storage (lucene/create-memory-index)]
+                    {
+                    :id "valid" 
+                     :map (fn [doc] {"hello" (:author doc)})
+                    :storage storage
+                    :writer (lucene/open-writer storage) }))
+
+(defn create-test-indexes [] [ (create-test-index) (create-valid-index) ])
+
+
+(def write-three-documents 
+  (fn [db]
+    (with-open [tx (s/ensure-transaction db)]
+      (-> tx
+        (docs/store-document "doc-1" (pr-str { :title "hello" :author "rob"}))
+        (docs/store-document "doc-2" (pr-str { :title "morning" :author "vicky"}))
+        (docs/store-document "doc-3" (pr-str { :title "goodbye" :author "james"}))
+        (s/commit!)))))
+
+;; Excellent
+#_ (with-db (fn [db]
+        (write-three-documents db)
+        (indexing/index-documents! db (create-test-indexes))
+        (println (indexes/is-failed db "test"))))
+
+
+
