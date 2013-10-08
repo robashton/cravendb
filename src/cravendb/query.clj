@@ -29,7 +29,7 @@
                     "CurrentTotal" total-collected 
                     "Skipped" current-offset "Of"
                     "Received" (count raw-results))
-           (if (and (not= (count raw-results) 0)
+           (if (and (= (count raw-results) requested-amount)
                     (not= new-total amount)
                     (> 10 attempt))
              (recur new-results 
