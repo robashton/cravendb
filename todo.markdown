@@ -20,20 +20,19 @@
 
 ### Immediate priority
 
-- Flesh out query capabilities so we know what we can achieve
+- Etag generation is not thread safe, it needs to be a shared incrementable atom
+- Indexes can be properly broken, they need disabling and reporting
+- Modification of an index needs to mean re-indexing
+  - Can I get away with renaming the folder to 'to-delete-blah'
+  - Then deleting it?
+  - This won't work for scheduled data, need indirection there at least
+- Handle indexes that can't be compiled for some reason
 
 ### Can wait
 
 - I need to show sensible parsing errors on parsing failure
 - Consider those small functions as inline functions
 - Safe reading of maps
-- Etag generation is not thread safe, it needs to be a shared incrementable atom
-- Indexes can be properly broken, they need disabling and reporting
-- Handle indexes that can't be compiled for some reason
-- Modification of an index needs to mean re-indexing
-  - Can I get away with renaming the folder to 'to-delete-blah'
-  - Then deleting it?
-  - This won't work for scheduled data, need indirection there at least
 - Process to remove deleted documents from index
 - Some form of concurrency check over transactions (MVCC most likely)
 - The index engine shouldn't be swallowing agent exceptions
@@ -44,7 +43,6 @@
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 - Look at threading indexing
-
 - Look at ex-info/ex-data
 - Meta data storage for documents
 - Try to use the Clojure string library rather than all the .startsWith etc
