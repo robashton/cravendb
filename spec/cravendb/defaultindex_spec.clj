@@ -168,5 +168,19 @@
             (should= 3
               (count (query/execute db engine { :index "default" :query (OR (has-item? :collection "four") (has-item? :collection "two")) })))))) 
 
+      (it "will not include results when using a 'not'"
+        (with-full-setup
+          (fn [db engine]
+            (with-open [tx (s/ensure-transaction db)]
+              (-> tx
+                (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
+                (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
+                (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
+                (s/commit!)))
+            (indexing/wait-for-index-catch-up db 50)
+            (should= "bob"
+              (extract-name-from-result
+                (query/execute db engine { :index "default" :query (NOT (=? "name" "alice")) }))))))
+
 )
 

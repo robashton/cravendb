@@ -79,6 +79,7 @@
       scoredocs (.scoreDocs result)
       docs (for [x (range 0 (count scoredocs))] 
               (.doc searcher (.doc (aget scoredocs x))))]
+              (debug "Did a query with" query)
               (distinct (map (fn [d] (.get d "__document_id")) docs)))) 
 
 

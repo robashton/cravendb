@@ -8,6 +8,9 @@
   (str "(" n " " (parse-element k) " " (parse-element v) ")"))
 
 
+(defn list-condition [n cs]
+  (str "(" n (reduce str (map (partial str " ") cs)) ")"))
+
 
 (defn >? [k v] (binary-condition ">" k v))
 (defn <? [k v] (binary-condition "<" k v)) 
@@ -18,7 +21,8 @@
 (defn has-word? [k v] (binary-condition "=" k v))  ;; for now
 (defn has-word-starting-with? [k v] (binary-condition "starts-with" k v))  ;; for now
 (defn has-item? [k v] (binary-condition "=" k v))  ;; for now
-(defn AND [& v] (str "(and" (reduce str (map (partial str " ") v)) ")"))
-(defn OR [& v] (str "(or" (reduce str (map (partial str " ") v)) ")"))
+(defn AND [& v] (list-condition "and" v))
+(defn OR [& v] (list-condition "or" v))
+(defn NOT [& v] (list-condition "not" v))
 
 

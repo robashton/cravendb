@@ -16,11 +16,12 @@
     Wildcard = '*'
     Whitespace = #'\\s+'
     <Function> = <'('>  (LessThanCall | GreaterThanCall | GreaterThanOrEqualCall | LessThanOrEqualCall | 
-                            AndCall | OrCall | EqualsCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
-    <Argument> = (Function | LiteralValue)
+                            AndCall | OrCall | EqualsCall | NotCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
+    <Argument> = (Function | LiteralValue | Wildcard)
 
     AndCall = <'and'> (<Whitespace>* Argument)*
     OrCall = <'or'> (<Whitespace>* Argument )*
+    NotCall = <'not'> (<Whitespace>* Argument )*
 
     EqualsCall = <'='> <Whitespace> FieldName <Whitespace> LiteralValue
     LessThanCall = <'<'> <Whitespace> FieldName <Whitespace> LiteralValue
@@ -36,7 +37,6 @@
     StringValue = <'\"'> #'[a-zA-Z]+' <'\"'>
     NumericValue = #'[0-9]+' "
   ))
-
 
 (defn create-equals-clause [[field-type field-name] [value-type value-value] ]
   (case value-type
@@ -74,9 +74,40 @@
 (defn create-or-call [& expressions]
   (create-boolean-query BooleanClause$Occur/SHOULD expressions))
 
+(defn create-not-call [& expressions]
+  (let [query (create-boolean-query BooleanClause$Occur/MUST_NOT expressions)]
+    (.add query (MatchAllDocsQuery.) BooleanClause$Occur/MUST)
+    query))
 
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
+
+(defn wrap-with-wildcard [sub-query]
+  (println sub-query)
+  (let [query (BooleanQuery.)]
+    (.add query (MatchAllDocsQuery.) BooleanClause$Occur/MUST) 
+    (.add query sub-query BooleanClause$Occur/MUST) 
+    query))
+
+(defn merge-match-all [q]
+  (assoc q 1 
+    [:WrapWildcard (get q 1)]))
+
+(defn is-positive-clause [q]
+  (cond 
+    (= (first q) :S) (some is-positive-clause (drop 1 q))
+    (= (first q) :NotCall) false
+    (= (first q) :AndCall) (some is-positive-clause (drop 1 q))
+    (= (first q) :OrCall) (some is-positive-clause (drop 1 q))
+    :else true))
+
+(defn ensure-positivity [q]
+  (if (is-positive-clause q) 
+    (do
+      (debug "Parsed query as " q) q) 
+    (do
+      (debug "Parsed query as " (merge-match-all q))
+      (merge-match-all q))))
 
 (defn to-lucene [query]
   (debug "Interpreting" query)
@@ -92,5 +123,7 @@
      :Wildcard create-wildcard
      :AndCall create-and-call
      :OrCall create-or-call
+     :NotCall create-not-call
      }
     (query-parser query)))))
+
