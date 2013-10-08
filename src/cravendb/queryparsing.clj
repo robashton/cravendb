@@ -82,33 +82,6 @@
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
 
-(defn wrap-with-wildcard [sub-query]
-  (println sub-query)
-  (let [query (BooleanQuery.)]
-    (.add query (MatchAllDocsQuery.) BooleanClause$Occur/MUST) 
-    (.add query sub-query BooleanClause$Occur/MUST) 
-    query))
-
-(defn merge-match-all [q]
-  (assoc q 1 
-    [:WrapWildcard (get q 1)]))
-
-(defn is-positive-clause [q]
-  (cond 
-    (= (first q) :S) (some is-positive-clause (drop 1 q))
-    (= (first q) :NotCall) false
-    (= (first q) :AndCall) (some is-positive-clause (drop 1 q))
-    (= (first q) :OrCall) (some is-positive-clause (drop 1 q))
-    :else true))
-
-(defn ensure-positivity [q]
-  (if (is-positive-clause q) 
-    (do
-      (debug "Parsed query as " q) q) 
-    (do
-      (debug "Parsed query as " (merge-match-all q))
-      (merge-match-all q))))
-
 (defn to-lucene [query]
   (debug "Interpreting" query)
   (first (drop 1 (insta/transform 
