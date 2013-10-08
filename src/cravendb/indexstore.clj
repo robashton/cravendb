@@ -33,6 +33,11 @@
 (defn is-failed [tx index-id]
   (boolean (docs/load-document tx (index-error-id index-id))))
 
+(defn reset-index [tx index-id]
+  (-> tx
+    (docs/delete-document (index-error-id index-id))
+    (set-last-indexed-etag-for-index index-id (zero-etag))))
+
 (defn load-index [tx id]
   (let [doc (docs/load-document tx (index-doc-id id))]
     (if doc (read-string doc) nil)))

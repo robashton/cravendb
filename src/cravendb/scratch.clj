@@ -112,5 +112,14 @@
         (indexing/index-documents! db (create-test-indexes))
         (println (indexes/is-failed db "test"))))
 
+;; Even better
+#_ (with-db (fn [db]
+        (write-three-documents db)
+        (indexing/index-documents! db (create-test-indexes))
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! (indexes/reset-index tx "test")))
+        (println (indexes/is-failed db "test"))
+        (println (indexes/get-last-indexed-etag-for-index db "test"))))
+
 
 
