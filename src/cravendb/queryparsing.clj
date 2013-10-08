@@ -4,6 +4,7 @@
   (:import 
            (org.apache.lucene.index Term)
            (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery
+                                     BooleanQuery BooleanClause  BooleanClause$Occur
                                      MatchAllDocsQuery)
            (org.apache.lucene.document Document Field Field$Store Field$Index 
                                       TextField IntField FloatField StringField)))
@@ -15,11 +16,13 @@
     Wildcard = '*'
     Whitespace = #'\\s+'
     <Function> = <'('>  (LessThanCall | GreaterThanCall | GreaterThanOrEqualCall | LessThanOrEqualCall | 
-                            AndCall | OrCall | EqualsCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
-    <Argument> = (Function | LiteralValue)
+                            AndCall | OrCall | EqualsCall | NotCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
+    <Argument> = (Function | LiteralValue | Wildcard)
 
-    AndCall = <'and'> (<Whitespace> Argument)*
-    OrCall = <'or'> (<Whitespace> Argument )*
+    AndCall = <'and'> (<Whitespace>* Argument)*
+    OrCall = <'or'> (<Whitespace>* Argument )*
+    NotCall = <'not'> (<Whitespace>* Argument )*
+
     EqualsCall = <'='> <Whitespace> FieldName <Whitespace> LiteralValue
     LessThanCall = <'<'> <Whitespace> FieldName <Whitespace> LiteralValue
     GreaterThanCall = <'>'> <Whitespace> FieldName <Whitespace> LiteralValue
@@ -60,6 +63,22 @@
   (case value-type
     :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) Integer/MAX_VALUE true true)))
 
+(defn create-boolean-query [occur expressions]
+  (let [query (BooleanQuery.)]
+    (doseq [sub-query expressions] (.add query sub-query occur ))
+    query))
+
+(defn create-and-call [& expressions]
+  (create-boolean-query BooleanClause$Occur/MUST expressions))
+
+(defn create-or-call [& expressions]
+  (create-boolean-query BooleanClause$Occur/SHOULD expressions))
+
+(defn create-not-call [& expressions]
+  (let [query (create-boolean-query BooleanClause$Occur/MUST_NOT expressions)]
+    (.add query (MatchAllDocsQuery.) BooleanClause$Occur/MUST)
+    query))
+
 (defn create-wildcard [in]
   (MatchAllDocsQuery.))
 
@@ -75,5 +94,9 @@
      :LessThanOrEqualCall create-less-than-or-equal-clause
      :StartsWithCall create-starts-with-clause
      :Wildcard create-wildcard
+     :AndCall create-and-call
+     :OrCall create-or-call
+     :NotCall create-not-call
      }
     (query-parser query)))))
+

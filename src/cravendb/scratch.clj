@@ -12,12 +12,13 @@
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
             [cravendb.lucene :as lucene]
-            [instaparse.core :as insta]
-            )
+            [instaparse.core :as insta])
   (:use [cravendb.testing]
        [cravendb.core]
        [clojure.tools.logging :only (info debug error)] 
-       [clojure.pprint])
+       [clojure.pprint]
+       [cravendb.querylanguage]
+        )
   (:import 
            (org.apache.lucene.analysis.standard StandardAnalyzer)
            (org.apache.lucene.store FSDirectory)
@@ -74,4 +75,15 @@
 #_ (def results (.search searcher (first (drop 1 (query-to-lucene (query-format "(= \"age\" 27)")))) 100))
 
 #_ (def docs (.scoreDocs results))
-#_ (count docs)
+
+#_ (with-full-setup
+    (fn [db engine]
+      (with-open [tx (storage/ensure-transaction db)]
+        (-> tx
+          (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
+          (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
+          (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
+          (storage/commit!)))
+      (indexing/wait-for-index-catch-up db 50)
+      (println
+        (query/execute db engine { :index "default" :query (NOT (=? "name" "alice")) }))))
