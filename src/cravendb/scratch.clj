@@ -8,6 +8,7 @@
             [cravendb.queryparsing :as qp]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as storage]
+            [cravendb.storage :as s]
             [me.raynes.fs :as fs]
             [ring.adapter.jetty :refer [run-jetty]]
             [cravendb.http :as http]  
@@ -76,14 +77,4 @@
 
 #_ (def docs (.scoreDocs results))
 
-#_ (with-full-setup
-    (fn [db engine]
-      (with-open [tx (storage/ensure-transaction db)]
-        (-> tx
-          (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
-          (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
-          (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
-          (storage/commit!)))
-      (indexing/wait-for-index-catch-up db 50)
-      (println
-        (query/execute db engine { :index "default" :query (NOT (=? "name" "alice")) }))))
+
