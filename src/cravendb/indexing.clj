@@ -153,7 +153,7 @@
 (defn index-documents-from-etag! [tx indexes etag pulsefn]
   (with-open [iter (s/get-iterator tx)] 
     (->> (take 10000 (docs/iterate-etags-after iter etag)) 
-          (index-docs tx indexes)
+          (index-docs tx (filter #(not (indexes/is-failed tx (:id %1))) indexes))
           (process-mapped-documents tx indexes pulsefn))) )
 
 (defn index-catchup! [db index]
