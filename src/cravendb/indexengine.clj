@@ -56,11 +56,15 @@
 (defn prepare-indexes [indexes db]
   (map (comp (partial open-storage-for-index (:path db)) compile-index) indexes))
 
+(defn index-is-equal [index-one index-two]
+  (and (= (:id index-one) (:id index-two))
+       (= (:etag index-one) (:etag index-two))))
+
 (defn missing-indexes [db current-indexes]
   (map-indexes-by-id
     (prepare-indexes 
-      (filter #(not-any? (partial = (:id %1)) 
-        (map key current-indexes)) (all-indexes db)) db)))
+      (filter #(not-any? (partial index-is-equal %1) 
+        (map val current-indexes)) (all-indexes db)) db)))
 
 (defn refresh-indexes [{:keys [db compiled-indexes] :as engine}]
   (try 
