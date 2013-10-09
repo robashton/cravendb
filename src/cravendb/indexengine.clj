@@ -9,16 +9,23 @@
            [cravendb.defaultindexes :as di]
            [cravendb.indexing :as indexing]))
 
+(defn storage-path-for-index [index]
+  (str (:id index) "-" (or (:etag index) "")))
+
 (defn open-storage-for-index [path index]
-  (let [storage (lucene/create-index (File. path (index :id)))]
+  (let [storage (lucene/create-index (File. path (storage-path-for-index index)))]
     (-> index
       (assoc :storage storage)
       (assoc :writer (lucene/open-writer storage)))))
 
+(defn read-index-data [tx index-string]
+  (let [index (read-string index-string)]
+    (assoc index :etag (indexes/etag-for-index tx (:id index)))))
+
 (defn all-indexes [db]
   (with-open [tx (s/ensure-transaction db)
               iter (s/get-iterator tx)]
-    (doall (map read-string (indexes/iterate-indexes iter)))))
+    (doall (map (partial read-index-data tx) (indexes/iterate-indexes iter)))))
 
 (defn ex-error [prefix ex]
   (error prefix (ex-expand ex)))

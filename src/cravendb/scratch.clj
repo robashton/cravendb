@@ -78,3 +78,25 @@
 #_ (def docs (.scoreDocs results))
 
 
+(def by-name-map 
+  "(fn [doc] { \"name\" (:name doc) })")
+
+(def by-bob-map 
+  "(fn [doc] { \"name\" \"bob\" })")
+
+(def by-name-animal-filter
+  "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
+
+#_ (with-full-setup
+      (fn [db engine]
+        (with-open [tx (s/ensure-transaction db)] 
+          (-> tx
+            (docs/store-document "animal-1" (pr-str { :name "zebra"}))
+            (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
+            (indexes/put-index { 
+              :id "by_name" 
+              :filter by-name-animal-filter
+              :map by-bob-map}) 
+            (s/commit!)))
+        (indexing/wait-for-index-catch-up db)))
+
