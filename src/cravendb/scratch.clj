@@ -87,6 +87,41 @@
 (def by-name-animal-filter
   "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
 
+#_ (let [compiled-indexes { "default" { :id "default"} "two" { :id "two" :etag "3"}} 
+         all-indexes [{ :id "two"}] ] 
+     (-> 
+       (apply dissoc compiled-indexes 
+            (map key (indexengine/deleted-indexes compiled-indexes all-indexes )))
+       (merge {"four" { :id "four" :etag "4"}})
+       ))
+
+#_ (with-full-setup
+     (fn [db engine]
+        (with-open [tx (s/ensure-transaction db)] 
+          (-> tx
+            (docs/store-document "animal-1" (pr-str { :name "zebra"}))
+            (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
+            (indexes/put-index { 
+              :id "by_name" 
+              :filter by-name-animal-filter
+              :map by-bob-map}) 
+            (s/commit!)))
+        (indexing/wait-for-index-catch-up db)
+
+        (println "After first index pass" (indexes/get-last-indexed-etag-for-index db "by_name"))
+        (println "I can query by bob" (query/execute db engine { :query (=? "name" "bob") :index "by_name" :wait true}) )
+
+        (with-open [tx (s/ensure-transaction db)] 
+          (-> tx
+            (indexes/delete-index "by_name")
+            (s/commit!)))
+
+        ;; Oh, I do this already
+        (println "After deleting index" (indexes/get-last-indexed-etag-for-index db "by_name"))
+
+        (println "I can query by bob" (query/execute db engine { :query (=? "name" "bob") :index "by_name" :wait true}) )
+        (println "After waiting again" (indexes/get-last-indexed-etag-for-index db "by_name"))))
+
 #_ (with-full-setup
       (fn [db engine]
         (with-open [tx (s/ensure-transaction db)] 
@@ -101,20 +136,20 @@
         (indexing/wait-for-index-catch-up db)
 
         (println "After first index pass" (indexes/get-last-indexed-etag-for-index db "by_name"))
+        (println "I can query by bob" (query/execute db engine { :query (=? "name" "bob") :index "by_name" :wait true}) )
 
         (with-open [tx (s/ensure-transaction db)] 
           (-> tx
             (indexes/put-index { 
               :id "by_name" 
               :filter by-name-animal-filter
-              :map by-bob-map}) 
+              :map by-name-map}) 
             (s/commit!)))
 
         ;; Oh, I do this already
         (println "After pushing new index" (indexes/get-last-indexed-etag-for-index db "by_name"))
 
-        (indexing/wait-for-index-catch-up db)
-
+        (println "I can query by bob" (query/execute db engine { :query (=? "name" "bob") :index "by_name" :wait true}) )
         (println "After waiting again" (indexes/get-last-indexed-etag-for-index db "by_name"))
 
         ))

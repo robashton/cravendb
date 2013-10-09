@@ -60,24 +60,39 @@
   (and (= (:id index-one) (:id index-two))
        (= (:etag index-one) (:etag index-two))))
 
-(defn missing-indexes [db current-indexes]
+(defn new-indexes [db current all]
   (map-indexes-by-id
     (prepare-indexes 
       (filter #(not-any? (partial index-is-equal %1) 
-        (map val current-indexes)) (all-indexes db)) db)))
+        (map val current)) all) db)))
 
-(defn close-obsolete-indexes! [existing new]
-  (doseq [[id index] new]
+(defn deleted-indexes [current all]
+  (into {} 
+    (for [i (filter #(not-any? (partial = %1) (map :id all))
+      (map :id (filter :etag (map val current))))] [i nil])))
+
+(defn close-obsolete-indexes! [existing new deleted]
+  (doseq [[id index] deleted]
     (if-let [current (existing id)]
-      (.close (current :writer)
-      (.close (current :storage))))))
+      (do 
+          (info "deletion detected, closing writers for" id)
+          (.close (:writer current))
+          (.close (:storage current)))))
+  (doseq [[id index] new]
+     (if-let [current (existing id)]
+      (do 
+          (info "overwrite detected, closing writers for" id)
+          (.close (:writer current))
+          (.close (:storage current))))))
 
 (defn refresh-indexes! [{:keys [db compiled-indexes] :as engine}]
-  (try 
-    (let [newly-opened (missing-indexes db compiled-indexes)] 
-      (close-obsolete-indexes! compiled-indexes newly-opened)
-      (update-in engine [:compiled-indexes] merge newly-opened))
-    (catch Exception ex (ex-error "REFRESH FUCK" ex) engine)))
+  (let [all (all-indexes #spy/p db)
+        newly-opened (new-indexes db compiled-indexes all)
+        newly-deleted (deleted-indexes compiled-indexes all)] 
+    (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
+    (assoc engine :compiled-indexes
+      (-> (apply dissoc compiled-indexes (map key newly-deleted))
+          (merge newly-opened)))))
 
 (defn remove-any-finished-chasers [engine]
   (debug "Removing chasers that aren't needed")
@@ -86,18 +101,15 @@
 
 (defn needs-a-new-chaser [engine index]
   (debug "Checking if we need a new chaser for" (:id index))
-    (try
-      (and
-      (not= 
+  (and
+    (not= 
       (indexing/last-indexed-etag (:db engine)) 
-        (indexes/get-last-indexed-etag-for-index 
-          (:db engine) 
-          (:id index)))
-        (not-any? 
-          (partial = (:id index))
-          (map :id (:chasers engine))))
-      (catch Exception e
-        (ex-error "needs-a-new-chaser" e))))
+      (indexes/get-last-indexed-etag-for-index 
+        (:db engine) 
+        (:id index)))
+    (not-any? 
+      (partial = (:id index))
+      (map :id (:chasers engine)))))
 
 (defn create-chaser [engine index]
   (info "Starting a freaking chaser for " (:id index))
@@ -130,27 +142,20 @@
           (map val (:compiled-indexes engine))))
 
 (defn pump-indexes-at-head! [engine]
-  (try
-    (indexing/index-documents! 
-      (:db engine) 
-      (indexes-which-are-up-to-date engine))
-    engine
-    (catch Exception ex
-      (ex-error "INDEXING FUCK" ex))))
+  (indexing/index-documents! 
+    (:db engine) 
+    (indexes-which-are-up-to-date engine)))
 
 (defn mark-pump-as-complete [engine]
   (debug "Index chaser complete")
   (assoc engine :running-pump false))
 
 (defn pump-indexes! [engine]
-  (try
-    (-> engine 
+  (-> engine 
     remove-any-finished-chasers 
     start-new-chasers
     pump-indexes-at-head!
-    mark-pump-as-complete)
-   (catch Exception e
-    (ex-error "pumping" e))))
+    mark-pump-as-complete))
 
 (defn try-pump-indexes [engine ea]
  (if (:running-pump engine) 
@@ -162,22 +167,15 @@
 (defn start-indexing [engine ea]
   (let [task (future 
         (loop []
-          (try
-            (send ea refresh-indexes!)
-            (send ea try-pump-indexes ea)
-            (catch Exception e
-              (ex-error "SHIT STARTING" e)))
+          (send ea refresh-indexes!)
+          (send ea try-pump-indexes ea)
           (Thread/sleep 50)
           (recur)))]
    (assoc engine :worker-future task)))
 
 (defn stop-indexing [engine]
-  (try
-    (future-cancel (:worker-future engine))
-    (assoc engine :worker-future nil)
-    (catch Exception ex
-      (ex-error "STOPPING FUCK" (pprint ex))
-      engine)))
+  (future-cancel (:worker-future engine))
+  (assoc engine :worker-future nil))
 
 (defprotocol EngineOperations
   (close [this]))
@@ -201,7 +199,7 @@
  (await (:ea ops)))
 
 (defn handle-agent-error [engine e]
-  (ex-error "SHIT-IN-AGENT" e))
+  (ex-error "Indexing engine fell over" e))
 
 (defn create-engine [db]
   (let [engine 
