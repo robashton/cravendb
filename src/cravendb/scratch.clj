@@ -99,7 +99,23 @@
               :map by-bob-map}) 
             (s/commit!)))
         (indexing/wait-for-index-catch-up db)
-        
+
+        (println "After first index pass" (indexes/get-last-indexed-etag-for-index db "by_name"))
+
+        (with-open [tx (s/ensure-transaction db)] 
+          (-> tx
+            (indexes/put-index { 
+              :id "by_name" 
+              :filter by-name-animal-filter
+              :map by-bob-map}) 
+            (s/commit!)))
+
+        ;; Oh, I do this already
+        (println "After pushing new index" (indexes/get-last-indexed-etag-for-index db "by_name"))
+
+        (indexing/wait-for-index-catch-up db)
+
+        (println "After waiting again" (indexes/get-last-indexed-etag-for-index db "by_name"))
 
         ))
 
