@@ -66,10 +66,17 @@
       (filter #(not-any? (partial index-is-equal %1) 
         (map val current-indexes)) (all-indexes db)) db)))
 
-(defn refresh-indexes [{:keys [db compiled-indexes] :as engine}]
+(defn close-obsolete-indexes! [existing new]
+  (doseq [[id index] new]
+    (if-let [current (existing id)]
+      (.close (current :writer)
+      (.close (current :storage))))))
+
+(defn refresh-indexes! [{:keys [db compiled-indexes] :as engine}]
   (try 
-    (assoc engine :compiled-indexes 
-        (merge compiled-indexes (missing-indexes db compiled-indexes)))
+    (let [newly-opened (missing-indexes db compiled-indexes)] 
+      (close-obsolete-indexes! compiled-indexes newly-opened)
+      (update-in engine [:compiled-indexes] merge newly-opened))
     (catch Exception ex (ex-error "REFRESH FUCK" ex) engine)))
 
 (defn remove-any-finished-chasers [engine]
@@ -122,7 +129,7 @@
              (map :id (:chasers engine))) 
           (map val (:compiled-indexes engine))))
 
-(defn pump-indexes-at-head [engine]
+(defn pump-indexes-at-head! [engine]
   (try
     (indexing/index-documents! 
       (:db engine) 
@@ -135,12 +142,12 @@
   (debug "Index chaser complete")
   (assoc engine :running-pump false))
 
-(defn pump-indexes [engine]
+(defn pump-indexes! [engine]
   (try
     (-> engine 
     remove-any-finished-chasers 
     start-new-chasers
-    pump-indexes-at-head
+    pump-indexes-at-head!
     mark-pump-as-complete)
    (catch Exception e
     (ex-error "pumping" e))))
@@ -149,14 +156,14 @@
  (if (:running-pump engine) 
    engine
    (do
-     (send ea pump-indexes)
+     (send ea pump-indexes!)
      (assoc engine :running-pump true))))
 
 (defn start-indexing [engine ea]
   (let [task (future 
         (loop []
           (try
-            (send ea refresh-indexes)
+            (send ea refresh-indexes!)
             (send ea try-pump-indexes ea)
             (catch Exception e
               (ex-error "SHIT STARTING" e)))
