@@ -25,7 +25,7 @@
             (s/commit!)))
 
         (with-open [ie (indexengine/create-engine db)]
-          (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
+          (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
         (should= (integer-to-etag 2) 
                  (indexes/get-last-indexed-etag-for-index db "test")))))) 

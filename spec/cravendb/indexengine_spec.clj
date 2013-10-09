@@ -66,12 +66,12 @@
   (with result (indexengine/indexes-which-are-up-to-date 
     {
        :chasers '({:id "one"})
-       :compiled-indexes '({:id "one"} {:id "two"})
+       :compiled-indexes {"one" {:id "one"} "two" {:id "two"}}
     }))
   (it "will return indexes that are not chasers"
     (should-contain {:id "two"} @result))
   (it "will not return indexes that are chasers"
-      (should-not-contain {:id "one"} @result)))
+    (should-not-contain {:id "one"} @result)))
 
 
 (describe "Running index catch-ups"

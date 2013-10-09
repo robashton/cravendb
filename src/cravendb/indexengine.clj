@@ -50,8 +50,8 @@
       (.close (i :writer)) 
       (.close (i :storage)))))
 
-(defn get-compiled-indexes [handle] 
-  (:compiled-indexes @(:ea handle)))
+(defn compiled-indexes [handle] 
+  (map val (:compiled-indexes @(:ea handle))))
 
 (defn prepare-indexes [indexes db]
   (map (comp (partial open-storage-for-index (:path db)) compile-index) indexes))
@@ -100,7 +100,7 @@
 (defn indexes-which-require-a-chaser [engine]
   (filter 
     #(needs-a-new-chaser engine %1) 
-    (:compiled-indexes engine)))
+    (map val (:compiled-indexes engine))))
 
 (defn start-new-chasers [engine]
   (debug "Starting new chasers")
@@ -116,7 +116,7 @@
   (filter #(not-any? 
              (partial = (:id %1)) 
              (map :id (:chasers engine))) 
-          (:compiled-indexes engine)))
+          (map val (:compiled-indexes engine))))
 
 (defn pump-indexes-at-head [engine]
   (try
