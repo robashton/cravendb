@@ -86,7 +86,7 @@
           (.close (:storage current))))))
 
 (defn refresh-indexes! [{:keys [db compiled-indexes] :as engine}]
-  (let [all (all-indexes #spy/p db)
+  (let [all (all-indexes db)
         newly-opened (new-indexes db compiled-indexes all)
         newly-deleted (deleted-indexes compiled-indexes all)] 
     (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
