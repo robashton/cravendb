@@ -35,14 +35,17 @@
          :map (load-string (index :map))
          :filter (if (:filter index) (load-string (:filter index)) nil)))
 
+(defn map-indexes-by-id [indexes]
+ (into {} (for [i indexes] [(:id i) i])))
+
 (defn load-initial-indexes [db]
-  (doall 
+  (map-indexes-by-id 
     (map (partial open-storage-for-index (:path db))  
-         (concat (di/all) (map compile-index (all-indexes db))))))
+       (concat (di/all) (map compile-index (all-indexes db))))))
 
 (defn close-engine [engine]
   (debug "Closing the engine")
-  (doseq [i (:compiled-indexes engine)] 
+  (doseq [[id i] (:compiled-indexes engine)] 
     (do
       (.close (i :writer)) 
       (.close (i :storage)))))
@@ -50,33 +53,20 @@
 (defn get-compiled-indexes [handle] 
   (:compiled-indexes @(:ea handle)))
 
+(defn prepare-indexes [indexes db]
+  (map (comp (partial open-storage-for-index (:path db)) compile-index) indexes))
 
-(defn load-new-indexes [indexes db]
-  (map (comp 
-         (partial open-storage-for-index (:path db)) 
-         compile-index) indexes))
+(defn missing-indexes [db current-indexes]
+  (map-indexes-by-id
+    (prepare-indexes 
+      (filter #(not-any? (partial = (:id %1)) 
+        (map key current-indexes)) (all-indexes db)) db)))
 
 (defn refresh-indexes [{:keys [db compiled-indexes] :as engine}]
   (try 
-    (let [indexes-to-add 
-          (filter #(not-any? 
-                     (partial = (:id %1)) 
-                        (map :id compiled-indexes)) 
-                        (all-indexes db))] 
-
-      (if (not-empty indexes-to-add)
-        (let [new-indexes 
-              (doall (concat compiled-indexes 
-                             (load-new-indexes indexes-to-add db)))]
-          (debug "Loading new indexes from storage")
-          (assoc engine :compiled-indexes new-indexes
-            :indexes-by-name (into {} (for [i new-indexes] [(i :id) i]))))
-
-        engine))
-    (catch Exception ex
-      (ex-error "REFRESH FUCK" ex)
-      engine)))
-
+    (assoc engine :compiled-indexes 
+        (merge compiled-indexes (missing-indexes db compiled-indexes)))
+    (catch Exception ex (ex-error "REFRESH FUCK" ex) engine)))
 
 (defn remove-any-finished-chasers [engine]
   (debug "Removing chasers that aren't needed")
@@ -192,7 +182,7 @@
   (send (:ea ops) start-indexing (:ea ops)))
 
 (defn get-index-storage [ops index-id]
-  (get-in @(:ea ops) [:indexes-by-name index-id :storage]))
+  (get-in @(:ea ops) [:compiled-indexes index-id :storage]))
 
 (defn stop [ops]
  (debug "Stopping indexing agents")
@@ -203,12 +193,10 @@
   (ex-error "SHIT-IN-AGENT" e))
 
 (defn create-engine [db]
-  (let [compiled-indexes (load-initial-indexes db)
-        engine (agent {
-              :chasers ()
-              :db db
-              :compiled-indexes compiled-indexes
-              :indexes-by-name (into {} (for [i compiled-indexes] [(i :id) i])) 
-              }) ]
+  (let [engine 
+        (agent {
+          :chasers ()
+          :db db
+          :compiled-indexes (load-initial-indexes db) })]
     (set-error-handler! engine handle-agent-error)
     (EngineHandle. engine))) 

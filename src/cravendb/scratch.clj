@@ -98,5 +98,8 @@
               :filter by-name-animal-filter
               :map by-bob-map}) 
             (s/commit!)))
-        (indexing/wait-for-index-catch-up db)))
+        (indexing/wait-for-index-catch-up db)
+        
+
+        ))
 
