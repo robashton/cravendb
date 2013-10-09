@@ -24,11 +24,11 @@
   - Trying this in a branch, think I'll have to make it another pass-around like index engine
 
 - Modification of an index needs to mean re-indexing
-  - Can I get away with renaming the folder to 'to-delete-blah'
-  - Then deleting it?
   - This won't work for scheduled data, need indirection there at least
   - Should use the etag of the index to determine storage location
-- I should be able to delete an index!!
+  - I should be able to delete an index!!
+  - Let's leave this synchronous for now
+- This should ideally delete the persistence too
 - Handle indexes that can't be compiled for some reason
 
 ### Can wait
