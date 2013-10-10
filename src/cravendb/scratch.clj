@@ -95,6 +95,45 @@
        (merge {"four" { :id "four" :etag "4"}})
        ))
 
+#_ (def db (do
+             (fs/delete-dir "testdir")
+             (s/create-storage "testdir")))
+
+#_ (def engine (indexengine/create-engine db))
+
+#_ (do
+     (.close engine)
+     (.close db))
+
+#_ (println @(:ea engine))
+
+#_ (def first-pass (indexengine/refresh-indexes! @(:ea engine)))
+
+#_ (with-open [tx (s/ensure-transaction db)] 
+     (-> tx
+       (indexes/put-index { 
+              :id "by_name" 
+              :filter by-name-animal-filter
+              :map by-bob-map})
+       (s/commit!))) 
+
+#_ (def second-pass (indexengine/refresh-indexes! first-pass))
+#_ (def third-pass (indexengine/refresh-indexes! second-pass))
+
+#_ (with-open [tx (s/ensure-transaction db)] 
+    (-> tx
+      (indexes/put-index { 
+        :id "by_name" 
+        :filter by-name-animal-filter
+        :map by-name-map}) 
+      (s/commit!)))
+
+#_ (def fourth-pass (indexengine/refresh-indexes! third-pass))
+
+#_ (println fourth-pass)
+
+#_ (def fifth-pass (indexengine/refresh-indexes! fourth-pass))
+
 #_ (with-full-setup
      (fn [db engine]
         (with-open [tx (s/ensure-transaction db)] 
@@ -118,6 +157,8 @@
 
         ;; Oh, I do this already
         (println "After deleting index" (indexes/get-last-indexed-etag-for-index db "by_name"))
+
+        (Thread/sleep 1000)
 
         (println "I can query by bob" (query/execute db engine { :query (=? "name" "bob") :index "by_name" :wait true}) )
         (println "After waiting again" (indexes/get-last-indexed-etag-for-index db "by_name"))))

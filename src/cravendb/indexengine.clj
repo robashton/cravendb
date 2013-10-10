@@ -23,9 +23,12 @@
     (assoc index :etag (indexes/etag-for-index tx (:id index)))))
 
 (defn all-indexes [db]
-  (with-open [tx (s/ensure-transaction db)
+  (try
+    (with-open [tx (s/ensure-transaction db)
               iter (s/get-iterator tx)]
-    (doall (map (partial read-index-data tx) (indexes/iterate-indexes iter)))))
+    (doall (map (partial read-index-data tx) (indexes/iterate-indexes iter))))
+    (catch Exception ex
+      (debug "WTF" ex))))
 
 (defn ex-error [prefix ex]
   (error prefix (ex-expand ex)))
@@ -86,10 +89,15 @@
           (.close (:storage current))))))
 
 (defn refresh-indexes! [{:keys [db compiled-indexes] :as engine}]
+  (debug "refreshing indexes with " db)
   (let [all (all-indexes db)
         newly-opened (new-indexes db compiled-indexes all)
         newly-deleted (deleted-indexes compiled-indexes all)] 
+
+    (debug "Closing any obsolete indexes" newly-opened newly-deleted)
     (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
+
+    (debug "Updating engine's list of indexes")
     (assoc engine :compiled-indexes
       (-> (apply dissoc compiled-indexes (map key newly-deleted))
           (merge newly-opened)))))
@@ -144,7 +152,8 @@
 (defn pump-indexes-at-head! [engine]
   (indexing/index-documents! 
     (:db engine) 
-    (indexes-which-are-up-to-date engine)))
+    (indexes-which-are-up-to-date engine))
+  engine)
 
 (defn mark-pump-as-complete [engine]
   (debug "Index chaser complete")
