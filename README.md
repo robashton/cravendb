@@ -1,12 +1,13 @@
 # CravenDB
 
-- An attempt at a RavenDB look-a-like written in Clojure
-- It is diverging from Raven's design
-- It is not going to be completed probably
-- It is not going to be written for actual use
-- It is just exploring the notion of doing something tangible in Clojure
-- See todo.markdown for a rough indication of progress vs debt
-
+- A document database written in Clojure for learning purposes
+- It is based loosely on RavenDB's design
+- A rough to-do can be found in the file "todo.markdown"
+- Most likely we're talking
+  - MVCC
+  - Master/Master replication by default
+  - Dynamic queries over un-indexed documents
+  - Distributed joins across indexed documents
 
 # Instructions
 
