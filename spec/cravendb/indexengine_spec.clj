@@ -10,7 +10,19 @@
             [cravendb.client :as client]
             [cravendb.lucene :as lucene]))
 
-(def index-id "blah")
+(def index-id "by_name")
+(def by-name-map "(fn [doc] { \"name\" (:name doc) })")
+(defn store-test-index! [db]
+  (with-open [tx (s/ensure-transaction db)] 
+      (-> tx
+        (indexes/put-index { :id index-id :map by-name-map})
+        (s/commit!))))
+
+(defn delete-test-index! [db]
+  (with-open [tx (s/ensure-transaction db)] 
+      (-> tx
+        (indexes/delete-index index-id )
+        (s/commit!))))
 
 (defn set-etags-of-index-and-head [db index-etag-int head-etag-int]
   (with-open [tx (s/ensure-transaction db)]
@@ -80,27 +92,27 @@
       (with-open [ie (indexengine/create-engine db)]        
         (try 
           (indexengine/start ie)
-
-          (with-open [tx (s/ensure-transaction db)]
-            (s/commit! (indexes/put-index tx 
-              { :id "test1" :map "(fn [doc] {\"foo\" (:foo doc)})"} )))
-
           (with-open [tx (s/ensure-transaction db)]
             (-> tx
               (docs/store-document "1" (pr-str { :foo "bar" }) ) 
               (docs/store-document "2" (pr-str { :foo "bas" }) ) 
               (docs/store-document "3" (pr-str { :foo "baz" }) )
               (s/commit!)))
-
           (indexing/wait-for-index-catch-up db 1)
-
-          (with-open [tx (s/ensure-transaction db)]
-            (s/commit! (indexes/put-index tx 
-              { :id "test2" :map "(fn [doc] {\"foo\" (:foo doc)})"} )))
-
-          (indexing/wait-for-index-catch-up db "test2" 1)
-
-          (should= (integer-to-etag 5) 
-                  (indexes/get-last-indexed-etag-for-index db "test2"))
-          
+          (store-test-index! db)
+          (indexing/wait-for-index-catch-up db index-id 1)
+          (should= (integer-to-etag 4) 
+                  (indexes/get-last-indexed-etag-for-index db index-id))
           (finally (indexengine/stop ie)))))))) 
+
+
+(describe "handling deleted indexes"
+  (it "will remove deleted indexes from the collection"
+    (with-open [db (s/create-storage "testdir")
+              engine (indexengine/create-engine db)]
+      (store-test-index! db)
+      (let [state-with-index (indexengine/refresh-indexes! @(:ea engine))]
+        (delete-test-index! db)
+        (let [state-without-index (indexengine/refresh-indexes! state-with-index)]
+          (should== ["default"] (map key (:compiled-indexes state-without-index)))))))) 
+
