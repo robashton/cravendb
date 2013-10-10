@@ -65,6 +65,11 @@
                  }))))
          "OK")
 
+    (DELETE "/index/:id" [id]
+      (debug "deleting an index id " id)
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! (indexes/delete-index tx id))))
+
     (GET "/index/:id" [id] 
       (debug "getting an index with id " id)
          (with-open [tx (s/ensure-transaction db)]

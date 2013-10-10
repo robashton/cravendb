@@ -22,7 +22,7 @@
 
 - Etag generation is not thread safe, it needs to be a shared incrementable atom
   - Trying this in a branch, think I'll have to make it another pass-around like index engine
-- This should ideally delete the persistence too
+- Deleting indexes should ideally delete the persistence for those indexes
 - Handle indexes that can't be compiled for some reason
 
 ### Can wait
