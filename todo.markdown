@@ -22,12 +22,6 @@
 
 - Etag generation is not thread safe, it needs to be a shared incrementable atom
   - Trying this in a branch, think I'll have to make it another pass-around like index engine
-
-- Modification of an index needs to mean re-indexing
-  - This won't work for scheduled data, need indirection there at least
-  - Should use the etag of the index to determine storage location
-  - I should be able to delete an index!!
-  - Let's leave this synchronous for now
 - This should ideally delete the persistence too
 - Handle indexes that can't be compiled for some reason
 
@@ -38,7 +32,6 @@
 - Safe reading of maps
 - Process to remove deleted documents from index
 - Some form of concurrency check over transactions (MVCC most likely)
-- The index engine shouldn't be swallowing agent exceptions
 - Client should be handling HTTP results properly
 - HTTP server should be sending back appropriate HTTP responses
 - Documents should be validated as valid clojure objects by HTTP API
@@ -46,10 +39,9 @@
 - Document storage should be responsible for serializing to string
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
 - Look at threading indexing
-- Look at ex-info/ex-data
 - Meta data storage for documents
 - Try to use the Clojure string library rather than all the .startsWith etc
-- Look at using reducers to queue up the indexing operation
+- Look at using reducers to queue up the indexing operation (currently creating new sequences per transformation)
 
 ###
 

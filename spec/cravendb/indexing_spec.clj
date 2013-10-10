@@ -85,7 +85,7 @@
         (write-three-documents db)
 
         (with-open [ie (indexengine/create-engine db)]
-          (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
+          (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
         (with-open [tx (s/ensure-transaction db)]
           (should= 8 (indexing/last-index-doc-count tx)) ;; The index counts and there is a default index
@@ -95,7 +95,7 @@
   (it "will not fall over in a heap, crying with a bottle of whisky"
     (with-db (fn [db]
       (with-open [ie (indexengine/create-engine db)]
-        (should-not-throw (indexing/index-documents! db (indexengine/get-compiled-indexes ie))))))))
+        (should-not-throw (indexing/index-documents! db (indexengine/compiled-indexes ie))))))))
 
 
 (describe "Keeping track of per index status"
@@ -122,7 +122,7 @@
             (s/commit!)))
 
         (with-open [ie (indexengine/create-engine db)]
-          (indexing/index-documents! db (indexengine/get-compiled-indexes ie)))
+          (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
         (should= (integer-to-etag 4) 
                  (indexes/get-last-indexed-etag-for-index db "test")))))) 
