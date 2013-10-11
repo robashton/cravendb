@@ -9,6 +9,7 @@
             [cravendb.storage :as s]
             [cravendb.query :as query]
             [cravendb.client :as client]
+            [cravendb.database :as database]
             [cravendb.lucene :as lucene]))
 
 (describe "Chaser not able to complete because the last doc cannot index"
@@ -43,11 +44,9 @@
 (describe "Querying a newly created index"
   (it "will not fall over clutching a bottle of whisky"
     (with-full-setup
-    (fn [db engine]
-      (add-by-whatever-index db) 
+    (fn [{:keys [storage index-engine] :as instance}]
+      (add-by-whatever-index storage) 
       (should-not-throw 
-        (query/execute 
-          db 
-          engine 
+        (database/query instance
           { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))))
  

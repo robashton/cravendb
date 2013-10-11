@@ -7,6 +7,7 @@
             [cravendb.documents :as docs]
             [cravendb.indexengine :as indexengine]
             [cravendb.query :as query]
+            [cravendb.database :as database]
             [cravendb.storage :as s]))
 
 (defn add-standard-data-set [db]
@@ -26,161 +27,161 @@
 (describe "default index"
   (it "will search on exact short strings"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query (=? "name" "zebra")}))))))
+            (database/query instance { :index "default" :query (=? "name" "zebra")}))))))
    (it "will search on partial short strings"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query (starts-with? "name" "zeb")}))))))
+            (database/query instance { :index "default" :query (starts-with? "name" "zeb")}))))))
     (it "will do word-based matching on long strings"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query (has-word? "description" "horse")}) )))))
+            (database/query instance { :index "default" :query (has-word? "description" "horse")}) )))))
           
     (it "will do partial-word-based matching on long strings"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= "anteater" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query (has-word-starting-with? "description" "stup")}))))))
+            (database/query instance { :index "default" :query (has-word-starting-with? "description" "stup")}))))))
 
      (it "will do exact matching on integers"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= "anteater" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query (=? "number" 50) }) )))))
+            (database/query instance { :index "default" :query (=? "number" 50) }) )))))
 
      (it "will do less than matching on integers"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= "zebra" 
           (extract-name-from-result 
-            (query/execute db engine { :index "default" :query (<? "number" 30) }) )))))
+            (database/query instance { :index "default" :query (<? "number" 30) }) )))))
 
       (it "will do greater than matching on integers"
         (with-full-setup
-        (fn [db engine]
-          (add-standard-data-set db)
-          (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+          (add-standard-data-set storage)
+          (indexing/wait-for-index-catch-up storage 50)
           (should= "aardvark" 
             (extract-name-from-result 
-              (query/execute db engine { :index "default" :query (>? "number" 499) }) )))))
+              (database/query instance { :index "default" :query (>? "number" 499) }) )))))
 
      (it "will exclude the literal from the less than range"
      (with-full-setup
-      (fn [db engine]
-        (add-standard-data-set db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should= 1 
-          (count (query/execute db engine { :index "default" :query (<? "number" 50) }))))))
+          (count (database/query instance { :index "default" :query (<? "number" 50) }))))))
 
       (it "will exclude the literal from the greater than range "
         (with-full-setup
-        (fn [db engine]
-          (add-standard-data-set db)
-          (indexing/wait-for-index-catch-up db 50)
-          (should= 1
-            (count (query/execute db engine { :index "default" :query (>? "number" 100) }) )))))
+          (fn [{:keys [storage index-engine] :as instance}]
+            (add-standard-data-set storage)
+            (indexing/wait-for-index-catch-up storage 50)
+            (should= 1
+              (count (database/query instance { :index "default" :query (>? "number" 100) }) )))))
 
       (it "will do less than or equal than matching on integers"
         (with-full-setup
-          (fn [db engine]
-            (add-standard-data-set db)
-            (indexing/wait-for-index-catch-up db 50)
+          (fn [{:keys [storage index-engine] :as instance}]
+            (add-standard-data-set storage)
+            (indexing/wait-for-index-catch-up storage 50)
             (should= "zebra" 
               (extract-name-from-result 
-                (query/execute db engine { :index "default" :query (<=? "number" 25) }) )))))
+                (database/query instance { :index "default" :query (<=? "number" 25) }) )))))
 
         (it "will do greater than or equal than matching on integers"
          (with-full-setup
-          (fn [db engine]
-            (add-standard-data-set db)
-            (indexing/wait-for-index-catch-up db 50)
+          (fn [{:keys [storage index-engine] :as instance}]
+            (add-standard-data-set storage)
+            (indexing/wait-for-index-catch-up storage 50)
             (should= "aardvark" 
               (extract-name-from-result 
-                (query/execute db engine { :index "default" :query (>=? "number" 500) }) )))))
+                (database/query instance { :index "default" :query (>=? "number" 500) }) )))))
 
       (it "will allow queries against symbol based keys"
         (with-full-setup
-          (fn [db engine]
-            (add-standard-data-set db)
-            (indexing/wait-for-index-catch-up db 50)
+          (fn [{:keys [storage index-engine] :as instance}]
+            (add-standard-data-set storage)
+            (indexing/wait-for-index-catch-up storage 50)
             (should== { :name "Air" :album "Talkie Walkie" } 
               (read-string (first 
-                (query/execute db engine { :index "default" :query (=? :name "Air") }) ))))))
+                (database/query instance { :index "default" :query (=? :name "Air") }) ))))))
 
       (it "will allow queries inside collections"
         (with-full-setup
-          (fn [db engine]
-            (with-open [tx (s/ensure-transaction db)]
+          (fn [{:keys [storage index-engine] :as instance}]
+            (with-open [tx (s/ensure-transaction storage)]
               (-> tx
                 (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
                 (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
                 (s/commit!)))
-            (indexing/wait-for-index-catch-up db 50)
+            (indexing/wait-for-index-catch-up storage 50)
             (should= "bob"
               (extract-name-from-result
-                (query/execute db engine { :index "default" :query (has-item? :collection "one")}))))))
+                (database/query instance { :index "default" :query (has-item? :collection "one")}))))))
 
       (it "will allow multiple claused joined by an 'and'"
         (with-full-setup
-          (fn [db engine]
-            (with-open [tx (s/ensure-transaction db)]
+          (fn [{:keys [storage index-engine] :as instance}]
+            (with-open [tx (s/ensure-transaction storage)]
               (-> tx
                 (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
                 (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
                 (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
                 (s/commit!)))
-            (indexing/wait-for-index-catch-up db 50)
+            (indexing/wait-for-index-catch-up storage 50)
             (should== { "name" "alice" :collection [ "two" "three" "four"]}
               (read-string (first 
-                  (query/execute db engine { :index "default" :query (AND (=? "name" "alice") (has-item? :collection "two")) })))))))  
+                  (database/query instance { :index "default" :query (AND (=? "name" "alice") (has-item? :collection "two")) })))))))  
 
       (it "will allow multiple claused joined by an 'or'"
         (with-full-setup
-          (fn [db engine]
-            (with-open [tx (s/ensure-transaction db)]
+          (fn [{:keys [storage index-engine] :as instance}]
+            (with-open [tx (s/ensure-transaction storage)]
               (-> tx
                 (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
                 (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
                 (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
                 (s/commit!)))
-            (indexing/wait-for-index-catch-up db 50)
+            (indexing/wait-for-index-catch-up storage 50)
             (should= 3
-              (count (query/execute db engine { :index "default" :query (OR (has-item? :collection "four") (has-item? :collection "two")) })))))) 
+              (count (database/query instance { :index "default" :query (OR (has-item? :collection "four") (has-item? :collection "two")) })))))) 
 
       (it "will not include results when using a 'not'"
         (with-full-setup
-          (fn [db engine]
-            (with-open [tx (s/ensure-transaction db)]
+          (fn [{:keys [storage index-engine] :as instance}]
+            (with-open [tx (s/ensure-transaction storage)]
               (-> tx
                 (docs/store-document "1" (pr-str { "name" "bob" :collection [ "one" "two" "three"]}))
                 (docs/store-document "2" (pr-str { "name" "alice" :collection [ "two" "three" "four"]}))
                 (docs/store-document "3" (pr-str { "name" "alice" :collection [ "one" "four"]}))
                 (s/commit!)))
-            (indexing/wait-for-index-catch-up db 50)
+            (indexing/wait-for-index-catch-up storage 50)
             (should= "bob"
               (extract-name-from-result
-                (query/execute db engine { :index "default" :query (NOT (=? "name" "alice")) }))))))
+                (database/query instance { :index "default" :query (NOT (=? "name" "alice")) }))))))
 
 )
 

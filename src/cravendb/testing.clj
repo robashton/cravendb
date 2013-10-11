@@ -20,13 +20,8 @@
 
 (defn with-full-setup [testfn]
   (clear-test-data)
-  (with-open [db (s/create-storage "testdir")
-               engine (indexengine/create-engine db)]
-      (let [result (try       
-        (indexengine/start engine)
-        (try
-          (testfn db engine)
-          (finally (indexengine/stop engine))))]
+  (with-open [instance (database/create "testdir")]
+    (let [result (testfn instance)]
         (clear-test-data)      
         result)))
 

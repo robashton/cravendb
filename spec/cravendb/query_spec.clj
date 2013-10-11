@@ -10,6 +10,7 @@
             [cravendb.storage :as s]
             [cravendb.client :as client]
             [cravendb.query :as query]
+            [cravendb.database :as database]
             [cravendb.lucene :as lucene]))
 
 
@@ -42,56 +43,48 @@
 (describe "paging like a boss"
   (it "will return the first 10 docs"
     (with-full-setup
-    (fn [db engine]
-      (add-by-whatever-index db) 
-      (add-1000-documents db)
-      (indexing/wait-for-index-catch-up db 50)
+    (fn [{:keys [storage index-engine] :as instance}]
+      (add-by-whatever-index storage) 
+      (add-1000-documents storage)
+      (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 0 10)) 
                 (map (comp :whatever read-string) 
-                     (query/execute 
-                      db 
-                      engine 
+                     (database/query instance
                       { :query "*" :amount 10 :offset 0 :index "by_whatever"}))))))
 
    (it "will return the last 5 docs"
     (with-full-setup
-    (fn [db engine]
-      (add-by-whatever-index db) 
-      (add-1000-documents db)
-      (indexing/wait-for-index-catch-up db 50)
+    (fn [{:keys [storage index-engine] :as instance}]
+      (add-by-whatever-index storage) 
+      (add-1000-documents storage)
+      (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 995 1000)) 
                 (map (comp :whatever read-string) 
-                     (query/execute 
-                      db 
-                      engine 
+                     (database/query instance 
                       { :query "*" :amount 10 :offset 995 :index "by_whatever"})))))))
 
 (describe "sorting"
   (it "will default to ascending order on a string"
     (with-full-setup
-      (fn [db engine]
-        (add-by-whatever-index db) 
-        (add-alpha-whatevers db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-by-whatever-index storage) 
+        (add-alpha-whatevers storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should== ["aardvark" "anteater" "giraffe" "zebra"]
           (map 
             (comp :whatever read-string) 
-            (query/execute 
-              db 
-              engine 
-              { :query "*" :sort-by "whatever" :index "by_whatever"}))))) 
-              )
+            (database/query instance
+              { :query "*" :sort-by "whatever" :index "by_whatever"}))))))
+
   (it "will accept descending order on a string"
     (with-full-setup
-      (fn [db engine]
-        (add-by-whatever-index db) 
-        (add-alpha-whatevers db)
-        (indexing/wait-for-index-catch-up db 50)
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-by-whatever-index storage) 
+        (add-alpha-whatevers storage)
+        (indexing/wait-for-index-catch-up storage 50)
         (should== [ "zebra" "giraffe" "anteater" "aardvark"]
           (map 
             (comp :whatever read-string) 
-            (query/execute 
-              db 
-              engine 
+            (database/query instance
               { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))) 
               ))

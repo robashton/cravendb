@@ -9,6 +9,7 @@
             [cravendb.lucene :as lucene]
             [cravendb.query :as query]
             [cravendb.indexengine :as indexengine]
+            [cravendb.database :as database]
             [cravendb.storage :as s]
             [cravendb.client :as client]
             [cravendb.lucene :as lucene]))
@@ -135,21 +136,20 @@
 
 (describe "Applying a filter to an index"
   (with-all results (with-full-setup
-      (fn [db engine]
-        (with-open [tx (s/ensure-transaction db)] 
-          (-> tx
-            (docs/store-document "animal-1" (pr-str { :name "zebra"}))
-            (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
-            (docs/store-document "animal-3" (pr-str { :name "giraffe"}))
-            (docs/store-document "animal-4" (pr-str { :name "anteater"}))
-            (docs/store-document "owner-1" (pr-str { :name "rob"}))
-            (indexes/put-index { 
-              :id "by_name" 
-              :filter by-name-animal-filter
-              :map by-name-map}) 
-            (s/commit!)))
-        (parse-results
-          (query/execute db engine { :query "*" :index "by_name" :wait true })))))
+    (fn [{:keys [storage index-engine] :as instance}]
+      (with-open [tx (s/ensure-transaction storage)] 
+        (-> tx
+          (docs/store-document "animal-1" (pr-str { :name "zebra"}))
+          (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
+          (docs/store-document "animal-3" (pr-str { :name "giraffe"}))
+          (docs/store-document "animal-4" (pr-str { :name "anteater"}))
+          (docs/store-document "owner-1" (pr-str { :name "rob"}))
+          (indexes/put-index { 
+            :id "by_name" 
+            :filter by-name-animal-filter
+            :map by-name-map}) 
+          (s/commit!)))
+      (parse-results (database/query instance { :query "*" :index "by_name" :wait true })))))
   (it "will not index documents not covered by the filter"
       (should-not-contain { :name "rob"} @results))
   (it "will index documents covered by the filter"
