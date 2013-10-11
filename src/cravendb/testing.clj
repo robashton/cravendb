@@ -4,7 +4,9 @@
             [cravendb.documents :as docs]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as s]
-            [cravendb.http :as http]))
+            [cravendb.http :as http]
+            [cravendb.database :as database]))
+      
 
 (defn clear-test-data []
   (fs/delete-dir "testdir"))
@@ -36,17 +38,12 @@
 
 (defn with-test-server [testfn]
   (clear-test-data)
-  (with-open [db (s/create-storage "testdir")
-              index-engine (indexengine/create-engine db)]
-    (try
-      (indexengine/start index-engine)
-      (let [server (run-jetty 
-                   (http/create-http-server db index-engine) 
+  (with-open [instance (database/create "testdir")]
+    (try (let [server (run-jetty 
+                   (http/create-http-server instance) 
                     { :port 9000 :join? false} )]
       (try
         (testfn)
         (finally
-          (.stop server))))
-      (finally
-        (indexengine/stop index-engine))))
+          (.stop server))))))
   (clear-test-data))

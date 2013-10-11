@@ -66,7 +66,9 @@
   (from-db-str (get-blob ops id)))
 
 (defn get-iterator [ops]
-  (.iterator (:db ops) (:options ops)))
+  (if (:options ops)
+    (.iterator (:db ops) (:options ops))  
+    (.iterator (:db ops))))
 
 (defn commit! [ops]
   (with-open [batch (.createWriteBatch (:db ops))]

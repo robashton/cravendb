@@ -32,7 +32,8 @@
       (s/store (str document-prefix id) document)
       (s/store last-etag-key etag)
       (s/store (str etags-to-docs-prefix etag) id)
-      (s/store (str docs-to-etags-prefix id) etag))))
+      (s/store (str docs-to-etags-prefix id) etag)
+      )))
 
 (defn load-document [session id] 
   (s/get-string session (str document-prefix id)))

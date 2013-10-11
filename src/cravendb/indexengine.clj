@@ -78,13 +78,13 @@
   (doseq [[id index] deleted]
     (if-let [current (existing id)]
       (do 
-          (info "deletion detected, closing writers for" id)
+          (debug "index deletion detected, closing writers for" id)
           (.close (:writer current))
           (.close (:storage current)))))
   (doseq [[id index] new]
      (if-let [current (existing id)]
       (do 
-          (info "overwrite detected, closing writers for" id)
+          (debug "index overwrite detected, closing writers for" id)
           (.close (:writer current))
           (.close (:storage current))))))
 
