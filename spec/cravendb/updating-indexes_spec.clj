@@ -8,6 +8,7 @@
             [cravendb.indexengine :as indexengine]
             [cravendb.indexstore :as indexes]
             [cravendb.query :as query]
+            [cravendb.database :as database]
             [cravendb.storage :as s]))
 
 (def by-name-map 
@@ -46,24 +47,24 @@
 
 (describe "handling modified indexes"
   (it "will reset the etag of a modified index"
-      (with-full-setup 
-       (fn [db engine]
-         (add-animals db)
-         (add-by-bob-index db)
-         (indexing/wait-for-index-catch-up db)
-         (add-by-name-index db)
-         (should= 0 (etag-to-integer
-                      (indexes/get-last-indexed-etag-for-index db "by_name"))))))
+    (with-full-setup 
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-animals storage)
+        (add-by-bob-index storage)
+        (indexing/wait-for-index-catch-up storage)
+        (add-by-name-index storage)
+        (should= 0 (etag-to-integer
+                    (indexes/get-last-indexed-etag-for-index storage "by_name"))))))
   (it "will re-index documents for a modified index"
      (with-full-setup 
-       (fn [db engine]
-         (add-animals db)
-         (add-by-bob-index db)
-         (indexing/wait-for-index-catch-up db)
-         (add-by-name-index db)
+      (fn [{:keys [storage index-engine] :as instance}]
+         (add-animals storage)
+         (add-by-bob-index storage)
+         (indexing/wait-for-index-catch-up storage)
+         (add-by-name-index storage)
          (should= "zebra"
-            (first (map (comp :name read-string) 
-                (query/execute db engine { :query (=? "name" "zebra") 
-                              :index "by_name" :wait true}))))))))
+          (first (map (comp :name read-string) 
+            (database/query instance { :query (=? "name" "zebra") 
+                    :index "by_name" :wait true}))))))))
 
 
