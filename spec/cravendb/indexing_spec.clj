@@ -31,16 +31,16 @@
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "doc-1" (pr-str { :title "hello" :author "rob"}))
-        (docs/store-document "doc-2" (pr-str { :title "morning" :author "vicky"}))
-        (docs/store-document "doc-3" (pr-str { :title "goodbye" :author "james"}))
+        (docs/store-document "doc-1" (pr-str { :title "hello" :author "rob"}) (integer-to-etag 1))
+        (docs/store-document "doc-2" (pr-str { :title "morning" :author "vicky"} )(integer-to-etag 2))
+        (docs/store-document "doc-3" (pr-str { :title "goodbye" :author "james"}) (integer-to-etag 3))
         (s/commit!)))))
 
 (def write-one-document 
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}))
+        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}) (integer-to-etag 4))
         (s/commit!)))))
 
 (describe "indexing some documents"
@@ -51,7 +51,7 @@
         (indexing/index-documents! db @test-indexes)
         (with-open [tx (s/ensure-transaction db)]
           (should= 3 (indexing/last-index-doc-count tx))
-          (should= (docs/last-etag-in tx) (indexing/last-indexed-etag tx)))))))
+          (should= (integer-to-etag 3) (indexing/last-indexed-etag tx)))))))
 
 (describe "indexing new documents"
   (with test-indexes (create-test-indexes))
@@ -62,7 +62,7 @@
         (write-one-document db)
         (indexing/index-documents! db @test-indexes)
         (with-open [tx (s/ensure-transaction db)]
-          (should= (docs/last-etag-in tx) (indexing/last-indexed-etag tx))
+          (should= (integer-to-etag 4) (indexing/last-indexed-etag tx))
           (should= 1 (indexing/last-index-doc-count tx)))))))
 
 (describe "loading indexes from the database and querying using them"
@@ -78,19 +78,18 @@
   (with test-indexes (create-test-indexes))
   (it "will return the right document ids"
     (with-db (fn [db]
+        (write-three-documents db) 
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! 
             (indexes/put-index tx 
-                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"})))
-
-        (write-three-documents db)
+                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"} (integer-to-etag 6))))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
         (with-open [tx (s/ensure-transaction db)]
           (should= 8 (indexing/last-index-doc-count tx)) ;; The index counts and there is a default index
-          (should= (docs/last-etag-in tx) (indexing/last-indexed-etag tx)))))))
+          (should= (integer-to-etag 6) (indexing/last-indexed-etag tx)))))))
 
 (describe "Running indexing with no documents or indexes"
   (it "will not fall over in a heap, crying with a bottle of whisky"
@@ -103,7 +102,7 @@
   (it "will start each tracker off at zero status"
       (with-db (fn [db]
         (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/put-index tx { :id "test" } )))
+          (s/commit! (indexes/put-index tx { :id "test" } (integer-to-etag 1))))
         
         (should= (integer-to-etag 0) 
                  (indexes/get-last-indexed-etag-for-index db "test")))))
@@ -111,16 +110,17 @@
   (it "will set the tracker to the last indexed etag"
       (with-db (fn [db]
 
-        (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/put-index tx 
-            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} )))
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
-            (docs/store-document "1" (pr-str { :foo "bar" }) ) 
-            (docs/store-document "2" (pr-str { :foo "bas" }) ) 
-            (docs/store-document "3" (pr-str { :foo "baz" }) )
+            (docs/store-document "1" (pr-str { :foo "bar" }) (integer-to-etag 1)) 
+            (docs/store-document "2" (pr-str { :foo "bas" }) (integer-to-etag 2)) 
+            (docs/store-document "3" (pr-str { :foo "baz" }) (integer-to-etag 3))
             (s/commit!)))
+
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! (indexes/put-index tx 
+            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} (integer-to-etag 4))))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
@@ -137,18 +137,15 @@
 (describe "Applying a filter to an index"
   (with-all results (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
-      (with-open [tx (s/ensure-transaction storage)] 
-        (-> tx
-          (docs/store-document "animal-1" (pr-str { :name "zebra"}))
-          (docs/store-document "animal-2" (pr-str { :name "aardvark"}))
-          (docs/store-document "animal-3" (pr-str { :name "giraffe"}))
-          (docs/store-document "animal-4" (pr-str { :name "anteater"}))
-          (docs/store-document "owner-1" (pr-str { :name "rob"}))
-          (indexes/put-index { 
-            :id "by_name" 
-            :filter by-name-animal-filter
-            :map by-name-map}) 
-          (s/commit!)))
+      (database/put-document instance "animal-1" (pr-str { :name "zebra"}))
+      (database/put-document instance "animal-2" (pr-str { :name "aardvark"}))
+      (database/put-document instance "animal-3" (pr-str { :name "giraffe"}))
+      (database/put-document instance "animal-4" (pr-str { :name "anteater"}))
+      (database/put-document instance "owner-1" (pr-str { :name "rob"}))
+      (database/put-index instance { 
+                           :id "by_name" 
+                           :filter by-name-animal-filter
+                           :map by-name-map}) 
       (parse-results (database/query instance { :query "*" :index "by_name" :wait true })))))
   (it "will not index documents not covered by the filter"
       (should-not-contain { :name "rob"} @results))
