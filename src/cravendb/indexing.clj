@@ -31,12 +31,12 @@
   ([db timeout]
    (let [last-etag (etag-to-integer (docs/last-etag-in db))
           start-time (tl/local-now) ]
-     (info "starting waiting for index catch-up" last-etag)
+     (debug "starting waiting for index catch-up" last-etag)
     (while (and
               (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
               (> last-etag (etag-to-integer (last-indexed-etag db))))
 
-      (info "looping for index catch-up" last-etag (last-indexed-etag db))
+      (debug "looping for index catch-up" last-etag (last-indexed-etag db))
       (Thread/sleep 100))))
    ([db index-id timeout]
     (let [last-etag (etag-to-integer (docs/last-etag-in db))
@@ -135,7 +135,7 @@
   ([{:keys [writers max-etag tx doc-count stats] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
     (do 
-      (info "Flushing main map process at " doc-count max-etag)
+      (debug "Flushing main map process at " doc-count max-etag)
       (-> (:tx (reduce finish-map-process-for-writer!
                        {:tx tx :max-etag max-etag :stats stats} writers))
         (s/store last-indexed-etag-key max-etag)
@@ -147,7 +147,7 @@
   ([output] (finish-partial-map-process! output false))
   ([{:keys [writers max-etag tx doc-count stats] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do (info "Flushing chaser process at " doc-count max-etag)
+    (do (debug "Flushing chaser process at " doc-count max-etag)
       (s/commit! 
         (:tx (reduce finish-map-process-for-writer! 
                {:tx tx :max-etag max-etag :stats stats} writers)))))

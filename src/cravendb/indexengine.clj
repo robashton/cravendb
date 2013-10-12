@@ -120,7 +120,7 @@
       (map :id (:chasers engine)))))
 
 (defn create-chaser [engine index]
-  (info "Starting a freaking chaser for " (:id index))
+  (debug "Starting a freaking chaser for " (:id index))
   {
    :id (:id index)
    :future 
