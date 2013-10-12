@@ -14,29 +14,39 @@
     (.close index-engine)
     (.close storage)))
 
+(def last-etag-key "last-etag")
+(defn last-etag-in
+  [storage]
+  (or (s/get-string storage last-etag-key) (zero-etag)) )
+
 (defn create
   [path]
   (let [storage (s/create-storage path)
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
-    (Database. storage index-engine)))
+    (assoc (Database. storage index-engine)
+           :last-etag (last-etag-in storage))))
 
 (defn interpret-bulk-operation [tx op]
   (case (:operation op)
     :docs-delete (docs/delete-document tx (:id op))
-    :docs-put (docs/store-document tx (:id op) (pr-str (:document op)))))
+    :docs-put (docs/store-document 
+                tx (:id op) (pr-str (:document op)) (next-etag tx))))
 
 (defn query
   [{:keys [storage index-engine]} params]
   (debug "Querying for " params)
   (query/execute storage index-engine params))
 
+(defn next-etag
+  [{:keys [last-etag]}]
+    (integer-to-etag (swap! last-etag inc)))
 
 (defn put-document 
-  [{:keys [storage]} id document]
+  [{:keys [storage] :as db} id document]
   (debug "putting a document:" id document)
   (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! (docs/store-document tx id document))))
+    (s/commit! (docs/store-document tx id document (next-etag db)))))
 
 (defn delete-document 
   [{:keys [storage]} id]
