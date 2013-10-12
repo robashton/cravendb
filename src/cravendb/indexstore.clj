@@ -22,9 +22,9 @@
 (defn index-error-id [id]
   (str index-error-prefix id))
 
-(defn put-index [tx index]
+(defn put-index [tx index etag]
   (-> tx 
-    (docs/store-document (index-doc-id (index :id)) (pr-str index))
+    (docs/store-document (index-doc-id (index :id)) (pr-str index) etag)
     (set-last-indexed-etag-for-index (index :id) (zero-etag))))
 
 (defn mark-failed [tx index-id info]

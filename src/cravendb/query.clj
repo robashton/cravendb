@@ -25,7 +25,7 @@
                new-total (count new-results) 
                new-offset (+ current-offset requested-amount)]
 
-           (debug "Requested" requested-amount 
+           (info "Requested" requested-amount 
                     "CurrentTotal" total-collected 
                     "Skipped" current-offset "Of"
                     "Received" (count raw-results))
@@ -70,3 +70,5 @@
     (if storage 
       (query-with-storage db storage query)
       (query-without-storage db index-engine query))))
+
+

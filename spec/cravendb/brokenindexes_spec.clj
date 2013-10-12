@@ -50,14 +50,14 @@
   (it "will mark the documents as indexed regardless of failure"
     (with-db (fn [db]
       (write-three-documents db)
-      (let [last-etag (docs/last-etag db)]
+      (let [last-etag (docs/last-etag-in db)]
         (indexing/index-documents! db [(create-invalid-index)])   
         (should= last-etag (indexing/last-indexed-etag db)))))) 
 
   (it "will not use this index in further indexing processes"
     (with-db (fn [db]
       (write-three-documents db)
-      (let [last-etag (docs/last-etag db)
+      (let [last-etag (docs/last-etag-in db)
             index (create-invalid-index) ]
         (indexing/index-documents! db [index])       
         (write-three-documents db)
@@ -69,7 +69,7 @@
       (write-three-documents db)
       (indexing/index-documents! db @indexes) 
       (write-three-documents db)
-      (let [last-etag (docs/last-etag db)]
+      (let [last-etag (docs/last-etag-in db)]
         (indexing/index-documents! db @indexes)   
         (should= last-etag (indexing/last-indexed-etag db)))))))
 

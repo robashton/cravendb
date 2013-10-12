@@ -6,6 +6,7 @@
 (def etags-to-docs-prefix "etags-to-docs-")
 (def docs-to-etags-prefix "docs-to-etags-")
 (def document-prefix "doc-")
+(def last-etag-key "last-etag")
 
 (defn is-document-key [^String k]
   (.startsWith k document-prefix))
@@ -21,6 +22,14 @@
 
 (defn etag-for-doc [db doc-id]
   (s/get-string db (str docs-to-etags-prefix doc-id)))
+
+(defn last-etag-in
+  [storage]
+  (or (s/get-string storage last-etag-key) (zero-etag)) )
+
+(defn write-last-etag
+  [tx last-etag]
+  (s/store tx last-etag-key (integer-to-etag @last-etag)))
 
 (defn store-document [db id document etag] 
   (-> db

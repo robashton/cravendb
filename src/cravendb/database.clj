@@ -5,7 +5,9 @@
             [cravendb.indexstore :as indexes] 
             [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs]
-            [clojure.tools.logging :refer [info error debug]]))
+            [clojure.tools.logging :refer [info error debug]]
+            [cravendb.core :refer [zero-etag integer-to-etag etag-to-integer]]))
+
 
 (defrecord Database [storage index-engine]
   java.io.Closeable
@@ -14,39 +16,39 @@
     (.close index-engine)
     (.close storage)))
 
-(def last-etag-key "last-etag")
-(defn last-etag-in
-  [storage]
-  (or (s/get-string storage last-etag-key) (zero-etag)) )
-
 (defn create
   [path]
   (let [storage (s/create-storage path)
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)
-           :last-etag (last-etag-in storage))))
+           :last-etag (atom (etag-to-integer (docs/last-etag-in storage))))))
 
-(defn interpret-bulk-operation [tx op]
-  (case (:operation op)
-    :docs-delete (docs/delete-document tx (:id op))
-    :docs-put (docs/store-document 
-                tx (:id op) (pr-str (:document op)) (next-etag tx))))
+(defn next-etag [last-etag]
+    (integer-to-etag (swap! last-etag inc)))
+
+(defn interpret-bulk-operation [{:keys [tx last-etag] :as state} op]
+  (assoc state :tx 
+    (case (:operation op)
+      :docs-delete (docs/delete-document tx (:id op))
+      :docs-put (docs/store-document tx (:id op) 
+                  (pr-str (:document op)) 
+                  (next-etag last-etag)))))
 
 (defn query
   [{:keys [storage index-engine]} params]
   (debug "Querying for " params)
   (query/execute storage index-engine params))
 
-(defn next-etag
-  [{:keys [last-etag]}]
-    (integer-to-etag (swap! last-etag inc)))
 
 (defn put-document 
-  [{:keys [storage] :as db} id document]
+  [{:keys [storage last-etag] :as db} id document]
   (debug "putting a document:" id document)
   (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! (docs/store-document tx id document (next-etag db)))))
+    (s/commit! 
+      (docs/write-last-etag
+        (docs/store-document tx id document (next-etag last-etag))
+        last-etag))))
 
 (defn delete-document 
   [{:keys [storage]} id]
@@ -60,20 +62,26 @@
   (docs/load-document storage id))
 
 (defn bulk 
-  [{:keys [storage]} operations]
+  [{:keys [storage last-etag]} operations]
   (debug "Bulk operation: ")
   (with-open [tx (s/ensure-transaction storage)]
     (s/commit! 
-      (reduce
-        interpret-bulk-operation
-        tx
-        operations))))
+      (docs/write-last-etag
+        (:tx 
+          (reduce
+            interpret-bulk-operation
+            {:tx tx :last-etag last-etag}
+            operations))
+        last-etag))))
 
 (defn put-index 
-  [{:keys [storage]} index]
+  [{:keys [storage last-etag]} index]
   (debug "putting an in index:" index)
   (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! (indexes/put-index tx index))))
+    (s/commit! 
+      (docs/write-last-etag
+        (indexes/put-index tx index (next-etag last-etag))
+        last-etag))))
 
 (defn delete-index 
   [{:keys [storage]} id]

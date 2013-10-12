@@ -18,7 +18,7 @@
 
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! (indexes/put-index tx 
-            { :id "test" :map "(fn [doc] nil)"} )))
+            { :id "test" :map "(fn [doc] nil)"} "001")))
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
@@ -39,7 +39,7 @@
     (s/commit! 
       (indexes/put-index tx { 
         :id "by_whatever" 
-        :map test-index} )))) 
+        :map test-index} "001")))) 
 
 (describe "Querying a newly created index"
   (it "will not fall over clutching a bottle of whisky"

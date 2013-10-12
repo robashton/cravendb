@@ -74,12 +74,12 @@
                                 sort-field 
                                 (SortField$Type/STRING)
                                 (if (= sort-order :asc) false true))) 
-                        (Sort.))
+                       (Sort.))
       result (.search searcher query amount sort-options)
       scoredocs (.scoreDocs result)
       docs (for [x (range 0 (count scoredocs))] 
               (.doc searcher (.doc (aget scoredocs x))))]
-              (debug "Did a query with" query)
+              (info "Did a query with" query)
               (distinct (map (fn [d] (.get d "__document_id")) docs)))) 
 
 

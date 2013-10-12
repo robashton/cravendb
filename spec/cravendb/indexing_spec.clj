@@ -51,7 +51,7 @@
         (indexing/index-documents! db @test-indexes)
         (with-open [tx (s/ensure-transaction db)]
           (should= 3 (indexing/last-index-doc-count tx))
-          (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
+          (should= (docs/last-etag-in tx) (indexing/last-indexed-etag tx)))))))
 
 (describe "indexing new documents"
   (with test-indexes (create-test-indexes))
@@ -62,7 +62,7 @@
         (write-one-document db)
         (indexing/index-documents! db @test-indexes)
         (with-open [tx (s/ensure-transaction db)]
-          (should= (docs/last-etag tx) (indexing/last-indexed-etag tx))
+          (should= (docs/last-etag-in tx) (indexing/last-indexed-etag tx))
           (should= 1 (indexing/last-index-doc-count tx)))))))
 
 (describe "loading indexes from the database and querying using them"
@@ -90,7 +90,7 @@
 
         (with-open [tx (s/ensure-transaction db)]
           (should= 8 (indexing/last-index-doc-count tx)) ;; The index counts and there is a default index
-          (should= (docs/last-etag tx) (indexing/last-indexed-etag tx)))))))
+          (should= (docs/last-etag-in tx) (indexing/last-indexed-etag tx)))))))
 
 (describe "Running indexing with no documents or indexes"
   (it "will not fall over in a heap, crying with a bottle of whisky"

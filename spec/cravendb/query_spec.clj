@@ -17,35 +17,32 @@
 (def test-index 
   "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
 
-(defn add-by-whatever-index [db]
-  (with-open [tx (s/ensure-transaction db)] 
-    (s/commit! 
-      (indexes/put-index tx { 
-        :id "by_whatever" 
-        :map test-index} )))) 
+(defn add-by-whatever-index [instance]
+  (database/put-index instance { 
+                         :id "by_whatever" 
+                         :map test-index})) 
 
-(defn add-1000-documents [db]
-  (with-open [tx (s/ensure-transaction db)] 
-    (s/commit! (reduce  
-        #(docs/store-document %1 (str "docs-" %2) (pr-str { :whatever (str %2)}))
-        tx
-        (range 0 1000)))))
+(defn add-1000-documents [instance]
+  (database/bulk instance
+    (map (fn [i]
+           {
+            :operation :docs-put
+            :id (str "docs-" i)
+            :document (pr-str { :whatever (str i)})
+            }) (range 0 1000))))
 
-(defn add-alpha-whatevers [db]
-  (with-open [tx (s/ensure-transaction db)] 
-    (-> tx
-      (docs/store-document "docs-1" (pr-str { :whatever "zebra"}))
-      (docs/store-document "docs-2" (pr-str { :whatever "aardvark"}))
-      (docs/store-document "docs-3" (pr-str { :whatever "giraffe"}))
-      (docs/store-document "docs-4" (pr-str { :whatever "anteater"}))
-      (s/commit!))))
+(defn add-alpha-whatevers [instance]
+  (database/put-document instance "docs-1" (pr-str { :whatever "zebra"}))
+  (database/put-document instance "docs-2" (pr-str { :whatever "aardvark"}))
+  (database/put-document instance "docs-3" (pr-str { :whatever "giraffe"}))
+  (database/put-document instance "docs-4" (pr-str { :whatever "anteater"})))
 
 (describe "paging like a boss"
   (it "will return the first 10 docs"
     (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
-      (add-by-whatever-index storage) 
-      (add-1000-documents storage)
+      (add-by-whatever-index instance) 
+      (add-1000-documents instance)
       (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 0 10)) 
                 (map (comp :whatever read-string) 
@@ -55,8 +52,8 @@
    (it "will return the last 5 docs"
     (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
-      (add-by-whatever-index storage) 
-      (add-1000-documents storage)
+      (add-by-whatever-index instance) 
+      (add-1000-documents instance)
       (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 995 1000)) 
                 (map (comp :whatever read-string) 
@@ -67,8 +64,8 @@
   (it "will default to ascending order on a string"
     (with-full-setup
       (fn [{:keys [storage index-engine] :as instance}]
-        (add-by-whatever-index storage) 
-        (add-alpha-whatevers storage)
+        (add-by-whatever-index instance) 
+        (add-alpha-whatevers instance)
         (indexing/wait-for-index-catch-up storage 50)
         (should== ["aardvark" "anteater" "giraffe" "zebra"]
           (map 
@@ -79,12 +76,11 @@
   (it "will accept descending order on a string"
     (with-full-setup
       (fn [{:keys [storage index-engine] :as instance}]
-        (add-by-whatever-index storage) 
-        (add-alpha-whatevers storage)
+        (add-by-whatever-index instance) 
+        (add-alpha-whatevers instance)
         (indexing/wait-for-index-catch-up storage 50)
         (should== [ "zebra" "giraffe" "anteater" "aardvark"]
           (map 
             (comp :whatever read-string) 
             (database/query instance
-              { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))) 
-              ))
+              { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"})))))))
