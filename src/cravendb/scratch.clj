@@ -30,7 +30,7 @@
            {
             :operation :docs-put
             :id (str "docs-" i)
-            :document (pr-str { :whatever (str i)})
+            :document { :whatever (str "docblah" i)} 
             }) (range 0 1000))))
 
 
@@ -43,8 +43,9 @@
 #_ (fs/delete-dir "testdb")
 #_ (def instance (db/create "testdb"))
 #_ (add-by-whatever-index instance)
+#_ (add-alpha-whatevers instance)
 #_ (add-1000-documents instance)
-#_ (database/query instance
+#_ (db/query instance
                     { :query "*" :amount 100 :offset 0 :index "by_whatever"})
 
 #_ (.close instance)

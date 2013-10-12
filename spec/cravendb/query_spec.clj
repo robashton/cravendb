@@ -28,7 +28,7 @@
            {
             :operation :docs-put
             :id (str "docs-" i)
-            :document (pr-str { :whatever (str i)})
+            :document { :whatever (str i)} 
             }) (range 0 1000))))
 
 (defn add-alpha-whatevers [instance]
