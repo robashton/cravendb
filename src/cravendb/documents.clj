@@ -5,6 +5,7 @@
 
 (def etags-to-docs-prefix "etags-to-docs-")
 (def docs-to-etags-prefix "docs-to-etags-")
+(def conflict-prefix "conflict-")
 (def document-prefix "doc-")
 (def last-etag-key "last-etag")
 
@@ -20,6 +21,9 @@
 (defn is-etag-docs-entry [m]
   (is-etags-to-docs-key (m :k)))
 
+(defn is-conflict-entry [m]
+  (.startsWith (m :k) conflict-prefix))
+
 (defn etag-for-doc [db doc-id]
   (s/get-string db (str docs-to-etags-prefix doc-id)))
 
@@ -30,6 +34,23 @@
 (defn write-last-etag
   [tx last-etag]
   (s/store tx last-etag-key (integer-to-etag @last-etag)))
+
+(defn store-conflict [db id document conflict-etag new-etag]
+  (s/store db (str conflict-prefix id new-etag)
+           (pr-str {
+                    :conflict-etag conflict-etag
+                    :data document })))
+
+(defn conflicts [db]
+  (debug "About to iterate conflicts")
+  (with-open [iter (s/get-iterator db)] 
+    (.seek iter (s/to-db conflict-prefix))
+    (doall
+      (->> 
+        (iterator-seq iter)
+        (map expand-iterator-str)
+        (take-while is-conflict-entry)
+        (map (comp read-string extract-value-from-expanded-iterator))))))
 
 (defn store-document [db id document etag] 
   (-> db
