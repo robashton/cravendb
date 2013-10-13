@@ -15,13 +15,12 @@
 - Mapping happens in chunks so safe-shutdown can be had during repl tests
 - Dynamic queries (no creation of index required!)
 - A temporary query language against documents
+- Etag generation is incremental and thread-safe for a single node
 
 # Pending/debt/etc
 
 ### Immediate priority
 
-- Etag generation is not thread safe, it needs to be a shared incrementable atom
-  - Trying this in a branch, think I'll have to make it another pass-around like index engine
 - Deleting indexes should ideally delete the persistence for those indexes
 - Handle indexes that can't be compiled for some reason
 
@@ -41,6 +40,7 @@
 - Look at threading indexing
 - Meta data storage for documents
 - Try to use the Clojure string library rather than all the .startsWith etc
+- The indexing process *could* miss out newly written documents in rare cases, should make this not possible
 - Look at using reducers to queue up the indexing operation (currently creating new sequences per transformation)
 
 ###
