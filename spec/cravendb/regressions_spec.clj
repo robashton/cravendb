@@ -18,11 +18,11 @@
 
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! (indexes/put-index tx 
-            { :id "test" :map "(fn [doc] nil)"} "001")))
+            { :id "test" :map "(fn [doc] nil)"} (integer-to-etag 1))))
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
-            (docs/store-document "1" (pr-str { :fod "bar" })) 
+            (docs/store-document "1" (pr-str { :fod "bar" }) (integer-to-etag 2)) 
             (s/commit!)))
 
         (with-open [ie (indexengine/create-engine db)]
@@ -34,18 +34,16 @@
 (def test-index 
   "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
 
-(defn add-by-whatever-index [db]
-  (with-open [tx (s/ensure-transaction db)] 
-    (s/commit! 
-      (indexes/put-index tx { 
+(defn add-by-whatever-index [instance]
+  (database/put-index instance { 
         :id "by_whatever" 
-        :map test-index} "001")))) 
+        :map test-index}))
 
 (describe "Querying a newly created index"
   (it "will not fall over clutching a bottle of whisky"
     (with-full-setup
-    (fn [{:keys [storage index-engine] :as instance}]
-      (add-by-whatever-index storage) 
+    (fn [instance]
+      (add-by-whatever-index instance) 
       (should-not-throw 
         (database/query instance
           { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))))

@@ -5,6 +5,7 @@
         )
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
+            [cravendb.database :as db]
             [cravendb.indexengine :as indexengine]
             [cravendb.indexstore :as indexes]
             [cravendb.query :as query]
@@ -12,84 +13,75 @@
             [cravendb.storage :as s]))
 
 (def write-three-documents 
-  (fn [db]
-    (with-open [tx (s/ensure-transaction db)]
-      (-> tx
-        (docs/store-document "doc-1" (pr-str { :title "hello" :author "rob"}))
-        (docs/store-document "doc-2" (pr-str { :title "morning" :author "vicky"}))
-        (docs/store-document "doc-3" (pr-str { :title "goodbye" :author "james"}))
-        (s/commit!)))))
+  (fn [instance]
+    (db/put-document instance "doc-1" (pr-str { :title "hello" :author "rob"}))
+    (db/put-document instance "doc-2" (pr-str { :title "morning" :author "vicky"}))
+    (db/put-document instance "doc-3" (pr-str { :title "goodbye" :author "james"}))))
 
 (defn create-invalid-index []  
-  (let [storage (lucene/create-memory-index)]
-                    {
-                    :id "invalid" 
-                    :map (fn [doc] {"hello" ((:blah doc) :foo)})
-                    :storage storage
-                    :writer (lucene/open-writer storage) }))
+  {
+   :id "invalid" 
+   :map "(fn [doc] {\"hello\" ((:blah doc) :foo)})"
+   })
 
 (defn create-valid-index []  
-  (let [storage (lucene/create-memory-index)]
-                    {
-                    :id "valid" 
-                     :map (fn [doc] {"hello" (:author doc)})
-                    :storage storage
-                    :writer (lucene/open-writer storage) }))
+  {
+   :id "valid" 
+   :map "(fn [doc] {\"hello\" (:author doc)})"
+})
 
 (defn create-test-indexes [] [ (create-invalid-index) (create-valid-index) ])
 
 (describe "Marking an index as failed"
-  (with indexes [ (create-invalid-index) (create-valid-index)])
-
   (it "will mark an index as failed if it throws exceptions"
-    (with-db (fn [db]
-      (write-three-documents db)
-      (indexing/index-documents! db [(create-invalid-index)])
-      (should (indexes/is-failed db "invalid")))))
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (write-three-documents instance)
+      (db/put-index instance (create-invalid-index))
+      (indexing/wait-for-index-catch-up storage)
+      (should (indexes/is-failed storage "invalid")))))
 
   (it "will mark the documents as indexed regardless of failure"
-    (with-db (fn [db]
-      (write-three-documents db)
-      (let [last-etag (docs/last-etag-in db)]
-        (indexing/index-documents! db [(create-invalid-index)])   
-        (should= last-etag (indexing/last-indexed-etag db)))))) 
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (write-three-documents instance)
+      (db/put-index instance (create-invalid-index))
+      (indexing/wait-for-index-catch-up storage)
+      (should= (docs/last-etag-in storage) (indexing/last-indexed-etag storage))))) 
 
   (it "will not use this index in further indexing processes"
-    (with-db (fn [db]
-      (write-three-documents db)
-      (let [last-etag (docs/last-etag-in db)
-            index (create-invalid-index) ]
-        (indexing/index-documents! db [index])       
-        (write-three-documents db)
-        (indexing/index-documents! db [index])       
-        (should= last-etag (indexing/last-indexed-etag db)))))) 
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (write-three-documents instance)
+      (db/put-index instance (create-invalid-index))
+      (indexing/wait-for-index-catch-up storage)
+      (let [last-etag (docs/last-etag-in storage)]
+        (write-three-documents instance)
+        (indexing/wait-for-index-catch-up storage)
+        (should= last-etag (indexes/get-last-indexed-etag-for-index storage "invalid")))))) 
+
 
   (it "will carry on indexing non-broken indexes"
-    (with-db (fn [db]
-      (write-three-documents db)
-      (indexing/index-documents! db @indexes) 
-      (write-three-documents db)
-      (let [last-etag (docs/last-etag-in db)]
-        (indexing/index-documents! db @indexes)   
-        (should= last-etag (indexing/last-indexed-etag db)))))))
-
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (write-three-documents instance)
+      (db/put-index instance (create-invalid-index))
+      (db/put-index instance (create-valid-index))
+      (indexing/wait-for-index-catch-up storage)
+      (write-three-documents instance)
+      (indexing/wait-for-index-catch-up storage)
+      (should= (docs/last-etag-in storage) (indexing/last-indexed-etag storage))))))
 
 (describe "Resetting an index"
-  (with indexes [ (create-invalid-index) (create-valid-index)])
-
   (it "will reset the last indexed etag for that index"
-    (with-db (fn [db]
-      (write-three-documents db)
-      (indexing/index-documents! db @indexes)
-      (with-open [tx (s/ensure-transaction db)]
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (write-three-documents instance)
+      (db/put-index instance (create-invalid-index))
+      (indexing/wait-for-index-catch-up storage)
+      (with-open [tx (s/ensure-transaction storage)]
         (s/commit! (indexes/reset-index tx "invalid")))
-      (should= (zero-etag) (indexes/get-last-indexed-etag-for-index db "invalid")))) )
+      (should= (zero-etag) (indexes/get-last-indexed-etag-for-index storage "invalid")))) )
   (it "will mark the index as not failed"
-     (with-db (fn [db]
-      (write-three-documents db)
-      (indexing/index-documents! db @indexes)
-      (with-open [tx (s/ensure-transaction db)]
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (write-three-documents instance)
+      (db/put-index instance (create-invalid-index))
+      (indexing/wait-for-index-catch-up storage)
+      (with-open [tx (s/ensure-transaction storage)]
         (s/commit! (indexes/reset-index tx "invalid")))
-      (should-not (indexes/is-failed db "invalid")))))
-
-          )
+      (should-not (indexes/is-failed storage "invalid"))))))

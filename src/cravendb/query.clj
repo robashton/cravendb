@@ -25,7 +25,7 @@
                new-total (count new-results) 
                new-offset (+ current-offset requested-amount)]
 
-           (info "Requested" requested-amount 
+           (debug "Requested" requested-amount 
                     "CurrentTotal" total-collected 
                     "Skipped" current-offset "Of"
                     "Received" (count raw-results))
@@ -41,7 +41,8 @@
 (declare execute)
 
 (defn query-with-storage [db storage query]
-  (with-open [reader (lucene/open-reader storage)
+  (try
+    (with-open [reader (lucene/open-reader storage)
               tx (s/ensure-transaction db)]
   (perform-query 
     tx
@@ -50,7 +51,10 @@
     (or (:offset query) 0)
     (or (:amount query) 1000)
     (:sort-by query)
-    (or (:sort-order query) :asc))))
+    (or (:sort-order query) :asc)))
+    (catch Exception ex ;; TODO: Be more specific
+      (info "Failed to query with" query "because" ex)
+      ())))
 
 (defn wait-for-new-index [db index-engine query]
   (execute db index-engine (assoc query :wait 5)))

@@ -6,23 +6,16 @@
             [cravendb.documents :as docs]
             [cravendb.indexstore :as indexes]
             [cravendb.indexengine :as indexengine]
+            [cravendb.database :as database]
             [cravendb.storage :as s]
             [cravendb.client :as client]
             [cravendb.lucene :as lucene]))
 
 (def index-id "by_name")
 (def by-name-map "(fn [doc] { \"name\" (:name doc) })")
-(defn store-test-index! [db]
-  (with-open [tx (s/ensure-transaction db)] 
-      (-> tx
-        (indexes/put-index { :id index-id :map by-name-map})
-        (s/commit!))))
 
-(defn delete-test-index! [db]
-  (with-open [tx (s/ensure-transaction db)] 
-      (-> tx
-        (indexes/delete-index index-id )
-        (s/commit!))))
+(defn store-test-index! [instance]
+  (database/put-index instance { :id index-id :map by-name-map}))
 
 (defn set-etags-of-index-and-head [db index-etag-int head-etag-int]
   (with-open [tx (s/ensure-transaction db)]
@@ -88,31 +81,26 @@
 
 (describe "Running index catch-ups"
   (it "will run indexes that are behind until they are caught up"
-    (with-db (fn [db]
-      (with-open [ie (indexengine/create-engine db)]        
-        (try 
-          (indexengine/start ie)
-          (with-open [tx (s/ensure-transaction db)]
-            (-> tx
-              (docs/store-document "1" (pr-str { :foo "bar" }) ) 
-              (docs/store-document "2" (pr-str { :foo "bas" }) ) 
-              (docs/store-document "3" (pr-str { :foo "baz" }) )
-              (s/commit!)))
-          (indexing/wait-for-index-catch-up db 1)
-          (store-test-index! db)
-          (indexing/wait-for-index-catch-up db index-id 1)
-          (should= (integer-to-etag 4) 
-                  (indexes/get-last-indexed-etag-for-index db index-id))
-          (finally (indexengine/stop ie)))))))) 
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (database/put-document instance "1" (pr-str { :foo "bar" }) ) 
+      (database/put-document instance "2" (pr-str { :foo "bas" }) ) 
+      (database/put-document instance "3" (pr-str { :foo "baz" }) )
+      (indexing/wait-for-index-catch-up storage 1)
+      (store-test-index! instance)
+      (indexing/wait-for-index-catch-up storage index-id 1)
+      (should= (integer-to-etag 4) 
+        (indexes/get-last-indexed-etag-for-index storage index-id))))))
 
 
 (describe "handling deleted indexes"
   (it "will remove deleted indexes from the collection"
     (with-open [db (s/create-storage "testdir")
               engine (indexengine/create-engine db)]
-      (store-test-index! db)
+      (with-open [tx (s/ensure-transaction db)]
+        (s/commit! (indexes/put-index tx { :id index-id :map by-name-map} "001")))
       (let [state-with-index (indexengine/refresh-indexes! @(:ea engine))]
-        (delete-test-index! db)
+        (with-open [tx (s/ensure-transaction db)]
+          (s/commit! (indexes/delete-index tx index-id)))
         (let [state-without-index (indexengine/refresh-indexes! state-with-index)]
           (should== ["default"] (map key (:compiled-indexes state-without-index)))))))) 
 
