@@ -29,10 +29,14 @@
 #_ (db/put-document instance "test1", (pr-str { :foo "baz"}) first-etag)
 #_ (docs/conflicts (:storage instance))
 
+#_ (with-open [tx (s/ensure-transaction (:storage instance))]
+     (s/commit! (docs/without-conflicts tx "test1")))
+
 #_ (.close instance)
 
-(defn is-conflict [session id current-etag]
-  (and current-etag (not= current-etag (docs/etag-for-doc session id))))
 
-
-#_ (is-conflict (:storage instance) "test1" first-etag)
+;; I want to append conflicts to the list 
+;; If I write over without an etag, I want to blow all conflicts away, mark as resolved
+;; If I write over with an etag and there is a conflict, I don't want to blow the conflicts away, add to the conflicts
+;; If I mark the conflict as resolved, specifying an e-tag, I'll use that document to blow all conflicts away
+;; -> Default behaviour of last-write wins as a conflict resolution algorithm - but that would imply shared etag constructs across cluster

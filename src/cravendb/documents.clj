@@ -24,6 +24,9 @@
 (defn is-conflict-entry [m]
   (.startsWith (m :k) conflict-prefix))
 
+(defn is-conflict-entry-for [m doc-id]
+  (.startsWith (m :k) (str conflict-prefix doc-id)))
+
 (defn etag-for-doc [db doc-id]
   (s/get-string db (str docs-to-etags-prefix doc-id)))
 
@@ -35,22 +38,32 @@
   [tx last-etag]
   (s/store tx last-etag-key (integer-to-etag @last-etag)))
 
-(defn store-conflict [db id document conflict-etag new-etag]
+(defn store-conflict [db id document old-etag new-etag]
   (s/store db (str conflict-prefix id new-etag)
            (pr-str {
-                    :conflict-etag conflict-etag
+                    :etag new-etag
+                    :id id
                     :data document })))
 
-(defn conflicts [db]
-  (debug "About to iterate conflicts")
-  (with-open [iter (s/get-iterator db)] 
-    (.seek iter (s/to-db conflict-prefix))
-    (doall
-      (->> 
-        (iterator-seq iter)
-        (map expand-iterator-str)
-        (take-while is-conflict-entry)
-        (map (comp read-string extract-value-from-expanded-iterator))))))
+(defn without-conflict [tx doc-id etag]
+   (s/delete tx (str conflict-prefix doc-id etag)))
+
+(defn without-conflicts [tx doc-id]
+  (reduce #(without-conflict %1 (:id %2) (:etag %2)) tx (conflicts tx doc-id)))
+
+(defn conflicts 
+  ([db] (conflicts db ""))
+  ([db prefix]
+    (debug "About to iterate conflicts" prefix)
+      (with-open [iter (s/get-iterator db)] 
+        (.seek iter (s/to-db (str conflict-prefix prefix)))
+        (doall
+          (->> 
+            (iterator-seq iter)
+            (map expand-iterator-str)
+            (take-while #(is-conflict-entry-for %1 prefix))
+            (map (comp read-string extract-value-from-expanded-iterator)))))))
+
 
 (defn store-document [db id document etag] 
   (-> db
