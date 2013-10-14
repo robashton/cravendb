@@ -27,6 +27,7 @@
 ### Can wait
 
 - Can I use leveldb's write/read options to do my work for me?
+- I should have an in-flight transaction system for dealing with concurrency
 - Need to formalise that database thing and whether it supports transactions
 - I need to show sensible parsing errors on parsing failure
 - Consider those small functions as inline functions
