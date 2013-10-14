@@ -17,7 +17,7 @@
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete]
-        :available-media-types ["application/clojure" "text/plain"]
+        :available-media-types ["application/clojure"]
         :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
         :handle-ok (fn [_] (db/load-document instance id))))
@@ -25,14 +25,15 @@
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete]
-        :available-media-types ["application/clojure" "text/plain"]
+        :available-media-types ["application/clojure"]
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-string (read-body ctx)))))
         :delete! (fn [_] (db/delete-index instance id)) 
-        :handle-ok (fn [_] (pr-str (db/load-index instance id)))))
+        :handle-ok (fn [_] (db/load-index instance id))))
 
-
-    (GET "/query/:index/:query" { params :params  }
-      (db/query instance params))
+    (ANY "/query/:index/:query" [index query]
+       (resource
+        :available-media-types ["application/clojure"]
+        :handle-ok (fn [ctx] (db/query instance (get-in ctx [:request :params])))))
 
     (POST "/bulk" { body-in :body }
       (let [body ((comp read-string slurp) body-in)]

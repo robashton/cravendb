@@ -36,7 +36,7 @@
       http/string
       from-db))
 
-(def default-headers { :accept "text/plain" })
+(def default-headers { :accept "application/clojure" })
 
 (defn get-document [url id]
   (with-open [client (http/create-client)]
@@ -72,5 +72,5 @@
   (with-open [client (http/create-client)]
     (force-into-list
       (process-response
-        (http/GET client (url-for-query url opts))))))
+        (http/GET client (url-for-query url opts) :headers default-headers)))))
 
