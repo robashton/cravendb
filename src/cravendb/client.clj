@@ -3,7 +3,7 @@
   (:require [cemerick.url :refer (url-encode)] ))
 
 (defn url-for-doc-id [url id]
-  (str url "/doc/" id))
+  (str url "/document/" id))
 
 (defn url-for-index-id [url id]
   (str url "/index/" id))
@@ -36,15 +36,17 @@
       http/string
       from-db))
 
+(def default-headers { :accept "text/plain" })
+
 (defn get-document [url id]
   (with-open [client (http/create-client)]
     (process-response 
-      (http/GET client (url-for-doc-id url id)))))
+      (http/GET client (url-for-doc-id url id) :headers default-headers))))
 
 (defn put-document [url id doc]
   (with-open [client (http/create-client)]
     (process-response 
-      (http/PUT client (url-for-doc-id url id) :body (to-db doc)))))
+      (http/PUT client (url-for-doc-id url id) :body (to-db doc) :headers default-headers))))
 
 (defn delete-document [url id]
   (with-open [client (http/create-client)]

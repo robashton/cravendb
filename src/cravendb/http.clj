@@ -2,6 +2,8 @@
   (:require [ring.adapter.jetty :refer [run-jetty]]
             [compojure.route :as route]
             [compojure.handler :as handler]
+            [liberator.core :refer [resource]]
+            [liberator.dev :refer [wrap-trace]]
             [cravendb.database :as db])
 
   (:use compojure.core
@@ -9,19 +11,21 @@
 
 (defn create-db-routes [instance]
   (routes
+    (ANY "/document/:id" [] 
+      (resource
+        :allowed-methods [:put :get :delete]
+        :available-media-types ["application/clojure" "text/plain"]
+        :put! (fn [ctx]
+                (let [body (slurp (get-in ctx [:request :body]))
+                      id (get-in ctx [:request :params :id])] 
+                  (debug id body)
+                  (db/put-document instance id body)))
+        :delete! (partial db/delete-document instance) 
+        :handle-ok (partial db/load-document instance)))
+
+
     (GET "/query/:index/:query" { params :params  }
       (db/query instance params))
-
-    (PUT "/doc/:id" { params :params body :body }
-      (let [id (params :id) body (slurp body)]
-        (db/put-document instance id body)))
-
-    (GET "/doc/:id" [id] 
-      (or (db/load-document instance id) { :status 404 }))
-
-    (DELETE "/doc/:id" [id]
-      (debug "deleting a document with id " id)
-      (db/delete-document instance id))
 
     (POST "/bulk" { body-in :body }
       (let [body ((comp read-string slurp) body-in)]
@@ -39,14 +43,13 @@
     (GET "/index/:id" [id] 
       (if-let [index (db/load-index instance id)]
         (pr-str index)
-        { :stats 404}))
-
-    (route/not-found "ZOMG NO, THIS IS NOT A VALID URL")))
+        { :stats 404}))))
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
   (let [db-routes (create-db-routes instance)]
-    (handler/api db-routes)))
+    (-> (handler/api db-routes)
+      (wrap-trace :header :ui))))
 
 (defn -main []
   (with-open [instance (db/create "testdb")]
