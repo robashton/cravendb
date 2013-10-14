@@ -26,6 +26,8 @@
 
 ### Can wait
 
+- Can I use leveldb's write/read options to do my work for me?
+- Need to formalise that database thing and whether it supports transactions
 - I need to show sensible parsing errors on parsing failure
 - Consider those small functions as inline functions
 - Safe reading of maps

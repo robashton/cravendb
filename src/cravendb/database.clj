@@ -40,15 +40,20 @@
   (debug "Querying for " params)
   (query/execute storage index-engine params))
 
+(defn is-conflict [session id current-etag]
+  (and current-etag (not= current-etag (docs/etag-for-doc session id))))
 
 (defn put-document 
-  [{:keys [storage last-etag] :as db} id document]
-  (debug "putting a document:" id document)
+  ([instance id document] (put-document instance id document nil))
+  ([{:keys [storage last-etag] :as db} id document known-etag]
+  (debug "putting a document:" id document known-etag)
   (with-open [tx (s/ensure-transaction storage)]
     (s/commit! 
       (docs/write-last-etag
-        (docs/store-document tx id document (next-etag last-etag))
-        last-etag))))
+        (if (is-conflict tx id known-etag)
+          (docs/store-conflict tx id document known-etag (next-etag last-etag))
+          (docs/store-document tx id document (next-etag last-etag)))
+        last-etag)))))
 
 (defn delete-document 
   [{:keys [storage]} id]

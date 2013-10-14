@@ -16,61 +16,27 @@
             [cravendb.lucene :as lucene]))
 
 
-(def test-index 
-  "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
 
-(defn add-by-whatever-index [instance]
-  (db/put-index instance { 
-                         :id "by_whatever" 
-                         :map test-index})) 
+#_ (def instance 
+     (do
+       (fs/delete-dir "testdb")
+        (db/create "testdb")))
 
-(defn add-1000-documents [instance]
-  (db/bulk instance
-    (map (fn [i]
-           {
-            :operation :docs-put
-            :id (str "docs-" i)
-            :document { :whatever (str "docblah" i)} 
-            }) (range 0 1000))))
+#_ (db/put-document instance "test1", (pr-str { :foo "baz"}))
 
+#_ (def first-etag (docs/etag-for-doc (:storage instance) "test1"))
 
-(defn add-alpha-whatevers [instance]
-  (db/put-document instance "docs-1" (pr-str { :whatever "zebra"}))
-  (db/put-document instance "docs-2" (pr-str { :whatever "aardvark"}))
-  (db/put-document instance "docs-3" (pr-str { :whatever "giraffe"}))
-  (db/put-document instance "docs-4" (pr-str { :whatever "anteater"})))
+#_ (db/put-document instance "test1", (pr-str { :foo "baz"}) first-etag)
+#_ (docs/conflicts (:storage instance))
 
-#_ (fs/delete-dir "testdb")
-#_ (def instance (db/create "testdb"))
-#_ (add-by-whatever-index instance)
-#_ (add-alpha-whatevers instance)
-#_ (add-1000-documents instance)
-#_ (db/query instance
-                    { :query "*" :amount 100 :offset 0 :index "by_whatever"})
+#_ (with-open [tx (s/ensure-transaction (:storage instance))]
+     (s/commit! (docs/without-conflicts tx "test1")))
 
 #_ (.close instance)
 
 
-
-#_ (describe "paging like a boss"
-  (it "will return the first 10 docs"
-    (with-full-setup
-    (fn [{:keys [storage index-engine] :as instance}]
-      (add-by-whatever-index instance) 
-      (add-1000-documents instance)
-      (indexing/wait-for-index-catch-up storage 50)
-      (should== (map str (range 0 10)) 
-                (map (comp :whatever read-string) 
-                     (database/query instance
-                      { :query "*" :amount 10 :offset 0 :index "by_whatever"}))))))
-
-   (it "will return the last 5 docs"
-    (with-full-setup
-    (fn [{:keys [storage index-engine] :as instance}]
-      (add-by-whatever-index instance) 
-      (add-1000-documents instance)
-      (indexing/wait-for-index-catch-up storage 50)
-      (should== (map str (range 995 1000)) 
-                (map (comp :whatever read-string) 
-                     (database/query instance 
-                      { :query "*" :amount 10 :offset 995 :index "by_whatever"})))))))
+;; I want to append conflicts to the list 
+;; If I mark the conflict as resolved, specifying an e-tag, I'll use that document to blow all conflicts away
+;; -> Default behaviour of last-write wins as a conflict resolution algorithm - but that would imply shared etag constructs across cluster
+;; Deleting a document can also cause conflict
+;; Instead of treating them as conflicts, let's call them "failed writes"
