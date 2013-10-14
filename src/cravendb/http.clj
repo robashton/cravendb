@@ -11,17 +11,16 @@
 
 (defn create-db-routes [instance]
   (routes
-    (ANY "/document/:id" [] 
+    (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete]
         :available-media-types ["application/clojure" "text/plain"]
         :put! (fn [ctx]
-                (let [body (slurp (get-in ctx [:request :body]))
-                      id (get-in ctx [:request :params :id])] 
+                (let [body (slurp (get-in ctx [:request :body]))]
                   (debug id body)
                   (db/put-document instance id body)))
         :delete! (partial db/delete-document instance) 
-        :handle-ok (partial db/load-document instance)))
+        :handle-ok (fn [_] (db/load-document instance id))))
 
 
     (GET "/query/:index/:query" { params :params  }

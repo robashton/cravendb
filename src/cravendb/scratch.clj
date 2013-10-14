@@ -23,7 +23,9 @@
 #_ (.stop server)
 #_ (.close instance)
 
+#_ (db/load-document instance "1")
+
 #_ (c/put-document "http://localhost:8080" "1" { :foo "bar"})
-#_ (c/get-document "http://localhost:8080" "1")
+#_ (c/get-document "http://localhost:8080" "1" )
 
 
