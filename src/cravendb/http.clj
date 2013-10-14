@@ -19,7 +19,7 @@
                 (let [body (slurp (get-in ctx [:request :body]))]
                   (debug id body)
                   (db/put-document instance id body)))
-        :delete! (partial db/delete-document instance) 
+        :delete! (fn [_] (db/delete-document instance id)) 
         :handle-ok (fn [_] (db/load-document instance id))))
 
 
