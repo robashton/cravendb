@@ -68,12 +68,13 @@
 
 (defn store-document [db id document etag] 
   (-> db
-    (s/store (str document-prefix id) document)
+    (s/store (str document-prefix id) (pr-str document))
     (s/store (str etags-to-docs-prefix etag) id)
     (s/store (str docs-to-etags-prefix id) etag)))
 
 (defn load-document [session id] 
-  (s/get-string session (str document-prefix id)))
+  (if-let [raw-doc (s/get-string session (str document-prefix id))]
+    (read-string raw-doc) nil))
 
 (defn delete-document [session id]
   (s/delete session (str document-prefix id)))
@@ -84,7 +85,7 @@
     (iterator-seq iter)
     (map expand-iterator-str)
     (take-while (partial is-document-key-prefixed-with prefix))
-    (map extract-value-from-expanded-iterator)) )
+    (map (comp read-string extract-value-from-expanded-iterator))) )
 
 (defn iterate-etags-after [iter etag]
   (debug "About to iterate etags after" etag)

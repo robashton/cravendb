@@ -28,4 +28,18 @@
 #_ (c/put-document "http://localhost:8080" "1" { :foo "bar"})
 #_ (c/get-document "http://localhost:8080" "1" )
 
+#_ (c/put-index 
+  "http://localhost:8080" 
+  "by_username" 
+  "(fn [doc] {\"username\" (:username doc)})")
 
+#_ (c/put-document 
+  "http://localhost:8080" 
+  "1" { :username "bob"})
+#_ (c/put-document 
+  "http://localhost:8080" 
+  "2" { :username "alice"})
+
+#_(c/query 
+  "http://localhost:8080" 
+  { :query "(= \"username\" \"bob\")" :index "by_username" :wait true})

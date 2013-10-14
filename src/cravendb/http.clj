@@ -10,7 +10,7 @@
         [clojure.tools.logging :only (info error debug)]))
 
 
-(defn read-body [ctx] (slurp (get-in ctx [:request :body])))
+(defn read-body [ctx] (read-string (slurp (get-in ctx [:request :body]))))
 
 (defn create-db-routes [instance]
   (routes
@@ -26,7 +26,7 @@
       (resource
         :allowed-methods [:put :get :delete]
         :available-media-types ["application/clojure"]
-        :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-string (read-body ctx)))))
+        :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
         :handle-ok (fn [_] (db/load-index instance id))))
 
