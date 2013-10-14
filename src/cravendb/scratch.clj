@@ -36,7 +36,7 @@
 
 
 ;; I want to append conflicts to the list 
-;; If I write over without an etag, I want to blow all conflicts away, mark as resolved
-;; If I write over with an etag and there is a conflict, I don't want to blow the conflicts away, add to the conflicts
 ;; If I mark the conflict as resolved, specifying an e-tag, I'll use that document to blow all conflicts away
 ;; -> Default behaviour of last-write wins as a conflict resolution algorithm - but that would imply shared etag constructs across cluster
+;; Deleting a document can also cause conflict
+;; Instead of treating them as conflicts, let's call them "failed writes"

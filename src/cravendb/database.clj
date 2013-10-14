@@ -55,10 +55,6 @@
           (docs/store-document tx id document (next-etag last-etag)))
         last-etag)))))
 
-
-
-
-
 (defn delete-document 
   [{:keys [storage]} id]
   (debug "deleting a document with id " id)
