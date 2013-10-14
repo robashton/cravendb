@@ -9,18 +9,26 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
 
+
+(defn read-body [ctx] (slurp (get-in ctx [:request :body])))
+
 (defn create-db-routes [instance]
   (routes
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete]
         :available-media-types ["application/clojure" "text/plain"]
-        :put! (fn [ctx]
-                (let [body (slurp (get-in ctx [:request :body]))]
-                  (debug id body)
-                  (db/put-document instance id body)))
+        :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
         :handle-ok (fn [_] (db/load-document instance id))))
+
+    (ANY "/index/:id" [id]
+      (resource
+        :allowed-methods [:put :get :delete]
+        :available-media-types ["application/clojure" "text/plain"]
+        :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-string (read-body ctx)))))
+        :delete! (fn [_] (db/delete-index instance id)) 
+        :handle-ok (fn [_] (pr-str (db/load-index instance id)))))
 
 
     (GET "/query/:index/:query" { params :params  }
@@ -29,20 +37,7 @@
     (POST "/bulk" { body-in :body }
       (let [body ((comp read-string slurp) body-in)]
         (db/bulk instance body)) 
-      "OK")
-
-    (PUT "/index/:id" { params :params body :body }
-      (let [id (params :id) body ((comp read-string slurp) body)]
-        (db/put-index instance (merge body { :id id })))
-         "OK")
-
-    (DELETE "/index/:id" [id]
-      (db/delete-index instance id))
-
-    (GET "/index/:id" [id] 
-      (if-let [index (db/load-index instance id)]
-        (pr-str index)
-        { :stats 404}))))
+      "OK")))
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
