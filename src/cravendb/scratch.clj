@@ -29,6 +29,16 @@
 #_ (db/put-document instance "test1", (pr-str { :foo "baz"}) first-etag)
 #_ (docs/conflicts (:storage instance))
 
+#_ (do
+  (db/put-document instance "1" "hello world")
+  (db/put-document instance "2" "hello world")
+  (let [old-etag-one (docs/etag-for-doc (:storage instance) "1")
+        old-etag-two (docs/etag-for-doc (:storage instance) "2")]
+    (db/put-document instance "1" "hello world")   
+    (db/put-document instance "2" "hello world")   
+    (db/put-document instance "1" "hello bob" old-etag-one)   
+    (db/put-document instance "2" "hello bob" old-etag-two)   ))
+
 #_ (with-open [tx (s/ensure-transaction (:storage instance))]
      (s/commit! (docs/without-conflicts tx "test1")))
 

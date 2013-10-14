@@ -47,5 +47,23 @@
   (it "will have the alternative document in the conflict information"
     (should= "hello bob" (:data (first (:conflicts @results)))))
   (it "will leave the original document intact"
-    (should= "hello world" (:document @results)))
-          )
+    (should= "hello world" (:document @results))))
+
+(describe "Clearing the conflicts for a document"
+  (with-all result
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (db/put-document instance "1" "hello world")
+      (db/put-document instance "2" "hello world")
+      (let [old-etag-one (docs/etag-for-doc storage "1")
+            old-etag-two (docs/etag-for-doc storage "2")]
+        (db/put-document instance "1" "hello world")   
+        (db/put-document instance "2" "hello world")   
+        (db/put-document instance "1" "hello bob" old-etag-one)   
+        (db/put-document instance "2" "hello bob" old-etag-two)   
+        (db/clear-conflicts instance "1")
+        {
+         :conflicts (docs/conflicts storage)})))) 
+  (it "will remove all the conflicts for that document"
+    (should= 1 (count (:conflicts @result))))
+  (it "will leave the conflicts for other documents"
+    (should== ["2"] (map :id (:conflicts @result)))))

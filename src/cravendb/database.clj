@@ -43,6 +43,10 @@
 (defn is-conflict [session id current-etag]
   (and current-etag (not= current-etag (docs/etag-for-doc session id))))
 
+(defn clear-conflicts [{:keys [storage]} id]
+  (with-open [tx (s/ensure-transaction storage)] 
+    (s/commit! (docs/without-conflicts tx id))))
+
 (defn put-document 
   ([instance id document] (put-document instance id document nil))
   ([{:keys [storage last-etag] :as db} id document known-etag]

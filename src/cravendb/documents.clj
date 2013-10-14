@@ -45,8 +45,6 @@
                     :id id
                     :data document })))
 
-(defn without-conflict [tx doc-id etag]
-   (s/delete tx (str conflict-prefix doc-id etag)))
 
 
 (defn conflicts 
@@ -61,6 +59,9 @@
             (map expand-iterator-str)
             (take-while #(is-conflict-entry-for %1 prefix))
             (map (comp read-string extract-value-from-expanded-iterator)))))))
+
+(defn without-conflict [tx doc-id etag]
+   (s/delete tx (str conflict-prefix doc-id etag)))
 
 (defn without-conflicts [tx doc-id]
   (reduce #(without-conflict %1 (:id %2) (:etag %2)) tx (conflicts tx doc-id)))
