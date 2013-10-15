@@ -1,6 +1,7 @@
 (ns cravendb.client
   (:require [http.async.client :as http])
-  (:require [cemerick.url :refer (url-encode)] ))
+  (:require [cemerick.url :refer (url-encode)] 
+            [clojure.edn :as edn]))
 
 (defn url-for-doc-id [url id]
   (str url "/document/" id))
@@ -22,9 +23,8 @@
   (pr-str data))
 
 (defn from-db [data]
-  (if (nil? data)
-    nil
-    (read-string data)))
+  (if (nil? data) nil
+    (edn/read-string data)))
 
 (defn force-into-list [result]
   (if (nil? result) ()
@@ -36,7 +36,7 @@
       http/string
       from-db))
 
-(def default-headers { :accept "application/clojure" })
+(def default-headers { :accept "application/edn" })
 
 (defn get-document [url id]
   (with-open [client (http/create-client)]
@@ -51,22 +51,22 @@
 (defn delete-document [url id]
   (with-open [client (http/create-client)]
     (process-response 
-      (http/DELETE client (url-for-doc-id url id)))))
+      (http/DELETE client (url-for-doc-id url id) :headers default-headers))))
 
 (defn put-index [url id mapf]
   (with-open [client (http/create-client)]
     (process-response 
-      (http/PUT client (url-for-index-id url id) :body (to-db {:map mapf})))))
+      (http/PUT client (url-for-index-id url id) :body (to-db {:map mapf}) :headers default-headers))))
 
 (defn bulk-operation [url ops]
   (with-open [client (http/create-client)]
     (process-response 
-      (http/POST client (url-for-bulk-ops url) :body (to-db ops)))))
+      (http/POST client (url-for-bulk-ops url) :body (to-db ops) :headers default-headers))))
 
 (defn get-index [url id]
   (with-open [client (http/create-client)]
     (process-response 
-      (http/GET client (url-for-index-id url id)))))
+      (http/GET client (url-for-index-id url id) :headers default-headers))))
 
 (defn query [url opts]
   (with-open [client (http/create-client)]

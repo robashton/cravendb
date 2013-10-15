@@ -7,7 +7,8 @@
            [cravendb.storage :as s]
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
-           [cravendb.indexing :as indexing]))
+           [cravendb.indexing :as indexing]
+           [clojure.edn :as edn]))
 
 (defn storage-path-for-index [index]
   (str (:id index) "-" (or (:etag index) "")))
@@ -18,9 +19,8 @@
       (assoc :storage storage)
       (assoc :writer (lucene/open-writer storage)))))
 
-(defn read-index-data [tx index-string]
-  (let [index (read-string index-string)]
-    (assoc index :etag (indexes/etag-for-index tx (:id index)))))
+(defn read-index-data [tx index]
+  (assoc index :etag (indexes/etag-for-index tx (:id index))))
 
 (defn all-indexes [db]
   (try

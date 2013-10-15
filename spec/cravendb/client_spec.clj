@@ -53,7 +53,7 @@
           "(fn [doc] {\"username\" (:username doc)})")
         (should=
           "(fn [doc] {\"username\" (:username doc)})"
-          ((client/get-index "http://localhost:9000" "by_username") :map))))))
+          (:map (client/get-index "http://localhost:9000" "by_username")))))))
 
 (describe "Querying an index on the server", 
   (it "will return documents matching the query"
