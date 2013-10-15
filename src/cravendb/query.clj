@@ -14,13 +14,15 @@
 
 (defn lucene-producer [tx reader opts]
   (fn [offset amount]
-    (convert-results-to-documents tx
-      (drop offset (lucene/query 
-                     reader 
-                     (:query opts) 
-                     (+ offset amount) 
-                     (:sort-by opts) 
-                     (:sort-order opts))))))
+    (->> 
+      (lucene/query reader 
+                    (:query opts) 
+                    (+ offset amount) 
+                    (:sort-by opts) 
+                    (:sort-order opts)) 
+      (drop offset) 
+      (convert-results-to-documents tx))))
+
 (defn lucene-page 
   ([producer page-size] (lucene-page producer 0 page-size))
   ([producer current-offset page-size]
