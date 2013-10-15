@@ -1,52 +1,45 @@
 (ns cravendb.scratch
   "The sole purpose of this file is to act as a place to play with stuff in repl"
   (:use [cravendb.testing]
-        [cravendb.core]
-        )
+        [cravendb.core])
 
-  (:require [cravendb.indexing :as indexing]
-            [cravendb.documents :as docs]
-            [me.raynes.fs :as fs]
-            [cravendb.indexstore :as indexes]
-            [cravendb.indexengine :as indexengine]
-            [cravendb.storage :as s]
-            [cravendb.client :as client]
-            [cravendb.query :as query]
+  (:require [ring.adapter.jetty :refer [run-jetty]]
+            [cravendb.http :as http]
+            [cravendb.client :as c] 
             [cravendb.database :as db]
-            [cravendb.lucene :as lucene]))
-
-
+            [me.raynes.fs :as fs]
+            ))
 
 #_ (def instance 
-     (do
-       (fs/delete-dir "testdb")
-        (db/create "testdb")))
+  (do
+    (fs/delete-dir "testdb")
+    (db/create "testdb")))
 
-#_ (db/put-document instance "test1", (pr-str { :foo "baz"}))
+#_ (def server 
+     (run-jetty 
+      (http/create-http-server instance) 
+      { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
 
-#_ (def first-etag (docs/etag-for-doc (:storage instance) "test1"))
-
-#_ (db/put-document instance "test1", (pr-str { :foo "baz"}) first-etag)
-#_ (docs/conflicts (:storage instance))
-
-#_ (do
-  (db/put-document instance "1" "hello world")
-  (db/put-document instance "2" "hello world")
-  (let [old-etag-one (docs/etag-for-doc (:storage instance) "1")
-        old-etag-two (docs/etag-for-doc (:storage instance) "2")]
-    (db/put-document instance "1" "hello world")   
-    (db/put-document instance "2" "hello world")   
-    (db/put-document instance "1" "hello bob" old-etag-one)   
-    (db/put-document instance "2" "hello bob" old-etag-two)   ))
-
-#_ (with-open [tx (s/ensure-transaction (:storage instance))]
-     (s/commit! (docs/without-conflicts tx "test1")))
-
+#_ (.stop server)
 #_ (.close instance)
 
+#_ (db/load-document instance "1")
 
-;; I want to append conflicts to the list 
-;; If I mark the conflict as resolved, specifying an e-tag, I'll use that document to blow all conflicts away
-;; -> Default behaviour of last-write wins as a conflict resolution algorithm - but that would imply shared etag constructs across cluster
-;; Deleting a document can also cause conflict
-;; Instead of treating them as conflicts, let's call them "failed writes"
+#_ (c/put-document "http://localhost:8080" "1" { :foo "bar"})
+#_ (c/get-document "http://localhost:8080" "1" )
+
+#_ (c/put-index 
+  "http://localhost:8080" 
+  "by_username" 
+  "(fn [doc] {\"username\" (:username doc)})")
+
+#_ (c/put-document 
+  "http://localhost:8080" 
+  "1" { :username "bob"})
+#_ (c/put-document 
+  "http://localhost:8080" 
+  "2" { :username "alice"})
+
+#_(c/query 
+  "http://localhost:8080" 
+  { :query "(= \"username\" \"bob\")" :index "by_username" :wait true})

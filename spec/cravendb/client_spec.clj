@@ -12,9 +12,10 @@
         (should-be-nil)))))
   (it "should be able to PUT and GET a document"
     (with-test-server (fn [] 
-      (client/put-document "http://localhost:9000" "1" "hello world")
-      (-> (client/get-document "http://localhost:9000" "1")
-          (should= "hello world")))))
+      (client/put-document "http://localhost:9000" "1" { :greeting "hello world"})
+      (->> (client/get-document "http://localhost:9000" "1")
+          (should== {:greeting "hello world"})))))
+
   (it "be able to DELETE a document"
     (with-test-server (fn [] 
       (client/put-document "http://localhost:9000" "1" "hello world")

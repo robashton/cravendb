@@ -21,8 +21,8 @@
   "(fn [doc metadata] (.startsWith (:id metadata) \"animal-\"))")
 
 (defn add-animals [instance]
-  (database/put-document instance "animal-1" (pr-str { :name "zebra"}))
-  (database/put-document instance "animal-2" (pr-str { :name "aardvark"})))
+  (database/put-document instance "animal-1" { :name "zebra"})
+  (database/put-document instance "animal-2" { :name "aardvark"}))
 
 (defn add-by-bob-index [instance]
   (database/put-index instance 
@@ -56,7 +56,7 @@
          (indexing/wait-for-index-catch-up storage)
          (add-by-name-index instance)
          (should= "zebra"
-          (first (map (comp :name read-string) 
+          (first (map :name 
             (database/query instance { :query (=? "name" "zebra") 
                     :index "by_name" :wait true}))))))))
 

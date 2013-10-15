@@ -42,8 +42,7 @@
     (set-last-indexed-etag-for-index index-id (zero-etag))))
 
 (defn load-index [tx id]
-  (let [doc (docs/load-document tx (index-doc-id id))]
-    (if doc (read-string doc) nil)))
+  (docs/load-document tx (index-doc-id id)))
 
 (defn etag-for-index [tx id]
   (docs/etag-for-doc tx (index-doc-id id)))

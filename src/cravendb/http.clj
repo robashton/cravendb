@@ -2,51 +2,50 @@
   (:require [ring.adapter.jetty :refer [run-jetty]]
             [compojure.route :as route]
             [compojure.handler :as handler]
+            [liberator.core :refer [resource]]
+            [liberator.dev :refer [wrap-trace]]
             [cravendb.database :as db])
 
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
 
+(defn read-body [ctx] (read-string (slurp (get-in ctx [:request :body]))))
+
 (defn create-db-routes [instance]
   (routes
-    (GET "/query/:index/:query" { params :params  }
-      (db/query instance params))
+    (ANY "/document/:id" [id] 
+      (resource
+        :allowed-methods [:put :get :delete]
+        :available-media-types ["application/clojure"]
+        :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
+        :delete! (fn [_] (db/delete-document instance id)) 
+        :handle-ok (fn [_] (db/load-document instance id))))
 
-    (PUT "/doc/:id" { params :params body :body }
-      (let [id (params :id) body (slurp body)]
-        (db/put-document instance id body)))
+    (ANY "/index/:id" [id]
+      (resource
+        :allowed-methods [:put :get :delete]
+        :available-media-types ["application/clojure"]
+        :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
+        :delete! (fn [_] (db/delete-index instance id)) 
+        :handle-ok (fn [_] (db/load-index instance id))))
 
-    (GET "/doc/:id" [id] 
-      (or (db/load-document instance id) { :status 404 }))
+    (ANY "/query/:index/:query" [index query]
+       (resource
+        :available-media-types ["application/clojure"]
+        :handle-ok (fn [ctx] (db/query instance (get-in ctx [:request :params])))))
 
-    (DELETE "/doc/:id" [id]
-      (debug "deleting a document with id " id)
-      (db/delete-document instance id))
-
-    (POST "/bulk" { body-in :body }
-      (let [body ((comp read-string slurp) body-in)]
-        (db/bulk instance body)) 
-      "OK")
-
-    (PUT "/index/:id" { params :params body :body }
-      (let [id (params :id) body ((comp read-string slurp) body)]
-        (db/put-index instance (merge body { :id id })))
-         "OK")
-
-    (DELETE "/index/:id" [id]
-      (db/delete-index instance id))
-
-    (GET "/index/:id" [id] 
-      (if-let [index (db/load-index instance id)]
-        (pr-str index)
-        { :stats 404}))
-
-    (route/not-found "ZOMG NO, THIS IS NOT A VALID URL")))
+    (ANY "/bulk" 
+      (resource
+        :allowed-methods [:post]
+        :available-media-types ["application/clojure"]
+        :post! (fn [ctx] (db/bulk instance (read-body ctx)))
+        :handle-ok "OK"))))
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
   (let [db-routes (create-db-routes instance)]
-    (handler/api db-routes)))
+    (-> (handler/api db-routes)
+      (wrap-trace :header :ui))))
 
 (defn -main []
   (with-open [instance (db/create "testdb")]
