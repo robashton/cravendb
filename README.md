@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/robashton/CravenDB.png?branch=master)](https://travis-ci.org/robashton/CravenDB)
+
 # CravenDB
 
 - A document database written in Clojure for learning purposes
