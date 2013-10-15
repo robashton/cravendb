@@ -38,27 +38,15 @@
      (empty? src) (lucene-seq ((:next page)) coll)
      :else (cons (first src) (lazy-seq (lucene-seq page (rest src) coll))))))
 
-(declare execute)
-
 (defn query-with-storage [db storage {:keys [offset amount] :as opts}]
-  (try
-    (with-open [reader (lucene/open-reader storage)
+  (with-open [reader (lucene/open-reader storage)
               tx (s/ensure-transaction db)]
-      (doall (take amount (drop offset 
-        (lucene-seq 
-         (lucene-page (lucene-producer tx reader opts) (+ offset amount)))))))
-
-    (catch Exception ex ;; TODO: Be more specific
-      (info "Failed to query with" opts "because" ex)
-      ())))
-
-(defn wait-for-new-index [db index-engine query]
-  (execute db index-engine (assoc query :wait 5)))
-
-(defn query-without-storage [db index-engine query]
-  (if (indexes/load-index db (:index query))
-      (wait-for-new-index db index-engine query)
-      nil))
+    (->>
+      (lucene-page (lucene-producer tx reader opts) (+ offset amount)) 
+      (lucene-seq)
+      (drop offset)
+      (take amount)
+      (doall))))
 
 (defn execute [db index-engine {:keys [index wait wait-duration] :as opts}]
   (if wait 
@@ -66,4 +54,4 @@
   (let [storage (indexengine/get-index-storage index-engine index)]
     (if storage 
       (query-with-storage db storage opts)
-      (query-without-storage db index-engine opts))))
+      (execute db index-engine (assoc opts :wait true :wait-duration 5)))))
