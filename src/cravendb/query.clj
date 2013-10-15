@@ -12,7 +12,7 @@
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
-(defn create-producer [tx reader opts]
+(defn lucene-producer [tx reader opts]
   (fn [offset amount]
     (convert-results-to-documents tx
       (drop offset (lucene/query 
@@ -21,23 +21,22 @@
                      (+ offset amount) 
                      (:sort-by opts) 
                      (:sort-order opts))))))
-
-(defn paged-results 
-  ([producer page-size] (paged-results producer 0 page-size))
+(defn lucene-page 
+  ([producer page-size] (lucene-page producer 0 page-size))
   ([producer current-offset page-size]
    {
     :results (producer current-offset page-size)
-    :next (fn [] (paged-results producer (+ current-offset page-size) page-size))
+    :next (fn [] (lucene-page producer (+ current-offset page-size) page-size))
    }))
 
-(defn result-seq 
-  ([page] (result-seq page ()))
-  ([page coll] (result-seq page (:results page) coll))
+(defn lucene-seq 
+  ([page] (lucene-seq page ()))
+  ([page coll] (lucene-seq page (:results page) coll))
   ([page src coll]
    (cond
      (empty? (:results page)) coll
-     (empty? src) (result-seq ((:next page)) coll)
-     :else (cons (first src) (lazy-seq (result-seq page (rest src) coll))))))
+     (empty? src) (lucene-seq ((:next page)) coll)
+     :else (cons (first src) (lazy-seq (lucene-seq page (rest src) coll))))))
 
 (declare execute)
 
@@ -46,8 +45,8 @@
     (with-open [reader (lucene/open-reader storage)
               tx (s/ensure-transaction db)]
       (doall (take amount (drop offset 
-        (result-seq 
-         (paged-results (create-producer tx reader opts) (+ offset amount)))))))
+        (lucene-seq 
+         (lucene-page (lucene-producer tx reader opts) (+ offset amount)))))))
 
     (catch Exception ex ;; TODO: Be more specific
       (info "Failed to query with" opts "because" ex)
