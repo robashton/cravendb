@@ -34,7 +34,7 @@
         :available-media-types ["application/clojure"]
         :handle-ok (fn [ctx] (db/query instance (get-in ctx [:request :params])))))
 
-    (ANY "/bulk" 
+    (ANY "/bulk" []
       (resource
         :allowed-methods [:post]
         :available-media-types ["application/clojure"]

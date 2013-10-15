@@ -68,7 +68,7 @@
 
 (defn store-document [db id document etag] 
   (-> db
-    (s/store (str document-prefix id) #spy/p (pr-str document))
+    (s/store (str document-prefix id) (pr-str document))
     (s/store (str etags-to-docs-prefix etag) id)
     (s/store (str docs-to-etags-prefix id) etag)))
 
