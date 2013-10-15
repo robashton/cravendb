@@ -12,66 +12,34 @@
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
-;;(defn recursive-query
-;; ([tx reader query offset amount sort-field sort-order]
-;;  (recursive-query tx reader query offset amount sort-field sort-order 0 0 ())) 
-;; ([tx reader query offset amount sort-field sort-order counter i coll]
-;;  (if (>= counter amount))
-;;  ))
-
-
-;;  ([i coll limit]
-;;   (if (> limit i)
-;;     (cons (inc i) (lazy-seq (form-sequence (inc i) coll limit))) 
-;;     coll)))
-;;(defn recursive-query 
-;;  ([producer offset amount]
-;;   (recursive-query 
-;;     producer 
-;;     (create-pager producer offset amount) amount 0 ()))
-;;  ([producer pager remaining i coll]
-;;   (cond
-;;     (= remaining 0) coll
-;;     (>= i (+ (:offset pager) (:amount pager)))
-;;        (recursive-query producer
-;;          (create-pager producer (+ offset i) amount))
-;;     :else (cons 
-;;      (take 1 (:results pager))
-;;      (lazy-seq (recursive-query
-;;                  producer
-;;                  pager
-;;                  (dec remaining)
-;;                  (inc i)
-;;                  coll))))))
-;;
-
-
 (defn create-producer [tx reader query sort-field sort-order]
   (fn [offset amount]
     (convert-results-to-documents tx
       (drop offset (lucene/query reader query (+ offset amount) sort-field sort-order)))))
 
-(defn create-pager [producer offset amount]
-  {
-   :offset offset
-   :amount amount
-   :results (producer offset amount)
-   :more (fn [] (create-pager producer (+ offset amount) amount))
-   })
-  
+(defn paged-results 
+  ([producer page-size] (paged-results producer 0 page-size))
+  ([producer current-offset page-size]
+   {
+    :results (producer current-offset page-size)
+    :next (fn [] (paged-results producer (+ current-offset page-size) page-size))
+   }))
+
+(defn result-seq 
+  ([page] (result-seq page ()))
+  ([page coll] (result-seq page (:results page) coll))
+  ([page src coll]
+   (cond
+     (empty? (:results page)) coll
+     (empty? src) (result-seq ((:next page)) coll)
+     :else (cons (first src) (lazy-seq (result-seq page (rest src) coll))))))
 
 (defn perform-query 
   [producer offset amount]
-  (loop [results ()
-         pager (create-pager producer offset amount)]
-      (let [new-results (take amount (concat results (:results pager)))
-            new-total (count new-results)]
-
-           (if (and (= (count (:results pager)) 0)
-                    (not= new-total amount))
-             (recur new-results 
-                    ((:more pager)))
-             new-results))))
+  (doall
+    (take amount 
+      (drop offset 
+        (result-seq (paged-results producer (+ offset amount)))))))
 
 (declare execute)
 
@@ -110,5 +78,3 @@
     (if storage 
       (query-with-storage db storage query)
       (query-without-storage db index-engine query))))
-
-

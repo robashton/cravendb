@@ -109,14 +109,14 @@
      (.stop server)
      (.close instance))
 
-#_ (query/execute (:storage instance)
+#_ (map :name (query/execute (:storage instance)
                  (:index-engine instance)
                  { 
                   :index "default"
                   :query "*"
                   :amount 100
                   }
-                 ) 
+                 )) 
 #_ (client/put-index 
           "http://localhost:9002" 
           "by_username" 
