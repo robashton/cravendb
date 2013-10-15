@@ -12,28 +12,41 @@
 
 (defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
 
+(def accepted-types ["application/edn" "text/plain" "text/html"])
+
+(defn handle-response [ctx data]
+  (case (get-in ctx [:representation :media-type])
+    "text/plain" (pr-str data)
+    "application/edn" (pr-str data)
+    "text/html" (str "<p>" (pr-str data) "</p>"))) 
+
+(defn craven-resource [])
+
 (defn create-db-routes [instance]
   (routes
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete]
-        :available-media-types ["application/edn" "text/plain"]
+        :available-media-types accepted-types
         :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
-        :handle-ok (fn [_] (pr-str (db/load-document instance id)))))
+        :handle-ok (fn [_] (handle-response _ (db/load-document instance id)))))
 
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete]
-        :available-media-types ["application/edn" "text/plain"]
+        :available-media-types accepted-types
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
-        :handle-ok (fn [_] (pr-str (db/load-index instance id)))))
+        :handle-ok (fn [_] (handle-response _ (db/load-index instance id)))))
 
     (ANY "/query/:index/:query" [index query]
        (resource
-        :available-media-types ["application/edn" "text/plain"]
-        :handle-ok (fn [ctx] (pr-str (db/query instance (get-in ctx [:request :params]))))))
+        :available-media-types accepted-types
+        :handle-ok (fn [ctx] 
+                     (handle-response 
+                      ctx 
+                      (db/query instance (get-in ctx [:request :params]))))))
 
     (ANY "/bulk" []
       (resource
