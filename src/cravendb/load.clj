@@ -10,7 +10,9 @@
             [cravendb.clienttransaction :as trans]
             [cravendb.client :as client]
             [cravendb.storage :as storage]
-            [cravendb.indexengine :as indexengine]))
+            [cravendb.documents :as docs]
+            [cravendb.indexengine :as indexengine]
+            [cravendb.database :as db]))
 
 (defn read-float [in i]
   (Float/parseFloat (get in i)))
@@ -62,25 +64,6 @@
    }
   )
 
-#_ (def db (storage/create-storage "testdb"))
-#_ (def engine (indexengine/create-engine db))
-
-#_ (def server (run-jetty 
-     (http/create-http-server db engine)
-    { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
-
-#_ (indexengine/start engine)
-
-#_ (indexengine/stop engine)
-#_ (.stop server)
-#_ (.close engine)
-#_ (.close db)
-#_ (fs/delete-dir "testdb")
-
-
-#_ (trans/start "http://localhost:9002")
-
-
 (defn add-sequential-doc-to-transaction [{:keys [tx prefix id total] :as state} item]
   (if (= 0 (mod total 1000))
     (do
@@ -112,7 +95,30 @@
   (client/put-index "http://localhost:9002" 
                      "by_practice" 
                      "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")) 
- 
+
+#_ (def instance (do
+                   (fs/delete-dir "testdb") 
+                   (db/create "testdb")))
+
+#_ (def server (run-jetty 
+     (http/create-http-server instance)
+    { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
+
+#_ (do
+     (.stop server)
+     (.close instance))
+
+#_ (first (client/query "http://localhost:9002"
+                 { :index "default"
+                   :query "*"
+                   :amount 1 
+                  }
+                 ))
+
+#_ (docs/load-document (:storage instance) "blah-2")
+#_ (docs/load-document (:storage instance) "gp-1")
+#_ (db/put-document instance "blah-1" {:foo "bar"})
+#_ (client/put-document "http://localhost:9002" "blah-2" { :foo "baz"})
 
 #_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
      (trans/commit! (:tx (reduce add-sequential-doc-to-transaction {
@@ -121,7 +127,7 @@
         :total 0
         :prefix "gp"
      }
-      (take 5000 (map gp-row (csv/read-csv in-file))))))))
+      (take 50 (map gp-row (csv/read-csv in-file))))))))
 
 #_ (with-open [reader (.open-reader engine "by_practice")]
   ((.query reader { :query "*:*"})))

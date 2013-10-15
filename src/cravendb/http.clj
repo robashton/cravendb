@@ -9,7 +9,6 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
 
-
 (defn read-body [ctx] (read-string (slurp (get-in ctx [:request :body]))))
 
 (defn create-db-routes [instance]
@@ -35,10 +34,12 @@
         :available-media-types ["application/clojure"]
         :handle-ok (fn [ctx] (db/query instance (get-in ctx [:request :params])))))
 
-    (POST "/bulk" { body-in :body }
-      (let [body ((comp read-string slurp) body-in)]
-        (db/bulk instance body)) 
-      "OK")))
+    (ANY "/bulk" 
+      (resource
+        :allowed-methods [:post]
+        :available-media-types ["application/clojure"]
+        :post! (fn [ctx] (db/bulk instance (read-body ctx)))
+        :handle-ok "OK"))))
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")

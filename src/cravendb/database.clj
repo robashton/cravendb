@@ -31,7 +31,7 @@
   (assoc state :tx 
     (case (:operation op)
       :docs-delete (docs/delete-document tx (:id op))
-    :docs-put (docs/store-document tx (:id op) (:document op) 
+      :docs-put (docs/store-document tx (:id op) (:document op) 
                                    (next-etag last-etag)))))
 
 (defn query
