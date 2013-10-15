@@ -34,10 +34,20 @@
       :docs-put (docs/store-document tx (:id op) (:document op) 
                                    (next-etag last-etag)))))
 
+(def default-query {
+                    :index "default"
+                    :wait-duration 5
+                    :wait false
+                    :query "*"
+                    :sort-order :asc
+                    :sort-by nil
+                    :offset 0
+                    :amount 1000
+                    })
 (defn query
   [{:keys [storage index-engine]} params]
   (debug "Querying for " params)
-  (query/execute storage index-engine params))
+  (query/execute storage index-engine (merge default-query params)))
 
 (defn is-conflict [session id current-etag]
   (and current-etag (not= current-etag (docs/etag-for-doc session id))))

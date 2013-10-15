@@ -12,10 +12,15 @@
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
-(defn create-producer [tx reader query sort-field sort-order]
+(defn create-producer [tx reader opts]
   (fn [offset amount]
     (convert-results-to-documents tx
-      (drop offset (lucene/query reader query (+ offset amount) sort-field sort-order)))))
+      (drop offset (lucene/query 
+                     reader 
+                     (:query opts) 
+                     (+ offset amount) 
+                     (:sort-by opts) 
+                     (:sort-order opts))))))
 
 (defn paged-results 
   ([producer page-size] (paged-results producer 0 page-size))
@@ -34,30 +39,18 @@
      (empty? src) (result-seq ((:next page)) coll)
      :else (cons (first src) (lazy-seq (result-seq page (rest src) coll))))))
 
-(defn perform-query 
-  [producer offset amount]
-  (doall
-    (take amount 
-      (drop offset 
-        (result-seq (paged-results producer (+ offset amount)))))))
-
 (declare execute)
 
-(defn query-with-storage [db storage query]
+(defn query-with-storage [db storage {:keys [offset amount] :as opts}]
   (try
     (with-open [reader (lucene/open-reader storage)
               tx (s/ensure-transaction db)]
-    (perform-query 
-      (create-producer 
-        tx
-        reader 
-        (:query query) 
-        (:sort-by query) 
-        (or (:sort-order query) :asc))
-      (or (:offset query) 0)
-      (or (:amount query) 1000)))
+      (doall (take amount (drop offset 
+        (result-seq 
+         (paged-results (create-producer tx reader opts) (+ offset amount)))))))
+
     (catch Exception ex ;; TODO: Be more specific
-      (info "Failed to query with" query "because" ex)
+      (info "Failed to query with" opts "because" ex)
       ())))
 
 (defn wait-for-new-index [db index-engine query]
@@ -68,13 +61,10 @@
       (wait-for-new-index db index-engine query)
       nil))
 
-(defn execute [db index-engine query]
-  (if (query :wait) 
-    (indexing/wait-for-index-catch-up 
-      db 
-      (or (:index query) "default") 
-      (or (:wait-duration query) 5)))
-  (let [storage (indexengine/get-index-storage index-engine (:index query))]
+(defn execute [db index-engine {:keys [index wait wait-duration] :as opts}]
+  (if wait 
+    (indexing/wait-for-index-catch-up db index wait-duration))
+  (let [storage (indexengine/get-index-storage index-engine index)]
     (if storage 
-      (query-with-storage db storage query)
-      (query-without-storage db index-engine query))))
+      (query-with-storage db storage opts)
+      (query-without-storage db index-engine opts))))

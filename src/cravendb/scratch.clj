@@ -14,13 +14,12 @@
 (defn form-sequence 
   ([limit] (form-sequence 0 () limit))
   ([i coll limit]
-   (println "Lazy?")
    (if (> limit i)
      (cons (inc i) (lazy-seq (form-sequence (inc i) coll limit))) 
      coll)))
 
 #_ (let [blah (form-sequence 1000)]
-     (println (tae))
+     (println (take 100 blah))
      )
 
 #_ (def instance 
