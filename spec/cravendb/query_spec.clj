@@ -32,10 +32,10 @@
             }) (range 0 1000))))
 
 (defn add-alpha-whatevers [instance]
-  (database/put-document instance "docs-1" (pr-str { :whatever "zebra"}))
-  (database/put-document instance "docs-2" (pr-str { :whatever "aardvark"}))
-  (database/put-document instance "docs-3" (pr-str { :whatever "giraffe"}))
-  (database/put-document instance "docs-4" (pr-str { :whatever "anteater"})))
+  (database/put-document instance "docs-1" { :whatever "zebra"})
+  (database/put-document instance "docs-2" { :whatever "aardvark"})
+  (database/put-document instance "docs-3" { :whatever "giraffe"})
+  (database/put-document instance "docs-4" { :whatever "anteater"}))
 
 (describe "paging like a boss"
   (it "will return the first 10 docs"
@@ -45,7 +45,7 @@
       (add-1000-documents instance)
       (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 0 10)) 
-                (map (comp :whatever read-string) 
+                (map :whatever 
                      (database/query instance
                       { :query "*" :amount 10 :offset 0 :index "by_whatever"}))))))
 
@@ -56,7 +56,7 @@
       (add-1000-documents instance)
       (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 995 1000)) 
-                (map (comp :whatever read-string) 
+                (map :whatever 
                      (database/query instance 
                       { :query "*" :amount 10 :offset 995 :index "by_whatever"})))))))
 
@@ -68,8 +68,7 @@
         (add-alpha-whatevers instance)
         (indexing/wait-for-index-catch-up storage 50)
         (should== ["aardvark" "anteater" "giraffe" "zebra"]
-          (map 
-            (comp :whatever read-string) 
+          (map :whatever 
             (database/query instance
               { :query "*" :sort-by "whatever" :index "by_whatever"}))))))
 
@@ -80,7 +79,6 @@
         (add-alpha-whatevers instance)
         (indexing/wait-for-index-catch-up storage 50)
         (should== [ "zebra" "giraffe" "anteater" "aardvark"]
-          (map 
-            (comp :whatever read-string) 
+          (map :whatever 
             (database/query instance
               { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"})))))))

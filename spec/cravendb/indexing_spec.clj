@@ -25,22 +25,22 @@
 (defn create-test-indexes [] [ (create-test-index) ])
 
 (defn parse-results [results]
-  (map read-string results))
+  results)
 
 (def write-three-documents 
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "doc-1" (pr-str { :title "hello" :author "rob"}) (integer-to-etag 1))
-        (docs/store-document "doc-2" (pr-str { :title "morning" :author "vicky"} )(integer-to-etag 2))
-        (docs/store-document "doc-3" (pr-str { :title "goodbye" :author "james"}) (integer-to-etag 3))
+        (docs/store-document "doc-1" { :title "hello" :author "rob"} (integer-to-etag 1))
+        (docs/store-document "doc-2" { :title "morning" :author "vicky"}(integer-to-etag 2))
+        (docs/store-document "doc-3" { :title "goodbye" :author "james"} (integer-to-etag 3))
         (s/commit!)))))
 
 (def write-one-document 
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "2" (pr-str { :title "morning" :author "vicky"}) (integer-to-etag 4))
+        (docs/store-document "2" { :title "morning" :author "vicky"} (integer-to-etag 4))
         (s/commit!)))))
 
 (describe "indexing some documents"
@@ -113,9 +113,9 @@
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
-            (docs/store-document "1" (pr-str { :foo "bar" }) (integer-to-etag 1)) 
-            (docs/store-document "2" (pr-str { :foo "bas" }) (integer-to-etag 2)) 
-            (docs/store-document "3" (pr-str { :foo "baz" }) (integer-to-etag 3))
+            (docs/store-document "1" { :foo "bar" } (integer-to-etag 1)) 
+            (docs/store-document "2" { :foo "bas" } (integer-to-etag 2)) 
+            (docs/store-document "3" { :foo "baz" } (integer-to-etag 3))
             (s/commit!)))
 
         (with-open [tx (s/ensure-transaction db)]
@@ -137,11 +137,11 @@
 (describe "Applying a filter to an index"
   (with-all results (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
-      (database/put-document instance "animal-1" (pr-str { :name "zebra"}))
-      (database/put-document instance "animal-2" (pr-str { :name "aardvark"}))
-      (database/put-document instance "animal-3" (pr-str { :name "giraffe"}))
-      (database/put-document instance "animal-4" (pr-str { :name "anteater"}))
-      (database/put-document instance "owner-1" (pr-str { :name "rob"}))
+      (database/put-document instance "animal-1" { :name "zebra"})
+      (database/put-document instance "animal-2" { :name "aardvark"})
+      (database/put-document instance "animal-3" { :name "giraffe"})
+      (database/put-document instance "animal-4" { :name "anteater"})
+      (database/put-document instance "owner-1" { :name "rob"})
       (database/put-index instance { 
                            :id "by_name" 
                            :filter by-name-animal-filter
