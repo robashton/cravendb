@@ -24,7 +24,7 @@
 
 (defn put-index [tx index etag]
   (-> tx 
-    (docs/store-document (index-doc-id (index :id)) (pr-str index) etag)
+    (docs/store-document (index-doc-id (index :id)) index etag)
     (set-last-indexed-etag-for-index (index :id) (zero-etag))))
 
 (defn mark-failed [tx index-id info]

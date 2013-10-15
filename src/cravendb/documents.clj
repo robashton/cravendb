@@ -1,7 +1,9 @@
 (ns cravendb.documents
   (:use [clojure.tools.logging :only (info error debug)] 
        [cravendb.core])
-  (:require [cravendb.storage :as s]))
+  (:require [cravendb.storage :as s]
+            [clojure.edn :as edn]
+            ))
 
 (def etags-to-docs-prefix "etags-to-docs-")
 (def docs-to-etags-prefix "docs-to-etags-")
@@ -58,7 +60,7 @@
             (iterator-seq iter)
             (map expand-iterator-str)
             (take-while #(is-conflict-entry-for %1 prefix))
-            (map (comp read-string extract-value-from-expanded-iterator)))))))
+            (map (comp edn/read-string extract-value-from-expanded-iterator)))))))
 
 (defn without-conflict [tx doc-id etag]
    (s/delete tx (str conflict-prefix doc-id etag)))
@@ -74,7 +76,7 @@
 
 (defn load-document [session id] 
   (if-let [raw-doc (s/get-string session (str document-prefix id))]
-    (read-string raw-doc) nil))
+    (edn/read-string raw-doc) nil))
 
 (defn delete-document [session id]
   (s/delete session (str document-prefix id)))
@@ -85,7 +87,7 @@
     (iterator-seq iter)
     (map expand-iterator-str)
     (take-while (partial is-document-key-prefixed-with prefix))
-    (map (comp read-string extract-value-from-expanded-iterator))) )
+    (map (comp edn/read-string extract-value-from-expanded-iterator))) )
 
 (defn iterate-etags-after [iter etag]
   (debug "About to iterate etags after" etag)

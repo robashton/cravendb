@@ -114,6 +114,12 @@
                    :amount 1 
                   }
                  ))
+#_ (client/put-index 
+          "http://localhost:9002" 
+          "by_username" 
+          "(fn [doc] {\"username\" (:username doc)})")
+
+#_ (client/get-index "http://localhost:9002" "by_username") 
 
 #_ (docs/load-document (:storage instance) "blah-2")
 #_ (docs/load-document (:storage instance) "gp-1")

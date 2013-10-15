@@ -1,5 +1,6 @@
 (ns cravendb.http
   (:require [ring.adapter.jetty :refer [run-jetty]]
+            [clojure.edn :as edn]
             [compojure.route :as route]
             [compojure.handler :as handler]
             [liberator.core :refer [resource]]
@@ -9,36 +10,36 @@
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
 
-(defn read-body [ctx] (read-string (slurp (get-in ctx [:request :body]))))
+(defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
 
 (defn create-db-routes [instance]
   (routes
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete]
-        :available-media-types ["application/clojure"]
+        :available-media-types ["application/edn" "text/plain"]
         :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
-        :handle-ok (fn [_] (db/load-document instance id))))
+        :handle-ok (fn [_] (pr-str (db/load-document instance id)))))
 
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete]
-        :available-media-types ["application/clojure"]
+        :available-media-types ["application/edn" "text/plain"]
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
-        :handle-ok (fn [_] (db/load-index instance id))))
+        :handle-ok (fn [_] (pr-str (db/load-index instance id)))))
 
     (ANY "/query/:index/:query" [index query]
        (resource
-        :available-media-types ["application/clojure"]
-        :handle-ok (fn [ctx] (db/query instance (get-in ctx [:request :params])))))
+        :available-media-types ["application/edn" "text/plain"]
+        :handle-ok (fn [ctx] (pr-str (db/query instance (get-in ctx [:request :params]))))))
 
     (ANY "/bulk" []
       (resource
         :allowed-methods [:post]
-        :available-media-types ["application/clojure"]
-        :post! (fn [ctx] (db/bulk instance (read-body ctx)))
+        :available-media-types ["application/edn"]
+        :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))))
 
 (defn create-http-server [instance]
