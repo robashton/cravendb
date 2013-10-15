@@ -11,6 +11,7 @@
             [cravendb.client :as client]
             [cravendb.storage :as storage]
             [cravendb.documents :as docs]
+            [cravendb.query :as query]
             [cravendb.indexengine :as indexengine]
             [cravendb.database :as db]))
 
@@ -108,12 +109,14 @@
      (.stop server)
      (.close instance))
 
-#_ (first (client/query "http://localhost:9002"
-                 { :index "default"
-                   :query "*"
-                   :amount 1 
+#_ (query/execute (:storage instance)
+                 (:index-engine instance)
+                 { 
+                  :index "default"
+                  :query "*"
+                  :amount 100
                   }
-                 ))
+                 ) 
 #_ (client/put-index 
           "http://localhost:9002" 
           "by_username" 
@@ -133,7 +136,7 @@
         :total 0
         :prefix "gp"
      }
-      (take 50 (map gp-row (csv/read-csv in-file))))))))
+      (take 5000 (map gp-row (csv/read-csv in-file))))))))
 
 #_ (with-open [reader (.open-reader engine "by_practice")]
   ((.query reader { :query "*:*"})))

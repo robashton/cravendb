@@ -12,30 +12,65 @@
 (defn convert-results-to-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
-(defn perform-query 
-  [tx reader query offset amount sort-field sort-order]
-  (loop [results ()
-         current-offset offset
-         total-collected 0
-         attempt 0 ]
-         (let [requested-amount (+ current-offset (max amount 100))
-               raw-results (lucene/query reader query requested-amount sort-field sort-order)
-               document-results (convert-results-to-documents tx (drop current-offset raw-results))
-               new-results (take amount (concat results document-results))
-               new-total (count new-results) 
-               new-offset (+ current-offset requested-amount)]
+;;(defn recursive-query
+;; ([tx reader query offset amount sort-field sort-order]
+;;  (recursive-query tx reader query offset amount sort-field sort-order 0 0 ())) 
+;; ([tx reader query offset amount sort-field sort-order counter i coll]
+;;  (if (>= counter amount))
+;;  ))
 
-           (debug "Requested" requested-amount 
-                    "CurrentTotal" total-collected 
-                    "Skipped" current-offset "Of"
-                    "Received" (count raw-results))
-           (if (and (= (count raw-results) requested-amount)
-                    (not= new-total amount)
-                    (> 10 attempt))
+
+;;  ([i coll limit]
+;;   (if (> limit i)
+;;     (cons (inc i) (lazy-seq (form-sequence (inc i) coll limit))) 
+;;     coll)))
+;;(defn recursive-query 
+;;  ([producer offset amount]
+;;   (recursive-query 
+;;     producer 
+;;     (create-pager producer offset amount) amount 0 ()))
+;;  ([producer pager remaining i coll]
+;;   (cond
+;;     (= remaining 0) coll
+;;     (>= i (+ (:offset pager) (:amount pager)))
+;;        (recursive-query producer
+;;          (create-pager producer (+ offset i) amount))
+;;     :else (cons 
+;;      (take 1 (:results pager))
+;;      (lazy-seq (recursive-query
+;;                  producer
+;;                  pager
+;;                  (dec remaining)
+;;                  (inc i)
+;;                  coll))))))
+;;
+
+
+(defn create-producer [tx reader query sort-field sort-order]
+  (fn [offset amount]
+    (convert-results-to-documents tx
+      (drop offset (lucene/query reader query (+ offset amount) sort-field sort-order)))))
+
+(defn create-pager [producer offset amount]
+  {
+   :offset offset
+   :amount amount
+   :results (producer offset amount)
+   :more (fn [] (create-pager producer (+ offset amount) amount))
+   })
+  
+
+(defn perform-query 
+  [producer offset amount]
+  (loop [results ()
+         pager (create-pager producer offset amount)]
+      (let [new-results (take amount (concat results (:results pager)))
+            new-total (count new-results)]
+
+           (if (and (= (count (:results pager)) 0)
+                    (not= new-total amount))
              (recur new-results 
-                    new-offset 
-                    new-total
-                    (inc attempt))
+                    ((:more pager)))
              new-results))))
 
 (declare execute)
@@ -44,14 +79,15 @@
   (try
     (with-open [reader (lucene/open-reader storage)
               tx (s/ensure-transaction db)]
-  (perform-query 
-    tx
-    reader 
-    (:query query)
-    (or (:offset query) 0)
-    (or (:amount query) 1000)
-    (:sort-by query)
-    (or (:sort-order query) :asc)))
+    (perform-query 
+      (create-producer 
+        tx
+        reader 
+        (:query query) 
+        (:sort-by query) 
+        (or (:sort-order query) :asc))
+      (or (:offset query) 0)
+      (or (:amount query) 1000)))
     (catch Exception ex ;; TODO: Be more specific
       (info "Failed to query with" query "because" ex)
       ())))
