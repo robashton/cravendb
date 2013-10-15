@@ -16,6 +16,7 @@
 - Dynamic queries (no creation of index required!)
 - A temporary query language against documents
 - Etag generation is incremental and thread-safe for a single node
+- Travis CI set-up
 
 # Pending/debt/etc
 
