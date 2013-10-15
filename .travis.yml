@@ -1,3 +1,6 @@
 language: clojure
 script: lein spec -f d
 lein: lein2
+jdk:
+  - openjdk7
+  - openjdk6
