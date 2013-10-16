@@ -70,17 +70,15 @@
     (.iterator (:db ops) (:options ops))  
     (.iterator (:db ops))))
 
-(defn commit! [ops]
-  (with-open [batch (.createWriteBatch (:db ops))]
-      (doseq [k (map #(vector  (first %) (second %)) (get ops :cache))]
-        (let [id (k 0)
-              value (k 1)]
-          (if (= value :deleted)
-            (.delete batch (to-db id))
-            (.put batch (to-db id) value))))
-      (let [wo (WriteOptions.)]
-        (.sync wo true)
-        (.write (:db ops) batch wo)))
+(defn commit! [{:keys [db cache]}]
+  (with-open [batch (.createWriteBatch db)]
+    (doseq [[id value] cache]
+      (if (= value :deleted)
+        (.delete batch (to-db id))
+        (.put batch (to-db id) value)))
+    (let [wo (WriteOptions.)]
+      (.sync wo true)
+      (.write db batch wo)))
   nil)
 
 (defn ensure-transaction [ops]
