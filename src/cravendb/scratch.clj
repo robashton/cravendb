@@ -129,7 +129,14 @@
 #_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bob"})
 #_ (c/get-document "http://localhost:8081" "great-doc")
 
+;; The slave stores where it is currently caught up to in storage somewhere
+;; It also stores the number of documents it has received from each node
+;; This will be useful for testing and feedback
+
+#_ (replication-status destinstance "http://localhost:8080")
+
 ;; If I shut down the slave, it should continue from where it left off
+
 
 ;; If I shut down the master, the slave should gracefully await instruction
 
