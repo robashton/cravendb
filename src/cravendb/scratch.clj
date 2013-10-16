@@ -113,14 +113,26 @@
 
 ;; On starting up the second server, we should see the documents that were written to the first
 ;; They should have the same etags as the first
+;; They will anyway because it's a slave so it's "magic"
 
+#_ (count (stream-sequence "http://localhost:8081"))
+#_ (count (stream-sequence "http://localhost:8080"))
+#_ (first (stream-sequence "http://localhost:8081"))
+#_ (first (stream-sequence "http://localhost:8080"))
 
 ;; On adding documents to the first server, they should appear on the second
 ;; They should have the same etags as the first
 
+#_ (c/put-document "http://localhost:8080" "new-doc" { :hello "world"})
+#_ (c/get-document "http://localhost:8080" "new-doc")
+#_ (c/get-document "http://localhost:8081" "new-doc")
 
 ;; On updating documents in the first server, they should update in the second
 ;; They should have updated etags the same as the first
+
+#_ (c/put-document "http://localhost:8080" "great-doc" { :hello "world"})
+#_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bob"})
+#_ (c/get-document "http://localhost:8081" "great-doc")
 
 ;; Master -> Master Happenings (Currently impossible)
 
