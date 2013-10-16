@@ -109,12 +109,10 @@
      (.stop server)
      (.close instance))
 
-#_ (map :name (query/execute (:storage instance)
-                 (:index-engine instance)
+#_ (map :name (db/query instance
                  { 
-                  :index "default"
                   :query "*"
-                  :amount 100
+                  :amount 10
                   }
                  )) 
 #_ (client/put-index 
@@ -128,6 +126,7 @@
 #_ (docs/load-document (:storage instance) "gp-1")
 #_ (db/put-document instance "blah-1" {:foo "bar"})
 #_ (client/put-document "http://localhost:9002" "blah-2" { :foo "baz"})
+#_ (client/get-document "http://localhost:9002" "gp-1")
 
 #_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
      (trans/commit! (:tx (reduce add-sequential-doc-to-transaction {
@@ -142,7 +141,7 @@
   ((.query reader { :query "*:*"})))
 
 
-#_ (client/query "http://localhost:9002" {
+#_ (client/query "http://localhost:8080" {
                                           :index "by_practice"
                                           :query "practice:E83030"
                                           :wait true
