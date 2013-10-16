@@ -75,6 +75,7 @@
           (docs/iterate-etags-after iter (zero-etag)))))
 
 #_ (c/get-document "http://localhost:8080" "docs-1")
+#_ (c/put-document "http://localhost:8080" "robisamazing" { :foo "bar"})
 
 (defn stream-sequence 
   ([url] (stream-sequence url (zero-etag)))
@@ -107,3 +108,34 @@
      (doall (drop 5020 (stream-sequence "http://localhost:8080"))) 
      (println "sink")
      )
+
+;; Master -> Slave Happenings (easy)
+
+;; On starting up the second server, we should see the documents that were written to the first
+;; They should have the same etags as the first
+
+
+;; On adding documents to the first server, they should appear on the second
+;; They should have the same etags as the first
+
+
+;; On updating documents in the first server, they should update in the second
+;; They should have updated etags the same as the first
+
+;; Master -> Master Happenings (Currently impossible)
+
+;; On writing a document to the first server, it should appear in the second
+;; It should not be replicated back to the other server (how?)
+;; We could just provide the list in ordered e-tag terms, and we can do a look-up
+;; And prevent replication
+
+;; What happens when writing 
+;; doc-1 -> a1 -> b1
+;; doc-1 -> b2 -> a2
+;; We should know that a2 is a descendent of a1
+;; We can do that by using vector-clocks
+;; We could also achieve it by storing an audit history (this would get expensive)
+
+
+
+
