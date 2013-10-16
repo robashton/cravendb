@@ -34,6 +34,7 @@
 - HTTP API should be validating input
 - Cross-node-safe etag generation (vector clocks?)
 - Meta data storage for documents
+- Bulk operations don't take into account etags on put
 
 ### Pending debt/questions/bugs
 

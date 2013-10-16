@@ -8,49 +8,60 @@
             [cravendb.client :as c] 
             [cravendb.database :as db]
             [me.raynes.fs :as fs]
+            [cravendb.storage :as s]
+            [cravendb.documents :as docs]
             ))
 
-
-(defn number-seq 
-  ([] (number-seq 0 ))
-  ([i]
-   (cons (inc i) (lazy-seq (number-seq (inc i))))))
-
-#_ (let [blah (number-seq)]
-     (println "Lazy")
-     (println (take 1000 blah))
-     )
-
-#_ (def instance 
-  (do
-    (fs/delete-dir "testdb")
-    (db/create "testdb")))
-
-#_ (def server 
+(defn start []
+    (def instance 
+      (do
+        (fs/delete-dir "testdb")
+        (db/create "testdb"))) 
+    (def server 
      (run-jetty 
       (http/create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
 
-#_ (.stop server)
-#_ (.close instance)
+    (db/bulk instance
+      (map (fn [i]
+      {
+        :operation :docs-put
+        :id (str "docs-" i)
+        :document { :whatever (str "Trolololol" i)} 
+        }) (range 0 5000))))
 
-#_ (db/load-document instance "1")
+(defn stop []
+   (.stop server)   
+   (.close instance))
 
-#_ (c/put-document "http://localhost:8080" "1" { :foo "bar"})
-#_ (c/get-document "http://localhost:8080" "1" )
 
-#_ (c/put-index 
-  "http://localhost:8080" 
-  "by_username" 
-  "(fn [doc] {\"username\" (:username doc)})")
+(defn restart []
+  (stop)
+  (start))
 
-#_ (c/put-document 
-  "http://localhost:8080" 
-  "1" { :username "bob"})
-#_ (c/put-document 
-  "http://localhost:8080" 
-  "2" { :username "alice"})
 
-#_(c/query 
-  "http://localhost:8080" 
-  { :query "(= \"username\" \"bob\")" :index "by_username" :wait true})
+#_ (start)
+#_ (restart)
+ 
+;; What I really want is a stream of the whole documents and their metadata
+;; In the order in which they were written from a specific e-tag
+;; What I'd probably do is keep documents in memory once written
+;; because they'd need to be hit by both indexing and replication
+;;
+;; What I also probably want to do is keep a list of etags/ids written
+;; and generate the stream information from that rather than hitting the database
+;; ideally, consuming the stream shouldn't involve disk IO
+
+
+;; Can possibly do this with core.async
+(defn synchronise [input dest]
+  (doseq [d (take 100 input)]
+
+    ))
+
+#_ (with-open [iter (s/get-iterator (:storage instance))] 
+     (doall (map expand-document 
+          (docs/iterate-etags-after iter (zero-etag)))))
+
+
+#_ (c/stream "http://localhost:8080")

@@ -5,7 +5,10 @@
             [compojure.handler :as handler]
             [liberator.core :refer [resource]]
             [liberator.dev :refer [wrap-trace]]
-            [cravendb.database :as db])
+            [cravendb.database :as db]
+            [cravendb.stream :as stream]
+            [cravendb.core :refer [zero-etag]]
+            )
 
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
@@ -67,8 +70,23 @@
         :allowed-methods [:post]
         :available-media-types ["application/edn"]
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
-        :handle-ok "OK"))))
-
+        :handle-ok "OK"))
+    
+    ;; This will be probably a long polling thing
+    ;; where I keep pumping data out as I get it
+    ;; For now it will just return EVERYTHING in
+    ;; a giant blob (UWAGA!!)
+    (ANY "/stream" []
+      (resource
+        :allowed-methods [:get]
+        :available-media-types accepted-types
+        :handle-ok 
+        (fn [ctx]
+          (standard-response 
+            ctx
+            (stream/from-etag 
+              instance
+              (or (get-in ctx [:request :params :etag]) (zero-etag))))))))) 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
   (let [db-routes (create-db-routes instance)]
