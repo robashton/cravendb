@@ -9,7 +9,7 @@
     [cravendb.lucene :as lucene]
     [cravendb.storage :as s]))
 
-(defn convert-results-to-documents [tx results]
+(defn valid-documents [tx results]
   (filter boolean (map (partial docs/load-document tx) results)))
 
 (defn lucene-producer [tx reader opts]
@@ -21,7 +21,7 @@
                     (:sort-by opts) 
                     (:sort-order opts)) 
       (drop offset) 
-      (convert-results-to-documents tx))))
+      (valid-documents tx))))
 
 (defn lucene-page 
   ([producer page-size] (lucene-page producer 0 page-size))
@@ -32,13 +32,12 @@
    }))
 
 (defn lucene-seq 
-  ([page] (lucene-seq page ()))
-  ([page coll] (lucene-seq page (:results page) coll))
-  ([page src coll]
+  ([page] (lucene-seq page (:results page)))
+  ([page src]
    (cond
-     (empty? (:results page)) coll
-     (empty? src) (lucene-seq ((:next page)) coll)
-     :else (cons (first src) (lazy-seq (lucene-seq page (rest src) coll))))))
+     (empty? (:results page)) ()
+     (empty? src) (lucene-seq ((:next page)))
+     :else (cons (first src) (lazy-seq (lucene-seq page (rest src)))))))
 
 (defn query-with-storage [db storage {:keys [offset amount] :as opts}]
   (with-open [reader (lucene/open-reader storage)
