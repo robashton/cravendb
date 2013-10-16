@@ -14,7 +14,7 @@
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
 
-(defn handle-response [ctx data]
+(defn standard-response [ctx data]
   (case (get-in ctx [:representation :media-type])
     "text/plain" (pr-str data)
     "application/edn" (pr-str data)
@@ -30,7 +30,7 @@
         :available-media-types accepted-types
         :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
-        :handle-ok (fn [_] (handle-response _ (db/load-document instance id)))))
+        :handle-ok (fn [_] (standard-response _ (db/load-document instance id)))))
 
     (ANY "/index/:id" [id]
       (resource
@@ -38,13 +38,13 @@
         :available-media-types accepted-types
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
-        :handle-ok (fn [_] (handle-response _ (db/load-index instance id)))))
+        :handle-ok (fn [_] (standard-response _ (db/load-index instance id)))))
 
     (ANY "/query/:index/:query" [index query]
        (resource
         :available-media-types accepted-types
         :handle-ok (fn [ctx] 
-                     (handle-response 
+                     (standard-response 
                       ctx 
                       (db/query instance (get-in ctx [:request :params]))))))
 
