@@ -79,6 +79,11 @@
   (debug "getting a document with id " id)
   (docs/load-document storage id))
 
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  {:etag (docs/etag-for-doc storage id)})
+
 (defn bulk 
   [{:keys [storage last-etag]} operations]
   (debug "Bulk operation: ")
@@ -100,6 +105,11 @@
       (docs/write-last-etag
         (indexes/put-index tx index (next-etag last-etag))
         last-etag))))
+
+(defn load-index-metadata
+  [{:keys [storage]} id]
+  (debug "getting index metadata id " id)
+  {:etag (indexes/etag-for-index storage id)})
 
 (defn delete-index 
   [{:keys [storage]} id]

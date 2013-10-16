@@ -20,6 +20,16 @@
     "application/edn" (pr-str data)
     "text/html" (str "<p>" (pr-str data) "</p>"))) 
 
+(defn resource-exists [ctx rfn mfn]
+  (if-let [resource (rfn)]
+    {
+     ::resource resource
+     ::metadata (mfn)}
+    false))
+
+(defn etag-from-metadata [ctx]
+  (get-in ctx [::metadata :etag]))
+
 (defn craven-resource [])
 
 (defn create-db-routes [instance]
@@ -27,18 +37,22 @@
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete]
+        :exists? (fn [ctx] (resource-exists ctx #(db/load-document instance id) #(db/load-document-metadata instance id)))
         :available-media-types accepted-types
+        :etag (fn [ctx] (etag-from-metadata ctx))
         :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
-        :handle-ok (fn [_] (standard-response _ (db/load-document instance id)))))
+        :handle-ok (fn [_] (standard-response _ (::resource _)))))
 
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete]
+        :exists? (fn [ctx] (resource-exists ctx #(db/load-index instance id) #(db/load-index-metadata instance id)))
         :available-media-types accepted-types
+        :etag (fn [ctx] (etag-from-metadata ctx))
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
-        :handle-ok (fn [_] (standard-response _ (db/load-index instance id)))))
+        :handle-ok (fn [_] (standard-response _ (::resource _)))))
 
     (ANY "/query/:index/:query" [index query]
        (resource

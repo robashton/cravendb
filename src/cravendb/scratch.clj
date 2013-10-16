@@ -14,7 +14,7 @@
 (defn number-seq 
   ([] (number-seq 0 ))
   ([i]
-   (cons (inc i) (lazy-seq (form-sequence (inc i))))))
+   (cons (inc i) (lazy-seq (number-seq (inc i))))))
 
 #_ (let [blah (number-seq)]
      (println "Lazy")
