@@ -13,7 +13,7 @@
   (str url "/bulk"))
 
 (defn url-for-stream [url etag]
-  (str url "/stream" (or etag "")))
+  (str url "/stream?etag=" (or etag "")))
 
 (defn url-for-query [url opts]
   (str 
@@ -80,8 +80,9 @@
 (defn stream 
   ([url] (stream url nil))
   ([url from-etag]
+    (println "Requesting" url from-etag)
     (with-open [client (http/create-client)]
-    (force-into-list
-      (process-response
-        (http/GET client (url-for-stream url from-etag) :headers default-headers))))))
+      (force-into-list
+        (process-response
+          (http/GET client (url-for-stream url from-etag) :headers default-headers))))))
 

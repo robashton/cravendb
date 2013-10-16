@@ -10,6 +10,8 @@
             [me.raynes.fs :as fs]
             [cravendb.storage :as s]
             [cravendb.documents :as docs]
+            [cravendb.core :refer [zero-etag]]
+            [clojure.tools.logging :refer [info error debug]]
             ))
 
 (defn start []
@@ -51,17 +53,41 @@
 ;; What I also probably want to do is keep a list of etags/ids written
 ;; and generate the stream information from that rather than hitting the database
 ;; ideally, consuming the stream shouldn't involve disk IO
+;; We can probably even push the stream as an edn stream using edn/read-string
 
 
 ;; Can possibly do this with core.async
-(defn synchronise [input dest]
-  (doseq [d (take 100 input)]
-
-    ))
-
 #_ (with-open [iter (s/get-iterator (:storage instance))] 
      (doall (map expand-document 
           (docs/iterate-etags-after iter (zero-etag)))))
 
+#_ (c/get-document "http://localhost:8080" "docs-1")
 
-#_ (c/stream "http://localhost:8080")
+(defn stream-sequence 
+  ([url] (stream-sequence url (zero-etag)))
+  ([url etag] (stream-sequence url etag (c/stream url etag)))
+  ([url last-etag src]
+   (if (empty? src) ()
+     (let [{:keys [metadata doc] :as item} (first src)]
+       (cons item (lazy-seq (stream-sequence url (:etag metadata) (rest src))))))))
+
+(defn pump-readers [etag]
+  (loop [last-etag etag
+         items (stream-sequence "http://localhost:8080" etag)]
+    (if (empty? items)
+      (do
+        (Thread/sleep 100)
+        (pump-readers last-etag))
+      (do
+        (let [batch (take 100 items)] 
+          (doseq [i batch]
+           (info "Pumping" (:doc i)))
+          (recur (get-in (last batch) [:metadata :etag]) (drop 100 items)))))))
+
+#_ (def worker (future (pump-readers (zero-etag))))
+#_ (future-cancel worker)
+
+#_ (do
+     (doall (drop 5020 (stream-sequence "http://localhost:8080"))) 
+     (println "sink")
+     )

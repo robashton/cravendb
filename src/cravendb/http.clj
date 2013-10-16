@@ -79,6 +79,7 @@
     (ANY "/stream" []
       (resource
         :allowed-methods [:get]
+        :exists? true
         :available-media-types accepted-types
         :handle-ok 
         (fn [ctx]
@@ -87,11 +88,11 @@
             (stream/from-etag 
               instance
               (or (get-in ctx [:request :params :etag]) (zero-etag))))))))) 
+
 (defn create-http-server [instance]
   (info "Setting up the bomb")
   (let [db-routes (create-db-routes instance)]
-    (-> (handler/api db-routes)
-      (wrap-trace :header :ui))))
+    (handler/api db-routes)))
 
 (defn -main []
   (with-open [instance (db/create "testdb")]
