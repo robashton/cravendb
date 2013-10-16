@@ -104,11 +104,6 @@
 #_ (def worker (future (pump-readers (zero-etag))))
 #_ (future-cancel worker)
 
-#_ (do
-     (doall (drop 5020 (stream-sequence "http://localhost:8080"))) 
-     (println "sink")
-     )
-
 ;; Master -> Slave Happenings (easy)
 
 ;; On starting up the second server, we should see the documents that were written to the first
@@ -134,7 +129,13 @@
 #_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bob"})
 #_ (c/get-document "http://localhost:8081" "great-doc")
 
+;; If I shut down the slave, it should continue from where it left off
+
+;; If I shut down the master, the slave should gracefully await instruction
+
+
 ;; Master -> Master Happenings (Currently impossible)
+;; Will ignore this until we have tests for master -> slave in place
 
 ;; On writing a document to the first server, it should appear in the second
 ;; It should not be replicated back to the other server (how?)
