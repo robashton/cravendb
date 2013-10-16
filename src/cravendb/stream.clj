@@ -7,6 +7,7 @@
 (defn expand-document [instance id]
   {
    :doc (db/load-document instance id)
+   :id id
    :metadata (db/load-document-metadata instance id)
    }) 
 

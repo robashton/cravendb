@@ -10,6 +10,7 @@
                  [ring "1.2.0"]
                  [compojure "1.1.5"]
                  [serializable-fn "1.1.3"]
+                 [clojurewerkz/vclock "1.0.0"]
                  [clj-time "0.6.0"]
                  [org.clojure/tools.nrepl "0.2.3"]
                  [org.fusesource.leveldbjni/leveldbjni-all "1.7"]

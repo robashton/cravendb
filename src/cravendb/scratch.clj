@@ -19,10 +19,21 @@
       (do
         (fs/delete-dir "testdb")
         (db/create "testdb"))) 
+
+    (def destinstance
+      (do
+        (fs/delete-dir "testdb2")
+        (db/create "testdb2")))
+
     (def server 
      (run-jetty 
       (http/create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
+    
+    (def destserver 
+     (run-jetty 
+      (http/create-http-server destinstance) 
+      { :port (Integer/parseInt (or (System/getenv "PORT") "8081")) :join? false}))
 
     (db/bulk instance
       (map (fn [i]
@@ -34,7 +45,9 @@
 
 (defn stop []
    (.stop server)   
-   (.close instance))
+   (.stop destserver)   
+   (.close instance)
+   (.close destinstance))
 
 
 (defn restart []
@@ -80,8 +93,11 @@
         (pump-readers last-etag))
       (do
         (let [batch (take 100 items)] 
-          (doseq [i batch]
-           (info "Pumping" (:doc i)))
+          (db/bulk 
+            destinstance
+            (map (fn [i] {:document (:doc i) :id (:id i) :operation :docs-put}) batch)
+                   )
+
           (recur (get-in (last batch) [:metadata :etag]) (drop 100 items)))))))
 
 #_ (def worker (future (pump-readers (zero-etag))))
