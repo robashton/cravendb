@@ -16,6 +16,7 @@
 
 (def instance nil)
 (def destinstance nil)
+
 ;;
 ;; What I really want is a stream of the whole documents and their metadata
 ;; In the order in which they were written from a specific e-tag
@@ -38,15 +39,19 @@
 (defn replication-operation [input]
   {:document (:doc input) :id (:id input) :operation :docs-put})
 
-
 (defn replicate-into [tx items] 
   (reduce 
     (fn [{:keys [tx total last-etag] :as state} 
          {:keys [id doc metadata]}]
-      (assoc state
-        :tx (docs/store-document tx id doc (:etag metadata))
-        :last-etag (:etag metadata)
-        :total (inc total))) 
+      (if doc
+        (assoc state
+          :tx (docs/store-document tx id doc (:etag metadata))
+          :last-etag (:etag metadata)
+          :total (inc total)) 
+        (assoc state
+          :tx (docs/delete-document tx id (:etag metadata))
+          :last-etag (:etag metadata)
+          :total (inc total)))) 
     { :tx tx :total 0 :last-etag (zero-etag) }
     items))
 
@@ -177,6 +182,7 @@
 #_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bob"})
 #_ (c/get-document "http://localhost:8081" "great-doc")
 
+
 ;; The slave stores where it is currently caught up to in storage somewhere
 ;; It also stores the number of documents it has received from each node
 ;; This will be useful for testing and feedback
@@ -189,6 +195,8 @@
 
 ;; If I delete a document in master, it should be deleted in slave
 
+#_ (c/delete-document "http://localhost:8080" "great-doc")
+#_ (c/get-document "http://localhost:8081" "great-doc")
 
 ;; Master -> Master Happenings (Currently impossible)
 ;; Will ignore this until we have tests for master -> slave in place
