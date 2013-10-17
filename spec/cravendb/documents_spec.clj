@@ -20,7 +20,7 @@
       (should= nil
         (-> tx
         (docs/store-document "1" "hello" "001")
-        (docs/delete-document "1")
+        (docs/delete-document "1" "002")
         (docs/load-document "1")))))))
 
 (describe "Transactions"

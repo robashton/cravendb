@@ -169,7 +169,7 @@
 ;; On updating documents in the first server, they should update in the second
 ;; They should have updated etags the same as the first
 
-#_ (c/put-document "http://localhost:8080" "great-doc" { :hello "world"})
+#_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bill"})
 #_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bob"})
 #_ (c/get-document "http://localhost:8081" "great-doc")
 

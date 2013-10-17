@@ -69,10 +69,16 @@
         last-etag)))))
 
 (defn delete-document 
-  [{:keys [storage]} id]
+  ([instance id document] (delete-document instance id document nil))
+  ([{:keys [storage last-etag] :as db} id document known-etag]
   (debug "deleting a document with id " id)
   (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! (docs/delete-document tx id))))
+    (s/commit! 
+      (docs/write-last-etag
+        (if (is-conflict tx id known-etag)
+          (docs/store-conflict tx id document known-etag (next-etag last-etag))
+          (docs/delete-document tx id document (next-etag last-etag)))
+        last-etag)))))
 
 (defn load-document 
   [{:keys [storage]} id]
@@ -115,7 +121,10 @@
   [{:keys [storage]} id]
   (debug "deleting an index" id)
   (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! (indexes/delete-index tx id))))
+    (s/commit! 
+      (docs/write-last-etag
+        (indexes/delete-index tx index (next-etag last-etag))
+        last-etag))))
 
 (defn load-index 
   [{:keys [storage]} id]

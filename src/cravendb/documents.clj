@@ -78,8 +78,11 @@
   (if-let [raw-doc (s/get-string session (str document-prefix id))]
     (edn/read-string raw-doc) nil))
 
-(defn delete-document [session id]
-  (s/delete session (str document-prefix id)))
+(defn delete-document [session id etag]
+  (-> session
+    (s/delete (str document-prefix id)
+    (s/store (str etags-to-docs-prefix etag) id)
+    (s/store (str docs-to-etags-prefix id) etag))))
 
 (defn iterate-documents-prefixed-with [iter prefix]
   (.seek iter (s/to-db (str document-prefix prefix)))
