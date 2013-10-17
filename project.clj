@@ -29,11 +29,11 @@
   :profiles {:dev {
                    :injections [(require 'spyscope.core)
                                 (require '[redl core complete])]
-                   :dependencies [[speclj "2.7.0"]
+                   :dependencies [[speclj "2.7.2"]
                                   [spyscope "0.1.3"]
                                   [redl "0.1.0"]
                                   [speclj-growl "2.1.0"]]}}
-  :plugins [[speclj "2.7.0"]]
+  :plugins [[speclj "2.7.2"]]
   :main cravendb.http
   :test-paths ["spec/"])
 

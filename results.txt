@@ -1,0 +1,172 @@
+
+Marking an index as failed
+[32m- will mark an index as failed if it throws exceptions[0m
+[32m- will mark the documents as indexed regardless of failure[0m
+[32m- will not use this index in further indexing processes[0m
+[32m- will carry on indexing non-broken indexes[0m
+
+Resetting an index
+[32m- will reset the last indexed etag for that index[0m
+[32m- will mark the index as not failed[0m
+
+Basic client operations
+[32m- returns null for a non-existent document[0m
+[32m- should be able to PUT and GET a document[0m
+[32m- be able to DELETE a document[0m
+
+passing clojure structures as documents
+[32m- should be able to put a map and retrieve it[0m
+[32m- should be able to put a sequence and retrieve it[0m
+[32m- should be able to put a vector and retrieve it[0m
+
+Creating an index on the server
+[32m- will be retrievable once on the server[0m
+
+Querying an index on the server
+[32m- will return documents matching the query[0m
+
+Querying for a deleted document
+[32m- will return no results[0m
+
+writing a single document
+[32m- will generate no conflicts[0m
+
+writing two documents in succession with no etags specified
+[32m- will generate no conflicts[0m
+
+writing two documents, with valid etags specified
+[32m- will generate no conflicts[0m
+
+writing a document with a different etag
+[32m- will generate a conflict[0m
+[32m- will have the document id in the conflict information[0m
+[32m- will have a new etag in the conflict information[0m
+[32m- will have the alternative document in the conflict information[0m
+[32m- will leave the original document intact[0m
+
+Clearing the conflicts for a document
+[32m- will remove all the conflicts for that document[0m
+[32m- will leave the conflicts for other documents[0m
+
+default index
+[32m- will search on exact short strings[0m
+[32m- will search on partial short strings[0m
+[32m- will do word-based matching on long strings[0m
+[32m- will do partial-word-based matching on long strings[0m
+[32m- will do exact matching on integers[0m
+[32m- will do less than matching on integers[0m
+[32m- will do greater than matching on integers[0m
+[32m- will exclude the literal from the less than range[0m
+[32m- will exclude the literal from the greater than range [0m
+[32m- will do less than or equal than matching on integers[0m
+[32m- will do greater than or equal than matching on integers[0m
+[32m- will allow queries against symbol based keys[0m
+[32m- will allow queries inside collections[0m
+[32m- will allow multiple claused joined by an 'and'[0m
+[32m- will allow multiple claused joined by an 'or'[0m
+[32m- will not include results when using a 'not'[0m
+
+Various db operations
+[32m- can put and get a document[0m
+[32m- returns nil for a non-existent document[0m
+[32m- can delete a document[0m
+
+Transactions
+[32m- will load a document from a committed transaction[0m
+
+Etags
+[32m- will have an etag starting at zero before anything is written[0m
+[32m- Will have an etag greater than zero after committing a single document[0m
+[32m- links an etag with a document upon writing[0m
+[32m- can retrieve documents written since an etag[0m
+
+Deciding which indexes to execute as a chaser
+[32m- will return indexes which are behind the head[0m
+[32m- will not return indexes that are up to head[0m
+[32m- will not return indexes which are already running as chasers[0m
+
+Deciding which indexes can be run from head
+[32m- will return indexes that are not chasers[0m
+[32m- will not return indexes that are chasers[0m
+
+Running index catch-ups
+[32m- will run indexes that are behind until they are caught up[0m
+
+handling deleted indexes
+[32m- will remove deleted indexes from the collection[0m
+
+indexing some documents
+[32m- will index all the documents[0m
+
+indexing new documents
+[32m- will index only the new documents[0m
+
+loading indexes from the database and querying using them
+[32m- will index all the documents[0m
+
+querying an index with content in it
+[32m- will return the right document ids[0m
+
+Running indexing with no documents or indexes
+[32m- will not fall over in a heap, crying with a bottle of whisky[0m
+
+Keeping track of per index status
+[32m- will start each tracker off at zero status[0m
+[32m- will set the tracker to the last indexed etag[0m
+
+Applying a filter to an index
+[32m- will not index documents not covered by the filter[0m
+[32m- will index documents covered by the filter[0m
+
+Getting a stream of documents from a source server
+[32m- will stream all of the documents[0m
+[32m- will start a page from the next etag specified[0m
+
+Various master/slave scenarios
+  a bulk insert on master
+[32m  - will cause the slave to contain all of the documents from the master[0m
+[32m  - will cause the slave to contain identical metadata[0m
+[32m  - will cause the slave contain identical documents[0m
+  Updating an existing replicated document in master
+[32m  - will cause the slave to contain the updated document[0m
+  Deleting an existing replicated document in master
+[32m  - will no longer be available for retrieval in slave[0m
+
+paging like a boss
+[32m- will return the first 10 docs[0m
+[32m- will return the last 5 docs[0m
+
+sorting
+[32m- will default to ascending order on a string[0m
+[32m- will accept descending order on a string[0m
+
+Chaser not able to complete because the last doc cannot index
+[32m- will actually catch up[0m
+
+Querying a newly created index
+[32m- will not fall over clutching a bottle of whisky[0m
+
+Putting and retrieving an object during a transaction
+[32m- will be able to retrieve the object[0m
+
+Storing, deleting, and getting an object during a transaction
+[32m- will be able to retrieve the object[0m
+
+Storing, deleting, storing and getting an object during a transaction
+[32m- will be able to retrieve the object[0m
+
+Asking for an object that doesn't exist in the transaction, but exists in the backing store
+[32m- will receive the object from the backing store[0m
+
+Asking for an object written during this transaction
+[32m- will not receive the object[0m
+
+Deleting an object that does not exist
+[32m- will achieve nothing[0m
+
+handling modified indexes
+[32m- will reset the etag of a modified index[0m
+[32m- will re-index documents for a modified index[0m
+
+Finished in 18.93780 seconds
+[32m86 examples, 0 failures[0m

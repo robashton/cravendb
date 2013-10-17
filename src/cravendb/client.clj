@@ -3,6 +3,7 @@
   (:require [cemerick.url :refer (url-encode)] 
             [clojure.edn :as edn]
             [cravendb.core :refer [zero-etag]]
+            [clojure.tools.logging :refer [debug info error]]
             ))
 
 (defn url-for-doc-id [url id]
@@ -86,7 +87,7 @@
 (defn stream 
   ([url] (stream url nil))
   ([url from-etag]
-    (println "Requesting" url from-etag)
+    (debug "Requesting" url from-etag)
     (with-open [client (http/create-client)]
       (force-into-list
         (process-response
