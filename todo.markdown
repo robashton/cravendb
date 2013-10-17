@@ -29,14 +29,15 @@
 ### Pending tasks
 
 - I should have an in-flight transaction system for dealing with concurrency
-- Process to remove deleted documents from index
 - Client should be handling HTTP results properly
 - HTTP API should be validating input
 - Cross-node-safe etag generation (vector clocks?)
 - Meta data storage for documents
+- Bulk operations don't take into account etags on put
 
 ### Pending debt/questions/bugs
 
+- The indexing engine isn't as robust as I'd like it to be
 - Can I use leveldb's write/read options to do my work for me?
 - Need to formalise that database thing and whether it supports transactions
 - I need to show sensible parsing errors on parsing failure

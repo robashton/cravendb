@@ -47,13 +47,14 @@
       (Thread/sleep 100))))) 
 
 (defn apply-map-to-document [index doc id]
-  (if (and (:filter index) (not ((:filter index) doc { :id id})))
+  (if (not doc) nil
+   (if (and (:filter index) (not ((:filter index) doc { :id id})))
     (do (debug "Skipping " id "because of filter on " (:id index)) nil)
     (try ((:map index) doc)
       (catch Exception ex
         (debug "Failed to index " id "because of" ex) 
         { :__exception ex}
-        ))))
+        ))))) 
 
 (defn index-docs [tx indexes ids]
   (debug "indexing documents with indexes" (map :id indexes))
@@ -83,7 +84,7 @@
   [ output {:keys [etag index-id id mapped]}] 
   (-> 
     (cond
-      (not mapped) output
+      (not mapped) (update-in output [:writers index-id] delete-from-writer id)
       (not (:__exception mapped))
         (-> output 
           (update-in [:writers index-id] delete-from-writer id)

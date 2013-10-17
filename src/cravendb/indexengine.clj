@@ -218,6 +218,3 @@
           :compiled-indexes (load-initial-indexes db) })]
     (set-error-handler! engine handle-agent-error)
     (EngineHandle. engine))) 
-
-
-

@@ -100,7 +100,7 @@
         (s/commit! (indexes/put-index tx { :id index-id :map by-name-map} "001")))
       (let [state-with-index (indexengine/refresh-indexes! @(:ea engine))]
         (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/delete-index tx index-id)))
+          (s/commit! (indexes/delete-index tx index-id "002")))
         (let [state-without-index (indexengine/refresh-indexes! state-with-index)]
           (should== ["default"] (map key (:compiled-indexes state-without-index)))))))) 
 

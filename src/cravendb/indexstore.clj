@@ -50,5 +50,5 @@
 (defn iterate-indexes [iter]
   (docs/iterate-documents-prefixed-with iter index-prefix))
 
-(defn delete-index [tx id]
-  (docs/delete-document tx (index-doc-id id)))
+(defn delete-index [tx id etag]
+  (docs/delete-document tx (index-doc-id id) etag))
