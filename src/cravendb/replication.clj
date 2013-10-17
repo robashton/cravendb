@@ -80,6 +80,14 @@
 (defn create [instance source-url]
   (ReplicationHandle. instance source-url))
 
-(defn wait [handle]
-  
-  )
+(defn wait-for  
+  ([handle etag] (wait-for handle etag 1000))
+  ([handle etag timeout]
+  (if (and 
+        (not= etag 
+         (last-replicated-etag (get-in handle [:instance :storage])
+                        (:source-url handle)))
+        (> timeout 0))
+    (do
+      (Thread/sleep 100)
+      (wait-for handle etag (- timeout 100))))))

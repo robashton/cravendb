@@ -2,7 +2,8 @@
   (:require [cravendb.database :as db]
             [cravendb.client :as c]
             [cravendb.testing :refer [start-server stop-server]]
-            [cravendb.replication :as replication])
+            [cravendb.replication :as replication]
+            [cravendb.documents :as docs])
 
   (:use [speclj.core]))
 
@@ -39,7 +40,8 @@
   (before-all 
     (insert-5000-documents (:instance @master))
     (replication/start @replicator)
-    (replication/wait-for "the last etag written to master"))
+    (replication/wait-for @replicator 
+                          (docs/last-etag-in (get-in @master [:instance :storage]))))
 
   (after-all
     (stop-server @master)
