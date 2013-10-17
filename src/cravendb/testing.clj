@@ -22,7 +22,7 @@
   (clear-test-data)
   (with-open [instance (database/create "testdir")]
     (let [result (testfn instance)]
-        (clear-test-data)      
+      (clear-test-data)      
         result)))
 
 (defn inside-tx [testfn]
@@ -42,3 +42,17 @@
         (finally
           (.stop server))))))
   (clear-test-data))
+
+(defn start-server []
+  (clear-test-data)
+  (let [instance (database/create "testdir")] 
+    {
+    :url "http://localhost:8080"
+    :instance instance
+    :server (run-jetty (http/create-http-server instance)
+                        {:port 8080 :join? false})
+    }))
+
+(defn stop-server [info]
+  (.stop (:server info))
+  (.close (:instance info)))

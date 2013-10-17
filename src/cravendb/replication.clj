@@ -4,7 +4,6 @@
             [cravendb.storage :as s]
             [cravendb.client :as c]))
 
-
 (defn replicate-into [tx items] 
   (reduce 
     (fn [{:keys [tx total last-etag] :as state} 
