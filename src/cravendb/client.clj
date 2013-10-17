@@ -1,7 +1,9 @@
 (ns cravendb.client
   (:require [http.async.client :as http])
   (:require [cemerick.url :refer (url-encode)] 
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [cravendb.core :refer [zero-etag]]
+            ))
 
 (defn url-for-doc-id [url id]
   (str url "/document/" id))
@@ -89,4 +91,12 @@
       (force-into-list
         (process-response
           (http/GET client (url-for-stream url from-etag) :headers default-headers))))))
+
+(defn stream-seq 
+  ([url] (stream-seq url (zero-etag)))
+  ([url etag] (stream-seq url etag (stream url etag)))
+  ([url last-etag src]
+   (if (empty? src) ()
+     (let [{:keys [metadata doc] :as item} (first src)]
+       (cons item (lazy-seq (stream-seq url (:etag metadata) (rest src))))))))
 

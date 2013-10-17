@@ -11,6 +11,7 @@
             [cravendb.storage :as s]
             [cravendb.documents :as docs]
             [cravendb.core :refer [zero-etag]]
+            [cravendb.replication :as replication]
             [clojure.tools.logging :refer [info error debug]]
             ))
 
@@ -27,74 +28,6 @@
 ;; and generate the stream information from that rather than hitting the database
 ;; ideally, consuming the stream shouldn't involve disk IO
 ;; We can probably even push the stream as an edn stream using edn/read-string
-
-(defn stream-sequence 
-  ([url] (stream-sequence url (zero-etag)))
-  ([url etag] (stream-sequence url etag (c/stream url etag)))
-  ([url last-etag src]
-   (if (empty? src) ()
-     (let [{:keys [metadata doc] :as item} (first src)]
-       (cons item (lazy-seq (stream-sequence url (:etag metadata) (rest src))))))))
-
-(defn replication-operation [input]
-  {:document (:doc input) :id (:id input) :operation :docs-put})
-
-(defn replicate-into [tx items] 
-  (reduce 
-    (fn [{:keys [tx total last-etag] :as state} 
-         {:keys [id doc metadata]}]
-      (if doc
-        (assoc state
-          :tx (docs/store-document tx id doc (:etag metadata))
-          :last-etag (:etag metadata)
-          :total (inc total)) 
-        (assoc state
-          :tx (docs/delete-document tx id (:etag metadata))
-          :last-etag (:etag metadata)
-          :total (inc total)))) 
-    { :tx tx :total 0 :last-etag (zero-etag) }
-    items))
-
-(defn store-last-etag [tx url etag]
-  (s/store tx (str "replication-last-etag-" url) (etag-to-integer etag)))
-
-(defn store-last-total [tx url total]
-  (s/store tx (str "replication-total-documents-" url) total))
-
-(defn last-replicated-etag [storage source-url]
-  (integer-to-etag
-    (s/get-integer storage (str "replication-last-etag-" source-url))))
-
-(defn replication-total [storage source-url]
-  (s/get-integer storage (str "replication-total-documents-" source-url)))
-
-(defn replicate-from [source-url items]
-  (with-open [tx (s/ensure-transaction (:storage destinstance))] 
-    (let [{:keys [tx last-etag total]} (replicate-into tx (take 100 items))] 
-      (-> tx
-        (store-last-etag source-url last-etag)
-        (store-last-total source-url total)
-        (s/commit!))))
-    (drop 100 items))
-
-(defn replication-status 
-  [storage source-url]
-    {
-     :last-etag (last-replicated-etag storage source-url)
-     :total (replication-total storage source-url) })
-
-(defn empty-replication-queue [source etag]
-  (loop [items (stream-sequence source etag)]
-    (if (not (empty? items))
-      (recur (replicate-from source items)))))
-
-(defn replication-loop [source]
-  (loop []
-    (empty-replication-queue 
-      source
-      (last-replicated-etag (:storage destinstance) source))
-    (Thread/sleep 50)
-    (recur)))
 
 
 (defn start-master []
@@ -114,6 +47,7 @@
 
 (defn start-slave []
   (def destinstance (db/create "testdb2"))
+  (def replication-handle (replication/create destinstance "http://localhost:8080"))
   (def destserver 
     (run-jetty 
     (http/create-http-server destinstance) 
@@ -125,14 +59,15 @@
 
 (defn stop-slave []
   (.stop destserver) 
-  (.close destinstance))
+  (.close destinstance)
+  (.close replication-handle))
 
 (defn start-slave-replication []
-  (def slave-replication 
-    (future (replication-loop "http://localhost:8080"))))
+  (replication/start replication-handle)
+  )
 
 (defn stop-slave-replication []
-  (future-cancel slave-replication))
+  (replication/stop replication-handle))
 
 (defn start []
   (start-master)
@@ -163,10 +98,10 @@
 ;; They should have the same etags as the first
 ;; They will anyway because it's a slave so it's "magic"
 
-#_ (count (stream-sequence "http://localhost:8081"))
-#_ (count (stream-sequence "http://localhost:8080"))
-#_ (first (stream-sequence "http://localhost:8081"))
-#_ (first (stream-sequence "http://localhost:8080"))
+#_ (count (c/stream-seq "http://localhost:8081"))
+#_ (count (c/stream-seq "http://localhost:8080"))
+#_ (first (c/stream-seq "http://localhost:8081"))
+#_ (first (c/stream-seq "http://localhost:8080"))
 
 ;; On adding documents to the first server, they should appear on the second
 ;; They should have the same etags as the first
