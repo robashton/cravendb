@@ -22,7 +22,12 @@
   (it "will stream 1024 documents at a time"
     (should= 1024 (count (c/stream-seq (:url @master)))))
   (it "will start a page from the next etag specified"
-      
+    (let [stream (c/stream-seq (:url @master))
+          first-etag (get-in (first stream) [:metadata :etag])
+          second-etag (get-in (second stream) [:metadata :etag])]
+      (should= second-etag
+        (get-in (first (c/stream-seq (:url @master) first-etag)) [:metadata :etag])) ))
+          
 
-      )
-          )
+
+)
