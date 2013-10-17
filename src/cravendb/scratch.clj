@@ -46,7 +46,7 @@
 
 (defn start-slave-replication []
   (def slave-replication 
-    (future (replication-loop "http://localhost:8080" (zero-etag)))))
+    (future (replication-loop "http://localhost:8080"))))
 
 (defn stop-slave-replication []
   (future-cancel slave-replication))
@@ -130,17 +130,18 @@
      :last-etag (last-replicated-etag storage source-url)
      :total (replication-total storage source-url) })
 
-(defn replication-loop [source etag]
-  (loop [last-etag etag
-         items (stream-sequence source etag)]
-    (if (empty? items)
-      (do
-        (Thread/sleep 50)
-        (recur last-etag (stream-sequence source last-etag)))
-      (do
-        (let [batch (take 100 items)] 
-          (db/bulk destinstance (map replication-operation batch))
-          (recur (get-in (last batch) [:metadata :etag]) (drop 100 items)))))))
+(defn empty-replication-queue [source etag]
+  (loop [items (stream-sequence source etag)]
+    (if (not (empty? items))
+      (recur (replicate-from source items)))))
+
+(defn replication-loop [source]
+  (loop []
+    (empty-replication-queue 
+      source
+      (last-replicated-etag (:storage destinstance) source))
+    (Thread/sleep 50)
+    (recur)))
 
 
 ;; Master -> Slave Happenings (easy)
