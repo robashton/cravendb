@@ -89,7 +89,6 @@
  
 
 ;; Master -> Slave Happenings (easy)
-;; NOTE we need the bulk operation and the writing of "last etag" to happen in a tx
 ;; NOTE: We're not taking into account indexing as part of this if we bypass database
 ;; Maybe indexing needs to be reading off a queue
 ;; Or maybe indexing needs to have a queue as an extra
@@ -98,8 +97,8 @@
 ;; They should have the same etags as the first
 ;; They will anyway because it's a slave so it's "magic"
 
-#_ (count (c/stream-seq "http://localhost:8081"))
 #_ (count (c/stream-seq "http://localhost:8080"))
+#_ (count (c/stream-seq "http://localhost:8081"))
 #_ (first (c/stream-seq "http://localhost:8081"))
 #_ (first (c/stream-seq "http://localhost:8080"))
 

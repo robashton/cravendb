@@ -43,16 +43,19 @@
           (.stop server))))))
   (clear-test-data))
 
-(defn start-server []
-  (clear-test-data)
-  (let [instance (database/create "testdir")] 
+(defn start-server 
+  ([] (start-server 8080))
+  ([port]
+  (fs/delete-dir (str "testdir" port))
+  (let [instance (database/create (str "testdir" port))] 
     {
-    :url "http://localhost:8080"
+    :port port
+    :url (str "http://localhost:" port)
     :instance instance
     :server (run-jetty (http/create-http-server instance)
-                        {:port 8080 :join? false})
-    }))
+                        {:port port :join? false}) })))
 
 (defn stop-server [info]
   (.stop (:server info))
-  (.close (:instance info)))
+  (.close (:instance info))
+  (fs/delete-dir (str "testdir" (:port info))))

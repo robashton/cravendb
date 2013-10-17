@@ -96,7 +96,11 @@
   ([url] (stream-seq url (zero-etag)))
   ([url etag] (stream-seq url etag (stream url etag)))
   ([url last-etag src]
-   (if (empty? src) ()
+   (if (empty? src) 
+     (do
+       (let [next-src (stream url last-etag)]
+         (if (empty? next-src) ()
+           (stream-seq url last-etag next-src))))
      (let [{:keys [metadata doc] :as item} (first src)]
        (cons item (lazy-seq (stream-seq url (:etag metadata) (rest src))))))))
 

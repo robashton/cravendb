@@ -79,3 +79,7 @@
 
 (defn create [instance source-url]
   (ReplicationHandle. instance source-url))
+
+(defn wait [handle]
+  
+  )
