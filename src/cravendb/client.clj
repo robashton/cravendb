@@ -33,11 +33,15 @@
   (if (nil? result) ()
    (if (seq? result) result (seq [result]))))
 
+(defn from-http [input]
+  (if (= 404 (:code @(:status input)))
+    nil
+    (from-db (http/string input))))
+
 (defn process-response [response]
   (-> response
       http/await
-      http/string
-      from-db))
+      from-http))
 
 (def default-headers { :accept "application/edn" })
 

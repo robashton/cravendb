@@ -14,61 +14,9 @@
             [clojure.tools.logging :refer [info error debug]]
             ))
 
-(defn start-master []
-  (def instance (db/create "testdb")) 
-    (def server 
-     (run-jetty 
-      (http/create-http-server instance) 
-      { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
-
-  (db/bulk instance
-      (map (fn [i]
-      {
-        :operation :docs-put
-        :id (str "docs-" i)
-        :document { :whatever (str "Trolololol" i)} 
-        }) (range 0 5000))))
-
-(defn start-slave []
-  (def destinstance (db/create "testdb2"))
-  (def destserver 
-    (run-jetty 
-    (http/create-http-server destinstance) 
-    { :port (Integer/parseInt (or (System/getenv "PORT") "8081")) :join? false})))
-
-(defn stop-master []
-   (.stop server)   
-   (.close instance))
-
-(defn stop-slave []
-  (.stop destserver) 
-  (.close destinstance))
-
-(defn start-slave-replication []
-  (def slave-replication 
-    (future (replication-loop "http://localhost:8080"))))
-
-(defn stop-slave-replication []
-  (future-cancel slave-replication))
-
-(defn start []
-  (start-master)
-  (start-slave))
-
-(defn stop []
-  (stop-master)
-  (stop-slave))
-
-(defn restart []
-  (stop)
-  (fs/delete-dir "testdb") 
-  (fs/delete-dir "testdb2") 
-  (start))
-
-
-#_ (start)
-#_ (restart)
- 
+(def instance nil)
+(def destinstance nil)
+;;
 ;; What I really want is a stream of the whole documents and their metadata
 ;; In the order in which they were written from a specific e-tag
 ;; What I'd probably do is keep documents in memory once written
@@ -143,6 +91,62 @@
     (Thread/sleep 50)
     (recur)))
 
+
+(defn start-master []
+  (def instance (db/create "testdb")) 
+    (def server 
+     (run-jetty 
+      (http/create-http-server instance) 
+      { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
+
+  (db/bulk instance
+      (map (fn [i]
+      {
+        :operation :docs-put
+        :id (str "docs-" i)
+        :document { :whatever (str "Trolololol" i)} 
+        }) (range 0 5000))))
+
+(defn start-slave []
+  (def destinstance (db/create "testdb2"))
+  (def destserver 
+    (run-jetty 
+    (http/create-http-server destinstance) 
+    { :port (Integer/parseInt (or (System/getenv "PORT") "8081")) :join? false})))
+
+(defn stop-master []
+   (.stop server)   
+   (.close instance))
+
+(defn stop-slave []
+  (.stop destserver) 
+  (.close destinstance))
+
+(defn start-slave-replication []
+  (def slave-replication 
+    (future (replication-loop "http://localhost:8080"))))
+
+(defn stop-slave-replication []
+  (future-cancel slave-replication))
+
+(defn start []
+  (start-master)
+  (start-slave))
+
+(defn stop []
+  (stop-master)
+  (stop-slave))
+
+(defn restart []
+  (stop)
+  (fs/delete-dir "testdb") 
+  (fs/delete-dir "testdb2") 
+  (start))
+
+
+#_ (start)
+#_ (restart)
+ 
 
 ;; Master -> Slave Happenings (easy)
 ;; NOTE we need the bulk operation and the writing of "last etag" to happen in a tx
