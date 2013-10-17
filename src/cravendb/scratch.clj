@@ -14,28 +14,14 @@
             [clojure.tools.logging :refer [info error debug]]
             ))
 
-(defn start []
-    (def instance 
-      (do
-        (fs/delete-dir "testdb")
-        (db/create "testdb"))) 
-
-    (def destinstance
-      (do
-        (fs/delete-dir "testdb2")
-        (db/create "testdb2")))
-
+(defn start-master []
+  (def instance (db/create "testdb")) 
     (def server 
      (run-jetty 
       (http/create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
-    
-    (def destserver 
-     (run-jetty 
-      (http/create-http-server destinstance) 
-      { :port (Integer/parseInt (or (System/getenv "PORT") "8081")) :join? false}))
 
-    (db/bulk instance
+  (db/bulk instance
       (map (fn [i]
       {
         :operation :docs-put
@@ -43,15 +29,40 @@
         :document { :whatever (str "Trolololol" i)} 
         }) (range 0 5000))))
 
-(defn stop []
-   (.stop server)   
-   (.stop destserver)   
-   (.close instance)
-   (.close destinstance))
+(defn start-slave []
+  (def destinstance (db/create "testdb2"))
+  (def destserver 
+    (run-jetty 
+    (http/create-http-server destinstance) 
+    { :port (Integer/parseInt (or (System/getenv "PORT") "8081")) :join? false})))
 
+(defn stop-master []
+   (.stop server)   
+   (.close instance))
+
+(defn stop-slave []
+  (.stop destserver) 
+  (.close destinstance))
+
+(defn start-slave-replication []
+  (def slave-replication 
+    (future (replication-loop "http://localhost:8080" (zero-etag)))))
+
+(defn stop-slave-replication []
+  (future-cancel slave-replication))
+
+(defn start []
+  (start-master)
+  (start-slave))
+
+(defn stop []
+  (stop-master)
+  (stop-slave))
 
 (defn restart []
   (stop)
+  (fs/delete-dir "testdb") 
+  (fs/delete-dir "testdb2") 
   (start))
 
 
@@ -68,15 +79,6 @@
 ;; ideally, consuming the stream shouldn't involve disk IO
 ;; We can probably even push the stream as an edn stream using edn/read-string
 
-
-;; Can possibly do this with core.async
-#_ (with-open [iter (s/get-iterator (:storage instance))] 
-     (doall (map expand-document 
-          (docs/iterate-etags-after iter (zero-etag)))))
-
-#_ (c/get-document "http://localhost:8080" "docs-1")
-#_ (c/put-document "http://localhost:8080" "robisamazing" { :foo "bar"})
-
 (defn stream-sequence 
   ([url] (stream-sequence url (zero-etag)))
   ([url etag] (stream-sequence url etag (c/stream url etag)))
@@ -85,26 +87,67 @@
      (let [{:keys [metadata doc] :as item} (first src)]
        (cons item (lazy-seq (stream-sequence url (:etag metadata) (rest src))))))))
 
-(defn pump-readers [etag]
+(defn replication-operation [input]
+  {:document (:doc input) :id (:id input) :operation :docs-put})
+
+
+(defn replicate-into [tx items] 
+  (reduce 
+    (fn [{:keys [tx total last-etag] :as state} 
+         {:keys [id doc metadata]}]
+      (assoc state
+        :tx (docs/store-document tx id doc (:etag metadata))
+        :last-etag (:etag metadata)
+        :total (inc total))) 
+    { :tx tx :total 0 :last-etag (zero-etag) }
+    items))
+
+(defn store-last-etag [tx url etag]
+  (s/store tx (str "replication-last-etag-" url) (etag-to-integer etag)))
+
+(defn store-last-total [tx url total]
+  (s/store tx (str "replication-total-documents-" url) total))
+
+(defn last-replicated-etag [storage source-url]
+  (integer-to-etag
+    (s/get-integer storage (str "replication-last-etag-" source-url))))
+
+(defn replication-total [storage source-url]
+  (s/get-integer storage (str "replication-total-documents-" source-url)))
+
+(defn replicate-from [source-url items]
+  (with-open [tx (s/ensure-transaction (:storage destinstance))] 
+    (let [{:keys [tx last-etag total]} (replicate-into tx (take 100 items))] 
+      (-> tx
+        (store-last-etag source-url last-etag)
+        (store-last-total source-url total)
+        (s/commit!))))
+    (drop 100 items))
+
+(defn replication-status 
+  [storage source-url]
+    {
+     :last-etag (last-replicated-etag storage source-url)
+     :total (replication-total storage source-url) })
+
+(defn replication-loop [source etag]
   (loop [last-etag etag
-         items (stream-sequence "http://localhost:8080" etag)]
+         items (stream-sequence source etag)]
     (if (empty? items)
       (do
-        (Thread/sleep 100)
-        (pump-readers last-etag))
+        (Thread/sleep 50)
+        (recur last-etag (stream-sequence source last-etag)))
       (do
         (let [batch (take 100 items)] 
-          (db/bulk 
-            destinstance
-            (map (fn [i] {:document (:doc i) :id (:id i) :operation :docs-put}) batch)
-                   )
-
+          (db/bulk destinstance (map replication-operation batch))
           (recur (get-in (last batch) [:metadata :etag]) (drop 100 items)))))))
 
-#_ (def worker (future (pump-readers (zero-etag))))
-#_ (future-cancel worker)
 
 ;; Master -> Slave Happenings (easy)
+;; NOTE we need the bulk operation and the writing of "last etag" to happen in a tx
+;; NOTE: We're not taking into account indexing as part of this if we bypass database
+;; Maybe indexing needs to be reading off a queue
+;; Or maybe indexing needs to have a queue as an extra
 
 ;; On starting up the second server, we should see the documents that were written to the first
 ;; They should have the same etags as the first
@@ -133,12 +176,13 @@
 ;; It also stores the number of documents it has received from each node
 ;; This will be useful for testing and feedback
 
-#_ (replication-status destinstance "http://localhost:8080")
+#_ (replication-status (:storage destinstance) "http://localhost:8080")
 
 ;; If I shut down the slave, it should continue from where it left off
 
-
 ;; If I shut down the master, the slave should gracefully await instruction
+
+;; If I delete a document in master, it should be deleted in slave
 
 
 ;; Master -> Master Happenings (Currently impossible)
@@ -155,7 +199,3 @@
 ;; We should know that a2 is a descendent of a1
 ;; We can do that by using vector-clocks
 ;; We could also achieve it by storing an audit history (this would get expensive)
-
-
-
-
