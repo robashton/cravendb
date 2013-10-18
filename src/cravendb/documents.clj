@@ -10,6 +10,7 @@
 (def conflict-prefix "conflict-")
 (def document-prefix "doc-")
 (def last-synctag-key "last-synctag")
+(def docs-to-history-prefix "docs-to-history-")
 
 (defn is-document-key [^String k]
   (.startsWith k document-prefix))
@@ -47,8 +48,6 @@
                     :id id
                     :data document })))
 
-
-
 (defn conflicts 
   ([db] (conflicts db ""))
   ([db prefix]
@@ -68,21 +67,27 @@
 (defn without-conflicts [tx doc-id]
   (reduce #(without-conflict %1 (:id %2) (:synctag %2)) tx (conflicts tx doc-id)))
 
-(defn store-document [db id document synctag] 
+(defn store-document 
+  ([db id document synctag] (store-document db id document synctag ""))
+  ([db id document synctag history] 
   (-> db
     (s/store (str document-prefix id) (pr-str document))
     (s/store (str synctags-to-docs-prefix synctag) id)
-    (s/store (str docs-to-synctags-prefix id) synctag)))
+    (s/store (str docs-to-synctags-prefix id) synctag)
+    (s/store (str docs-to-history-prefix id) history))))
 
 (defn load-document [session id] 
   (if-let [raw-doc (s/get-string session (str document-prefix id))]
     (edn/read-string raw-doc) nil))
 
-(defn delete-document [session id synctag]
+(defn delete-document 
+  ([session id synctag] (delete-document id synctag ""))
+  ([session id synctag history]
   (-> session
     (s/delete (str document-prefix id))
     (s/store (str synctags-to-docs-prefix synctag) id)
-    (s/store (str docs-to-synctags-prefix id) synctag)))
+    (s/store (str docs-to-synctags-prefix id) synctag)
+    (s/store (str docs-to-history-prefix id) history))))
 
 (defn iterate-documents-prefixed-with [iter prefix]
   (.seek iter (s/to-db (str document-prefix prefix)))
