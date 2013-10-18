@@ -39,7 +39,7 @@
 
 (defn write-last-synctag
   [tx last-synctag]
-  (s/store tx last-synctag-key (integer-to-synctag @last-synctag)))
+  (s/store tx last-synctag-key (integer-to-synctag last-synctag)))
 
 (defn store-conflict [db id document old-synctag new-synctag]
   (s/store db (str conflict-prefix id new-synctag)
@@ -78,6 +78,10 @@
 
 (defn load-document [session id] 
   (if-let [raw-doc (s/get-string session (str document-prefix id))]
+    (edn/read-string raw-doc) nil))
+
+(defn load-document-metadata [session id]
+  (if-let [raw-doc (s/get-string session (str docs-to-metadata-prefix id))]
     (edn/read-string raw-doc) nil))
 
 (defn delete-document 

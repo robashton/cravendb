@@ -56,29 +56,30 @@
   (with-open [tx (s/ensure-transaction storage)] 
     (s/commit! (docs/without-conflicts tx id))))
 
+(defn in-tx [{:keys [storage last-synctag] :as instance} f]
+  (with-open [tx (s/ensure-transaction storage)] 
+    (s/commit!
+      (docs/write-last-synctag (f tx) @last-synctag))))
+
 (defn put-document 
   ([instance id document] (put-document instance id document nil))
-  ([{:keys [storage last-synctag] :as db} id document known-synctag]
+  ([{:keys [last-synctag] :as instance} id document known-synctag]
   (debug "putting a document:" id document known-synctag)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-synctag
-        (if (is-conflict tx id known-synctag)
-          (docs/store-conflict tx id document known-synctag (next-synctag last-synctag))
-          (docs/store-document tx id document (next-synctag last-synctag)))
-        last-synctag)))))
+   (in-tx instance 
+     (fn [tx]
+       (if (is-conflict tx id known-synctag)
+         (docs/store-conflict tx id document known-synctag (next-synctag last-synctag))
+         (docs/store-document tx id document (next-synctag last-synctag)))))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([{:keys [storage last-synctag] :as db} id known-synctag]
+  ([{:keys [last-synctag] :as instance} id known-synctag]
   (debug "deleting a document with id " id)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-synctag
-        (if (is-conflict tx id known-synctag)
-          (docs/store-conflict tx id :deleted known-synctag (next-synctag last-synctag))
-          (docs/delete-document tx id (next-synctag last-synctag)))
-        last-synctag)))))
+  (in-tx instance 
+     (fn [tx]
+       (if (is-conflict tx id known-synctag)
+         (docs/store-conflict tx id :deleted known-synctag (next-synctag last-synctag))
+         (docs/delete-document tx id (next-synctag last-synctag)))))))
 
 (defn load-document 
   [{:keys [storage]} id]
@@ -91,26 +92,21 @@
   {:synctag (docs/synctag-for-doc storage id)})
 
 (defn bulk 
-  [{:keys [storage last-synctag]} operations]
+  [{:keys [last-synctag] :as instance} operations]
   (debug "Bulk operation: ")
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-synctag
-        (:tx 
-          (reduce
-            interpret-bulk-operation
-            {:tx tx :last-synctag last-synctag}
-            operations))
-        last-synctag))))
+  (in-tx instance 
+    (fn [tx] (:tx 
+    (reduce
+      interpret-bulk-operation
+      {:tx tx :last-synctag last-synctag}
+      operations)))))
 
 (defn put-index 
-  [{:keys [storage last-synctag]} index]
+  [{:keys [last-synctag] :as instance} index]
   (debug "putting an in index:" index)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-synctag
-        (indexes/put-index tx index (next-synctag last-synctag))
-        last-synctag))))
+  (in-tx instance 
+    (fn [tx] 
+      (indexes/put-index tx index (next-synctag last-synctag)))))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -118,13 +114,10 @@
   {:synctag (indexes/synctag-for-index storage id)})
 
 (defn delete-index 
-  [{:keys [storage last-synctag]} id]
+  [{:keys [storage last-synctag] :as instance} id]
   (debug "deleting an index" id)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-synctag
-        (indexes/delete-index tx id (next-synctag last-synctag))
-        last-synctag))))
+  (in-tx instance 
+    (fn [tx] (indexes/delete-index tx id (next-synctag last-synctag)))))
 
 (defn load-index 
   [{:keys [storage]} id]
