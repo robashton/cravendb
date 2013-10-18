@@ -1,34 +1,34 @@
 (ns cravendb.replication
   (:require [cravendb.documents :as docs]
-            [cravendb.core :refer [zero-etag etag-to-integer integer-to-etag]]
+            [cravendb.core :refer [zero-synctag synctag-to-integer integer-to-synctag]]
             [cravendb.storage :as s]
             [cravendb.client :as c]))
 
 (defn replicate-into [tx items] 
   (reduce 
-    (fn [{:keys [tx total last-etag] :as state} 
+    (fn [{:keys [tx total last-synctag] :as state} 
          {:keys [id doc metadata]}]
       (if doc
         (assoc state
-          :tx (docs/store-document tx id doc (:etag metadata))
-          :last-etag (:etag metadata)
+          :tx (docs/store-document tx id doc (:synctag metadata))
+          :last-synctag (:synctag metadata)
           :total (inc total)) 
         (assoc state
-          :tx (docs/delete-document tx id (:etag metadata))
-          :last-etag (:etag metadata)
+          :tx (docs/delete-document tx id (:synctag metadata))
+          :last-synctag (:synctag metadata)
           :total (inc total)))) 
-    { :tx tx :total 0 :last-etag (zero-etag) }
+    { :tx tx :total 0 :last-synctag (zero-synctag) }
     items))
 
-(defn store-last-etag [tx url etag]
-  (s/store tx (str "replication-last-etag-" url) (etag-to-integer etag)))
+(defn store-last-synctag [tx url synctag]
+  (s/store tx (str "replication-last-synctag-" url) (synctag-to-integer synctag)))
 
 (defn store-last-total [tx url total]
   (s/store tx (str "replication-total-documents-" url) total))
 
-(defn last-replicated-etag [storage source-url]
-  (integer-to-etag
-    (s/get-integer storage (str "replication-last-etag-" source-url))))
+(defn last-replicated-synctag [storage source-url]
+  (integer-to-synctag
+    (s/get-integer storage (str "replication-last-synctag-" source-url))))
 
 (defn replication-total [storage source-url]
   (s/get-integer storage (str "replication-total-documents-" source-url)))
@@ -36,20 +36,20 @@
 (defn replication-status 
   [storage source-url]
     {
-     :last-etag (last-replicated-etag storage source-url)
+     :last-synctag (last-replicated-synctag storage source-url)
      :total (replication-total storage source-url) })
 
 (defn replicate-from [storage source-url items]
   (with-open [tx (s/ensure-transaction storage)] 
-    (let [{:keys [tx last-etag total]} (replicate-into tx (take 100 items))] 
+    (let [{:keys [tx last-synctag total]} (replicate-into tx (take 100 items))] 
       (-> tx
-        (store-last-etag source-url last-etag)
+        (store-last-synctag source-url last-synctag)
         (store-last-total source-url total)
         (s/commit!))))
     (drop 100 items))
 
-(defn empty-replication-queue [storage-destination source-url etag]
-  (loop [items (c/stream-seq source-url etag)]
+(defn empty-replication-queue [storage-destination source-url synctag]
+  (loop [items (c/stream-seq source-url synctag)]
     (if (not (empty? items))
       (recur (replicate-from storage-destination source-url items)))))
 
@@ -58,7 +58,7 @@
     (empty-replication-queue 
       storage     
       source-url
-      (last-replicated-etag storage source-url))
+      (last-replicated-synctag storage source-url))
     (Thread/sleep 50)
     (recur)))
 
@@ -81,13 +81,13 @@
   (ReplicationHandle. instance source-url))
 
 (defn wait-for  
-  ([handle etag] (wait-for handle etag 1000))
-  ([handle etag timeout]
+  ([handle synctag] (wait-for handle synctag 1000))
+  ([handle synctag timeout]
   (if (and 
-        (not= etag 
-         (last-replicated-etag (get-in handle [:instance :storage])
+        (not= synctag 
+         (last-replicated-synctag (get-in handle [:instance :storage])
                         (:source-url handle)))
         (> timeout 0))
     (do
       (Thread/sleep 100)
-      (wait-for handle etag (- timeout 100))))))
+      (wait-for handle synctag (- timeout 100))))))

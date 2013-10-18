@@ -25,12 +25,12 @@
   (it "will stream all of the documents"
     (should= 2000 (count (c/stream-seq (:url @master)))))
 
-  (it "will start a page from the next etag specified"
+  (it "will start a page from the next synctag specified"
     (let [stream (c/stream-seq (:url @master))
-          first-etag (get-in (first stream) [:metadata :etag])
-          second-etag (get-in (second stream) [:metadata :etag])]
-      (should= second-etag
-        (get-in (first (c/stream-seq (:url @master) first-etag)) [:metadata :etag])) ))) 
+          first-synctag (get-in (first stream) [:metadata :synctag])
+          second-synctag (get-in (second stream) [:metadata :synctag])]
+      (should= second-synctag
+        (get-in (first (c/stream-seq (:url @master) first-synctag)) [:metadata :synctag])) ))) 
 
 
 
@@ -41,7 +41,7 @@
     (with replicator (replication/create (:instance @slave) (:url @master)))
     (with wait-for-replication 
       (fn [] (replication/wait-for @replicator 
-               (docs/last-etag-in (get-in @master [:instance :storage])))))
+               (docs/last-synctag-in (get-in @master [:instance :storage])))))
     (before 
       (replication/start @replicator))
     (after

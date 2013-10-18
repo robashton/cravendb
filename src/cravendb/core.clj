@@ -7,19 +7,19 @@
 
 (defn extract-value-from-expanded-iterator [m] (m :v))
 
-(defn integer-to-etag [integer]
+(defn integer-to-synctag [integer]
   (format "%030d" integer))
 
-(defn etag-to-integer [etag]
-  (Integer/parseInt etag))
+(defn synctag-to-integer [synctag]
+  (Integer/parseInt synctag))
 
-(defn zero-etag [] (integer-to-etag 0))
+(defn zero-synctag [] (integer-to-synctag 0))
 
-(defn newest-etag [one two]
-  (integer-to-etag (max (etag-to-integer one) (etag-to-integer two))))
+(defn newest-synctag [one two]
+  (integer-to-synctag (max (synctag-to-integer one) (synctag-to-integer two))))
 
-(defn next-etag [etag]
-  (integer-to-etag (inc (etag-to-integer etag))))
+(defn next-synctag [synctag]
+  (integer-to-synctag (inc (synctag-to-integer synctag))))
 
 (defn ex-expand [ex]
   [ (.getMessage ex) (map #(.toString %1) (.getStackTrace ex))])

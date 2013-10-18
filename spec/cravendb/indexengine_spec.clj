@@ -17,17 +17,17 @@
 (defn store-test-index! [instance]
   (database/put-index instance { :id index-id :map by-name-map}))
 
-(defn set-etags-of-index-and-head [db index-etag-int head-etag-int]
+(defn set-synctags-of-index-and-head [db index-synctag-int head-synctag-int]
   (with-open [tx (s/ensure-transaction db)]
     (-> tx
-      (indexes/set-last-indexed-etag-for-index index-id (integer-to-etag index-etag-int))
-      (s/store (str indexing/last-indexed-etag-key) (integer-to-etag head-etag-int))
+      (indexes/set-last-indexed-synctag-for-index index-id (integer-to-synctag index-synctag-int))
+      (s/store (str indexing/last-indexed-synctag-key) (integer-to-synctag head-synctag-int))
       (s/commit!))))
 
 (describe "Deciding which indexes to execute as a chaser"
   (it "will return indexes which are behind the head"
     (with-db (fn [db]
-       (set-etags-of-index-and-head db 0 10)
+       (set-synctags-of-index-and-head db 0 10)
        (with-open [tx (s/ensure-transaction db)] 
         (should (indexengine/needs-a-new-chaser 
             {
@@ -41,7 +41,7 @@
 
   (it "will not return indexes that are up to head"
     (with-db (fn [db]
-      (set-etags-of-index-and-head db 10 10)
+      (set-synctags-of-index-and-head db 10 10)
       (with-open [tx (s/ensure-transaction db)] 
         (should-not (indexengine/needs-a-new-chaser 
             {
@@ -55,7 +55,7 @@
 
   (it "will not return indexes which are already running as chasers"
     (with-db (fn [db]
-      (set-etags-of-index-and-head db 0 10)
+      (set-synctags-of-index-and-head db 0 10)
       (with-open [tx (s/ensure-transaction db)] 
         (should-not (indexengine/needs-a-new-chaser 
             {
@@ -88,8 +88,8 @@
       (indexing/wait-for-index-catch-up storage 1)
       (store-test-index! instance)
       (indexing/wait-for-index-catch-up storage index-id 1)
-      (should= (integer-to-etag 4) 
-        (indexes/get-last-indexed-etag-for-index storage index-id))))))
+      (should= (integer-to-synctag 4) 
+        (indexes/get-last-indexed-synctag-for-index storage index-id))))))
 
 
 (describe "handling deleted indexes"

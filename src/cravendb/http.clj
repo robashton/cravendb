@@ -7,7 +7,7 @@
             [liberator.dev :refer [wrap-trace]]
             [cravendb.database :as db]
             [cravendb.stream :as stream]
-            [cravendb.core :refer [zero-etag]]
+            [cravendb.core :refer [zero-synctag]]
             )
 
   (:use compojure.core
@@ -30,8 +30,8 @@
      ::metadata (mfn)}
     false))
 
-(defn etag-from-metadata [ctx]
-  (get-in ctx [::metadata :etag]))
+(defn synctag-from-metadata [ctx]
+  (get-in ctx [::metadata :synctag]))
 
 (defn craven-resource [])
 
@@ -42,7 +42,7 @@
         :allowed-methods [:put :get :delete]
         :exists? (fn [ctx] (resource-exists ctx #(db/load-document instance id) #(db/load-document-metadata instance id)))
         :available-media-types accepted-types
-        :etag (fn [ctx] (etag-from-metadata ctx))
+        :etag (fn [ctx] (synctag-from-metadata ctx))
         :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
         :delete! (fn [_] (db/delete-document instance id)) 
         :handle-ok (fn [_] (standard-response _ (::resource _)))))
@@ -52,7 +52,7 @@
         :allowed-methods [:put :get :delete]
         :exists? (fn [ctx] (resource-exists ctx #(db/load-index instance id) #(db/load-index-metadata instance id)))
         :available-media-types accepted-types
-        :etag (fn [ctx] (etag-from-metadata ctx))
+        :etag (fn [ctx] (synctag-from-metadata ctx))
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
         :handle-ok (fn [_] (standard-response _ (::resource _)))))
@@ -85,9 +85,9 @@
         (fn [ctx]
           (standard-response 
             ctx
-            (stream/from-etag 
+            (stream/from-synctag 
               instance
-              (or (get-in ctx [:request :params :etag]) (zero-etag))))))))) 
+              (or (get-in ctx [:request :params :synctag]) (zero-synctag))))))))) 
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")

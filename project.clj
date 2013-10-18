@@ -23,6 +23,7 @@
                  [org.apache.lucene/lucene-core "4.4.0"]
                  [org.apache.lucene/lucene-queryparser "4.4.0"]
                  [org.apache.lucene/lucene-analyzers-common "4.4.0"]
+                 [org.clojure/data.codec "0.1.0"]
                  [org.apache.lucene/lucene-highlighter "4.4.0"]]
 
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}

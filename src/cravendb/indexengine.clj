@@ -11,7 +11,7 @@
            [clojure.edn :as edn]))
 
 (defn storage-path-for-index [index]
-  (str (:id index) "-" (or (:etag index) "")))
+  (str (:id index) "-" (or (:synctag index) "")))
 
 (defn open-storage-for-index [path index]
   (let [storage (lucene/create-index (File. path (storage-path-for-index index)))]
@@ -20,7 +20,7 @@
       (assoc :writer (lucene/open-writer storage)))))
 
 (defn read-index-data [tx index]
-  (assoc index :etag (indexes/etag-for-index tx (:id index))))
+  (assoc index :synctag (indexes/synctag-for-index tx (:id index))))
 
 (defn all-indexes [db]
   (try
@@ -61,7 +61,7 @@
 
 (defn index-is-equal [index-one index-two]
   (and (= (:id index-one) (:id index-two))
-       (= (:etag index-one) (:etag index-two))))
+       (= (:synctag index-one) (:synctag index-two))))
 
 (defn new-indexes [db current all]
   (map-indexes-by-id
@@ -72,7 +72,7 @@
 (defn deleted-indexes [current all]
   (into {} 
     (for [i (filter #(not-any? (partial = %1) (map :id all))
-      (map :id (filter :etag (map val current))))] [i nil])))
+      (map :id (filter :synctag (map val current))))] [i nil])))
 
 (defn close-obsolete-indexes! [existing new deleted]
   (doseq [[id index] deleted]
@@ -111,8 +111,8 @@
   (debug "Checking if we need a new chaser for" (:id index))
   (and
     (not= 
-      (indexing/last-indexed-etag (:db engine)) 
-      (indexes/get-last-indexed-etag-for-index 
+      (indexing/last-indexed-synctag (:db engine)) 
+      (indexes/get-last-indexed-synctag-for-index 
         (:db engine) 
         (:id index)))
     (not-any? 

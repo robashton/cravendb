@@ -9,11 +9,11 @@
             [cravendb.indexstore :as indexes]
             [cravendb.documents :as docs])) 
 
-(def last-indexed-etag-key "last-indexed-etag")
+(def last-indexed-synctag-key "last-indexed-synctag")
 (def last-index-doc-count-key "last-index-doc-count")
 
-(defn last-indexed-etag [db]
-  (or (s/get-string db last-indexed-etag-key) (zero-etag)))
+(defn last-indexed-synctag [db]
+  (or (s/get-string db last-indexed-synctag-key) (zero-synctag)))
 
 (defn last-index-doc-count [db]
     (s/get-integer db last-index-doc-count-key))
@@ -23,27 +23,27 @@
     { 
       :doc (docs/load-document tx id) 
       :id id
-      :etag (docs/etag-for-doc tx id)
+      :synctag (docs/synctag-for-doc tx id)
     })
 
 (defn wait-for-index-catch-up 
   ([db] (wait-for-index-catch-up db 5))
   ([db timeout]
-   (let [last-etag (etag-to-integer (docs/last-etag-in db))
+   (let [last-synctag (synctag-to-integer (docs/last-synctag-in db))
           start-time (tl/local-now) ]
-     (debug "starting waiting for index catch-up" last-etag)
+     (debug "starting waiting for index catch-up" last-synctag)
     (while (and
               (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
-              (> last-etag (etag-to-integer (last-indexed-etag db))))
+              (> last-synctag (synctag-to-integer (last-indexed-synctag db))))
 
-      (debug "looping for index catch-up" last-etag (last-indexed-etag db))
+      (debug "looping for index catch-up" last-synctag (last-indexed-synctag db))
       (Thread/sleep 100))))
    ([db index-id timeout]
-    (let [last-etag (etag-to-integer (docs/last-etag-in db))
+    (let [last-synctag (synctag-to-integer (docs/last-synctag-in db))
           start-time (tl/local-now) ]
     (while (and
               (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))
-              (> last-etag (etag-to-integer (indexes/get-last-indexed-etag-for-index db index-id))))
+              (> last-synctag (synctag-to-integer (indexes/get-last-indexed-synctag-for-index db index-id))))
       (Thread/sleep 100))))) 
 
 (defn apply-map-to-document [index doc id]
@@ -68,7 +68,7 @@
           (debug "indexing " (item :id) "with" (index :id))
           {
           :id (item :id)
-          :etag (item :etag)
+          :synctag (item :synctag)
           :index-id (:id index)
           :mapped (apply-map-to-document index (:doc item) (item :id))
           })
@@ -81,7 +81,7 @@
   (lucene/delete-all-entries-for writer doc-id))
 
 (defn process-mapped-document 
-  [ output {:keys [etag index-id id mapped]}] 
+  [ output {:keys [synctag index-id id mapped]}] 
   (-> 
     (cond
       (not mapped) (update-in output [:writers index-id] delete-from-writer id)
@@ -94,7 +94,7 @@
       (-> output
         (update-in [:stats index-id :error-count] inc)
         (update-in [:stats index-id :errors] conj (ex-expand (:__exception mapped)))))
-    (update-in [:max-etag] (partial newest-etag etag))
+    (update-in [:max-synctag] (partial newest-synctag synctag))
     (update-in [:doc-count] inc)
     (update-in [:stats index-id :total-docs] inc)
     ((:pulsefn output))))
@@ -113,7 +113,7 @@
     (reduce process-mapped-document 
           {:writers (into {} (map (juxt :id :writer) compiled-indexes)) 
            :stats (into {} (map create-index-stats compiled-indexes))
-           :max-etag (last-indexed-etag tx) 
+           :max-synctag (last-indexed-synctag tx) 
            :tx tx 
            :doc-count 0
            :pulsefn pulsefn
@@ -124,49 +124,49 @@
   (if (> (/ (:error-count stats) (:total-docs stats)) 0.8)
     (indexes/mark-failed tx index-id stats) tx))
 
-(defn finish-map-process-for-writer! [{:keys [max-etag tx stats] :as output} writer]
+(defn finish-map-process-for-writer! [{:keys [max-synctag tx stats] :as output} writer]
   (lucene/commit! (get writer 1))
   (assoc output :tx
     (-> tx
-      (indexes/set-last-indexed-etag-for-index (get writer 0) max-etag)
+      (indexes/set-last-indexed-synctag-for-index (get writer 0) max-synctag)
       (mark-index-as-failed-maybe (get writer 0) (stats (get writer 0))))))
 
 (defn finish-map-process! 
   ([output] (finish-map-process! output false))
-  ([{:keys [writers max-etag tx doc-count stats] :as output} force-flush]
+  ([{:keys [writers max-synctag tx doc-count stats] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
     (do 
-      (debug "Flushing main map process at " doc-count max-etag)
+      (debug "Flushing main map process at " doc-count max-synctag)
       (-> (:tx (reduce finish-map-process-for-writer!
-                       {:tx tx :max-etag max-etag :stats stats} writers))
-        (s/store last-indexed-etag-key max-etag)
+                       {:tx tx :max-synctag max-synctag :stats stats} writers))
+        (s/store last-indexed-synctag-key max-synctag)
         (s/store last-index-doc-count-key doc-count)
         (s/commit!))))
    output))
 
 (defn finish-partial-map-process! 
   ([output] (finish-partial-map-process! output false))
-  ([{:keys [writers max-etag tx doc-count stats] :as output} force-flush]
+  ([{:keys [writers max-synctag tx doc-count stats] :as output} force-flush]
   (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do (debug "Flushing chaser process at " doc-count max-etag)
+    (do (debug "Flushing chaser process at " doc-count max-synctag)
       (s/commit! 
         (:tx (reduce finish-map-process-for-writer! 
-               {:tx tx :max-etag max-etag :stats stats} writers)))))
+               {:tx tx :max-synctag max-synctag :stats stats} writers)))))
     output))
 
-(defn index-documents-from-etag! [tx indexes etag pulsefn]
+(defn index-documents-from-synctag! [tx indexes synctag pulsefn]
   (with-open [iter (s/get-iterator tx)] 
     (let [valid-indexes (filter #(not (indexes/is-failed tx (:id %1))) indexes)] 
-      (->> (take 10000 (docs/iterate-etags-after iter etag)) 
+      (->> (take 10000 (docs/iterate-synctags-after iter synctag)) 
         (index-docs tx valid-indexes)
         (process-mapped-documents tx valid-indexes pulsefn)))) )
 
 (defn index-catchup! [db index]
   (with-open [tx (s/ensure-transaction db)]
-    (let [last-etag (indexes/get-last-indexed-etag-for-index tx (:id index))]
-      (index-documents-from-etag! tx [index] last-etag finish-partial-map-process!))))
+    (let [last-synctag (indexes/get-last-indexed-synctag-for-index tx (:id index))]
+      (index-documents-from-synctag! tx [index] last-synctag finish-partial-map-process!))))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (s/ensure-transaction db)]
-    (let [last-etag (last-indexed-etag tx)]
-      (index-documents-from-etag! tx compiled-indexes last-etag finish-map-process!))))
+    (let [last-synctag (last-indexed-synctag tx)]
+      (index-documents-from-synctag! tx compiled-indexes last-synctag finish-map-process!))))

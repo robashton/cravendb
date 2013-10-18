@@ -31,16 +31,16 @@
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "doc-1" { :title "hello" :author "rob"} (integer-to-etag 1))
-        (docs/store-document "doc-2" { :title "morning" :author "vicky"}(integer-to-etag 2))
-        (docs/store-document "doc-3" { :title "goodbye" :author "james"} (integer-to-etag 3))
+        (docs/store-document "doc-1" { :title "hello" :author "rob"} (integer-to-synctag 1))
+        (docs/store-document "doc-2" { :title "morning" :author "vicky"}(integer-to-synctag 2))
+        (docs/store-document "doc-3" { :title "goodbye" :author "james"} (integer-to-synctag 3))
         (s/commit!)))))
 
 (def write-one-document 
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "2" { :title "morning" :author "vicky"} (integer-to-etag 4))
+        (docs/store-document "2" { :title "morning" :author "vicky"} (integer-to-synctag 4))
         (s/commit!)))))
 
 (describe "indexing some documents"
@@ -51,7 +51,7 @@
         (indexing/index-documents! db @test-indexes)
         (with-open [tx (s/ensure-transaction db)]
           (should= 3 (indexing/last-index-doc-count tx))
-          (should= (integer-to-etag 3) (indexing/last-indexed-etag tx)))))))
+          (should= (integer-to-synctag 3) (indexing/last-indexed-synctag tx)))))))
 
 (describe "indexing new documents"
   (with test-indexes (create-test-indexes))
@@ -62,7 +62,7 @@
         (write-one-document db)
         (indexing/index-documents! db @test-indexes)
         (with-open [tx (s/ensure-transaction db)]
-          (should= (integer-to-etag 4) (indexing/last-indexed-etag tx))
+          (should= (integer-to-synctag 4) (indexing/last-indexed-synctag tx))
           (should= 1 (indexing/last-index-doc-count tx)))))))
 
 (describe "loading indexes from the database and querying using them"
@@ -82,14 +82,14 @@
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! 
             (indexes/put-index tx 
-                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"} (integer-to-etag 6))))
+                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"} (integer-to-synctag 6))))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
         (with-open [tx (s/ensure-transaction db)]
           (should= 8 (indexing/last-index-doc-count tx)) ;; The index counts and there is a default index
-          (should= (integer-to-etag 6) (indexing/last-indexed-etag tx)))))))
+          (should= (integer-to-synctag 6) (indexing/last-indexed-synctag tx)))))))
 
 (describe "Running indexing with no documents or indexes"
   (it "will not fall over in a heap, crying with a bottle of whisky"
@@ -102,31 +102,31 @@
   (it "will start each tracker off at zero status"
       (with-db (fn [db]
         (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/put-index tx { :id "test" } (integer-to-etag 1))))
+          (s/commit! (indexes/put-index tx { :id "test" } (integer-to-synctag 1))))
         
-        (should= (integer-to-etag 0) 
-                 (indexes/get-last-indexed-etag-for-index db "test")))))
+        (should= (integer-to-synctag 0) 
+                 (indexes/get-last-indexed-synctag-for-index db "test")))))
 
-  (it "will set the tracker to the last indexed etag"
+  (it "will set the tracker to the last indexed synctag"
       (with-db (fn [db]
 
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
-            (docs/store-document "1" { :foo "bar" } (integer-to-etag 1)) 
-            (docs/store-document "2" { :foo "bas" } (integer-to-etag 2)) 
-            (docs/store-document "3" { :foo "baz" } (integer-to-etag 3))
+            (docs/store-document "1" { :foo "bar" } (integer-to-synctag 1)) 
+            (docs/store-document "2" { :foo "bas" } (integer-to-synctag 2)) 
+            (docs/store-document "3" { :foo "baz" } (integer-to-synctag 3))
             (s/commit!)))
 
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! (indexes/put-index tx 
-            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} (integer-to-etag 4))))
+            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} (integer-to-synctag 4))))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
-        (should= (integer-to-etag 4) 
-                 (indexes/get-last-indexed-etag-for-index db "test")))))) 
+        (should= (integer-to-synctag 4) 
+                 (indexes/get-last-indexed-synctag-for-index db "test")))))) 
 
 (def by-name-map 
   "(fn [doc] { \"name\" (:name doc) })")
