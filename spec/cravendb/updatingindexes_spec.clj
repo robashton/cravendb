@@ -1,4 +1,4 @@
-(ns cravendb.updating-indexes-spec.clj
+(ns cravendb.updatingindexes-spec
   (:use [speclj.core]
         [cravendb.core]
         [cravendb.testing]
