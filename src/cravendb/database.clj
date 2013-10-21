@@ -5,6 +5,7 @@
             [cravendb.indexstore :as indexes] 
             [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs]
+            [cravendb.vclock :as vclock]
             [clojure.tools.logging :refer [info error debug]]
             [cravendb.core :refer [zero-synctag integer-to-synctag synctag-to-integer]]))
 
@@ -22,7 +23,10 @@
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)
-           :last-synctag (atom (synctag-to-integer (docs/last-synctag-in storage))))))
+           :last-synctag (atom (synctag-to-integer (docs/last-synctag-in storage)))
+           :base-vclock (vclock/new)
+           :server-id "root"
+           )))
 
 (defn next-synctag [last-synctag]
     (integer-to-synctag (swap! last-synctag inc)))
@@ -49,8 +53,8 @@
   (debug "Querying for " params)
   (query/execute storage index-engine (merge default-query params)))
 
-(defn is-conflict [session id current-synctag]
-  (and current-synctag (not= current-synctag (docs/synctag-for-doc session id))))
+(defn is-conflict [session id metadata]
+  false)
 
 (defn clear-conflicts [{:keys [storage]} id]
   (with-open [tx (s/ensure-transaction storage)] 
@@ -61,15 +65,19 @@
     (s/commit!
       (docs/write-last-synctag (f tx) @last-synctag))))
 
+
 (defn put-document 
-  ([instance id document] (put-document instance id document nil))
-  ([{:keys [last-synctag] :as instance} id document known-synctag]
-  (debug "putting a document:" id document known-synctag)
+  ([instance id document] (put-document instance id document {}))
+  ([{:keys [last-synctag] :as instance} id document metadata]
+  (debug "putting a document:" id document metadata)
    (in-tx instance 
      (fn [tx]
-       (if (is-conflict tx id known-synctag)
-         (docs/store-conflict tx id document known-synctag (next-synctag last-synctag))
-         (docs/store-document tx id document (next-synctag last-synctag)))))))
+       (docs/store-document 
+         tx id document (next-synctag last-synctag) 
+         (update-in 
+           (merge (load-document-metadata instance id) metadata) 
+           [:history] 
+           #(vclock/next (:server-id instance) (:base-vclock instance) %1)))))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
@@ -77,9 +85,7 @@
   (debug "deleting a document with id " id)
   (in-tx instance 
      (fn [tx]
-       (if (is-conflict tx id known-synctag)
-         (docs/store-conflict tx id :deleted known-synctag (next-synctag last-synctag))
-         (docs/delete-document tx id (next-synctag last-synctag)))))))
+       (docs/store-conflict tx id :deleted known-synctag (next-synctag last-synctag))))))
 
 (defn load-document 
   [{:keys [storage]} id]
@@ -89,7 +95,8 @@
 (defn load-document-metadata
   [{:keys [storage]} id]
   (debug "getting document metadata id " id)
-  {:synctag (docs/synctag-for-doc storage id)})
+  (assoc (docs/load-document-metadata storage id)
+         :synctag (docs/synctag-for-doc storage id)))
 
 (defn bulk 
   [{:keys [last-synctag] :as instance} operations]

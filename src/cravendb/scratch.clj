@@ -2,10 +2,12 @@
   "The sole purpose of this file is to act as a place to play with stuff in repl"
   (:use [cravendb.testing]
         [cravendb.core]
-        [clojure.data.codec.base64]
-        )
+        [clojure.data.codec.base64])
   (:require [clojurewerkz.vclock.core :as vclock]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [cravendb.database :as db]
+            [me.raynes.fs :as fs]
+            ))
 
 ;; Document one was created
 #_ (def doc1 (vclock/increment (vclock/fresh) "docs-1"))
@@ -27,15 +29,11 @@
 
 ;; We can encode to and from base64 (synctags)
 
-(defn vclock-to-string [clock]
-  (String. (encode (.getBytes (pr-str clock)))))
 
-(defn string-to-vclock [in]
-  (edn/read-string (println (String. (decode (.getBytes in))))))
 
-;;But won't they get big?
+#_ (string-to-vclock (vclock-to-string (vclock/increment (vclock/fresh) "1")))
 
-(vclock-to-string (vclock/increment (vclock/increment (vclock/increment doc1v2 "docs-1") "docs-1") "docs-1"))
+#_ (vclock-to-string (vclock/increment (vclock/increment (vclock/increment doc1v2 "docs-1") "docs-1") "docs-1"))
 
 #_ (println encoded)
 
@@ -50,6 +48,53 @@
 ;; When an in-flight transaction starts
 ;; It should be a combination of the server id and some integer
 ;; I can code that up in the REPL
+;;
+
+(defn start []
+  (def instance (db/create "testdb")))
+
+(defn stop []
+  (.close instance))
+
+(defn restart []
+  (stop)
+  (fs/delete-dir "testdb")
+  (start))
+
+#_ (start)
+#_ (stop)
+#_ (restart)
+
+
+#_ (db/put-document instance "doc-1" {:name "bob"})
+#_ (db/load-document instance "doc-1" )
+#_ (db/load-document-metadata instance "doc-1")
+
+#_ (db/put-document instance "doc-1" {:name "bob"}
+   (db/load-document-metadata instance "doc-1"))
+
+
+#_ (next-vclock "1" (vclock/fresh) nil)
+#_ (next-vclock "1" (vclock/fresh) 
+                (vclock-to-string (vclock/increment (vclock/fresh) "2")))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
