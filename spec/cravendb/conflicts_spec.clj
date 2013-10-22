@@ -12,28 +12,28 @@
       (db/put-document instance "1" "hello world")                  
        (should= 0 (count (docs/conflicts storage)))))))
 
-(describe "writing two documents in succession with no synctags specified"
+(describe "writing two documents in succession with no history specified"
   (it "will generate no conflicts"
   (with-full-setup (fn [{:keys [storage] :as instance}]
     (db/put-document instance "1" "hello world")                  
     (db/put-document instance "1" "hello world")                  
     (should= 0 (count (docs/conflicts storage)))))))
 
-(describe "writing two documents, with valid synctags specified"
+(describe "writing two documents, with valid history specified"
   (it "will generate no conflicts"
   (with-full-setup (fn [{:keys [storage] :as instance}]
     (db/put-document instance "1" "hello world")                  
-    (db/put-document instance "1" "hello world" (docs/synctag-for-doc storage "1"))
+    (db/put-document instance "1" "hello world" (docs/load-document-metadata storage "1"))
     (should= 0 (count (docs/conflicts storage)))))))
 
-(describe "writing a document with a different synctag"
+(describe "writing a document with an old history"
   (with-all 
     results
     (with-full-setup (fn [{:keys [storage] :as instance}]
       (db/put-document instance "1" "hello world")
-      (let [old-synctag (docs/synctag-for-doc storage "1")]
+        (let [old-meta (docs/load-document-metadata storage "1")]
         (db/put-document instance "1" "hello world")   
-        (db/put-document instance "1" "hello bob" old-synctag)   
+        (db/put-document instance "1" "hello bob" old-meta)   
         {
          :conflicts (docs/conflicts storage)
          :document (docs/load-document storage "1")
@@ -54,12 +54,12 @@
     (with-full-setup (fn [{:keys [storage] :as instance}]
       (db/put-document instance "1" "hello world")
       (db/put-document instance "2" "hello world")
-      (let [old-synctag-one (docs/synctag-for-doc storage "1")
-            old-synctag-two (docs/synctag-for-doc storage "2")]
+      (let [old-meta-one (docs/load-document-metadata storage "1") 
+            old-meta-two (docs/load-document-metadata storage "2")]
         (db/put-document instance "1" "hello world")   
         (db/put-document instance "2" "hello world")   
-        (db/put-document instance "1" "hello bob" old-synctag-one)   
-        (db/put-document instance "2" "hello bob" old-synctag-two)   
+        (db/put-document instance "1" "hello bob" old-meta-one)   
+        (db/put-document instance "2" "hello bob" old-meta-two)   
         (db/clear-conflicts instance "1")
         {
          :conflicts (docs/conflicts storage)})))) 

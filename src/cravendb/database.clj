@@ -53,9 +53,6 @@
   (debug "Querying for " params)
   (query/execute storage index-engine (merge default-query params)))
 
-(defn is-conflict [session id metadata]
-  false)
-
 (defn clear-conflicts [{:keys [storage]} id]
   (with-open [tx (s/ensure-transaction storage)] 
     (s/commit! (docs/without-conflicts tx id))))
@@ -71,13 +68,19 @@
   (assoc (docs/load-document-metadata storage id)
          :synctag (docs/synctag-for-doc storage id)))
 
-(defn checked-history [instance id supplied-history existing-history]
-  (let [last-version (or existing-history supplied-history (:base-vclock instance))
-        next-version (vclock/next 
-                       (:server-id instance) (:base-vclock instance) 
-                       (or supplied-history existing-history))]
-    {:is-conflict (not (vclock/descends? next-version last-version))
+(defn checked-history [instance supplied-history existing-history]
+  (let [last-version (or  supplied-history existing-history (:base-vclock instance))
+        next-version (vclock/next (:server-id instance) last-version)]
+    {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
      :history next-version}))
+
+(defn check-document-write [instance id metadata success conflict]
+  (let [history-result 
+        (checked-history instance
+            (:history metadata) (:history (or (load-document-metadata instance id) {})))]
+         (if (:is-conflict history-result)
+           (conflict metadata)
+           (success (assoc metadata :history (:history history-result))))))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
@@ -85,20 +88,21 @@
   (debug "putting a document:" id document metadata)
    (in-tx instance 
      (fn [tx]
-       (let [history-result (checked-history instance id 
-                            (:history metadata) (:history (or (load-document-metadata instance id) {})))]
-         (if (:is-conflict history-result)
-            (docs/store-conflict tx id document (next-synctag last-synctag) metadata)
-            (docs/store-document tx id document (next-synctag last-synctag) 
-               (assoc metadata :history (:history history-result)))))))))
+       (check-document-write 
+         instance id metadata
+         #(docs/store-document tx id document (next-synctag last-synctag) %1)
+         #(docs/store-conflict tx id document (next-synctag last-synctag) %1))))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([{:keys [last-synctag] :as instance} id known-synctag]
+  ([{:keys [last-synctag] :as instance} id metadata]
   (debug "deleting a document with id " id)
-  (in-tx instance 
+   (in-tx instance 
      (fn [tx]
-       (docs/store-conflict tx id :deleted known-synctag (next-synctag last-synctag))))))
+       (check-document-write 
+         instance id metadata
+         #(docs/delete-document tx id (next-synctag last-synctag) %1)
+         #(docs/store-conflict tx id :deleted (next-synctag last-synctag) %1))))))
 
 (defn load-document 
   [{:keys [storage]} id]

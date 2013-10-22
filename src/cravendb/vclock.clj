@@ -5,9 +5,6 @@
             [clojure.data.codec.base64 :refer [encode decode]] 
             ))
 
-(defn new []
-  (vclock-to-string (vclock/fresh)))
-
 (defn vclock-to-string [clock]
   (String. (encode (.getBytes (pr-str clock)))))
 
@@ -19,11 +16,12 @@
     { :readers { 'clojurewerkz.vclock.core.VClockEntry read-vclock}}
     (String. (decode (.getBytes in)))))
 
-(defn descends? [parent child]
-  (vclock/descends? (string-to-vclock parent) (string-to-vclock child)))
+(defn new []
+  (vclock-to-string (vclock/fresh)))
 
-(defn next [e-id base supplied]
+(defn descends? [child parent]
+  (vclock/descends?  (string-to-vclock child) (string-to-vclock parent)))
+
+(defn next [e-id supplied]
   (vclock-to-string
-    (if supplied
-      (vclock/increment (string-to-vclock supplied) e-id)
-      (vclock/increment (string-to-vclock base) e-id))))
+    (vclock/increment (string-to-vclock supplied) e-id)))

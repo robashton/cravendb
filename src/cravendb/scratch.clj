@@ -4,6 +4,8 @@
         [cravendb.core]
         [clojure.data.codec.base64])
   (:require [cravendb.vclock :as v]
+            [cravendb.documents :as docs]
+            [clojurewerkz.vclock.core :as vclock]            
             [clojure.edn :as edn]
             [cravendb.database :as db]
             [me.raynes.fs :as fs]
@@ -50,30 +52,31 @@
                 (vclock-to-string (vclock/increment (vclock/fresh) "2")))
 
 
+; Writing a new document
+#_ (db/checked-history { :server-id "one" :base-vclock (v/new )} nil nil)
+
+;; Writing a document without specifying a history
+#_ (db/checked-history { :server-id "one" :base-vclock (v/new )} nil (v/next "one" (v/new)))
+
+;; Writing a document specifying an invalid
+
+#_ (db/checked-history { :server-id "one" :base-vclock (v/new )} 
+                       (v/next "two" (v/new)) (v/next "one" (v/new)))
+
+#_ (v/descends? 
+     (v/next "one" (v/next "two" (v/new)))
+     (v/next "one" (v/new))
+     )
 
 
+#_ (vclock/descends?
+     (vclock/increment (vclock/increment (vclock/increment (vclock/fresh) "three") "two") "one")
+     (vclock/increment (vclock/increment (vclock/fresh) "three") "one"))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#_ (with-full-setup 
+  (fn [{:keys [storage] :as instance}]
+    (db/put-document instance "1" "hello world")
+    (let [old-meta (docs/load-document-metadata storage "1")]
+      (db/put-document instance "1" "hello world")   
+      (db/put-document instance "1" "hello bob" old-meta))))
 
