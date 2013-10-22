@@ -7,14 +7,14 @@
 
 (def index-prefix "index-")
 (def index-error-prefix "indexerror-")
-(def index-last-etag-prefix "indexlastetag-")
+(def index-last-synctag-prefix "indexlastsynctag-")
 
-(defn set-last-indexed-etag-for-index [tx id etag]
-  (s/store tx (str index-last-etag-prefix id) etag))
+(defn set-last-indexed-synctag-for-index [tx id synctag]
+  (s/store tx (str index-last-synctag-prefix id) synctag))
 
-(defn get-last-indexed-etag-for-index [tx id]
-  (or (s/get-string tx (str index-last-etag-prefix id))
-      (zero-etag)))
+(defn get-last-indexed-synctag-for-index [tx id]
+  (or (s/get-string tx (str index-last-synctag-prefix id))
+      (zero-synctag)))
 
 (defn index-doc-id [id]
   (str index-prefix id))
@@ -22,10 +22,10 @@
 (defn index-error-id [id]
   (str index-error-prefix id))
 
-(defn put-index [tx index etag]
+(defn put-index [tx index synctag]
   (-> tx 
-    (docs/store-document (index-doc-id (index :id)) index etag)
-    (set-last-indexed-etag-for-index (index :id) (zero-etag))))
+    (docs/store-document (index-doc-id (index :id)) index synctag)
+    (set-last-indexed-synctag-for-index (index :id) (zero-synctag))))
 
 (defn mark-failed [tx index-id info]
   (s/store tx (index-error-id index-id) (pr-str info)))
@@ -39,16 +39,16 @@
 (defn reset-index [tx index-id]
   (-> tx
     (s/delete (index-error-id index-id))
-    (set-last-indexed-etag-for-index index-id (zero-etag))))
+    (set-last-indexed-synctag-for-index index-id (zero-synctag))))
 
 (defn load-index [tx id]
   (docs/load-document tx (index-doc-id id)))
 
-(defn etag-for-index [tx id]
-  (docs/etag-for-doc tx (index-doc-id id)))
+(defn synctag-for-index [tx id]
+  (docs/synctag-for-doc tx (index-doc-id id)))
 
 (defn iterate-indexes [iter]
   (docs/iterate-documents-prefixed-with iter index-prefix))
 
-(defn delete-index [tx id etag]
-  (docs/delete-document tx (index-doc-id id) etag))
+(defn delete-index [tx id synctag]
+  (docs/delete-document tx (index-doc-id id) synctag))

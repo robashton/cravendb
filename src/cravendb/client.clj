@@ -2,7 +2,7 @@
   (:require [http.async.client :as http])
   (:require [cemerick.url :refer (url-encode)] 
             [clojure.edn :as edn]
-            [cravendb.core :refer [zero-etag]]
+            [cravendb.core :refer [zero-synctag]]
             [clojure.tools.logging :refer [debug info error]]
             ))
 
@@ -15,8 +15,8 @@
 (defn url-for-bulk-ops [url]
   (str url "/bulk"))
 
-(defn url-for-stream [url etag]
-  (str url "/stream?etag=" (or etag "")))
+(defn url-for-stream [url synctag]
+  (str url "/stream?synctag=" (or synctag "")))
 
 (defn url-for-query [url opts]
   (str 
@@ -86,22 +86,22 @@
 
 (defn stream 
   ([url] (stream url nil))
-  ([url from-etag]
-    (debug "Requesting" url from-etag)
+  ([url from-synctag]
+    (debug "Requesting" url from-synctag)
     (with-open [client (http/create-client)]
       (force-into-list
         (process-response
-          (http/GET client (url-for-stream url from-etag) :headers default-headers))))))
+          (http/GET client (url-for-stream url from-synctag) :headers default-headers))))))
 
 (defn stream-seq 
-  ([url] (stream-seq url (zero-etag)))
-  ([url etag] (stream-seq url etag (stream url etag)))
-  ([url last-etag src]
+  ([url] (stream-seq url (zero-synctag)))
+  ([url synctag] (stream-seq url synctag (stream url synctag)))
+  ([url last-synctag src]
    (if (empty? src) 
      (do
-       (let [next-src (stream url last-etag)]
+       (let [next-src (stream url last-synctag)]
          (if (empty? next-src) ()
-           (stream-seq url last-etag next-src))))
+           (stream-seq url last-synctag next-src))))
      (let [{:keys [metadata doc] :as item} (first src)]
-       (cons item (lazy-seq (stream-seq url (:etag metadata) (rest src))))))))
+       (cons item (lazy-seq (stream-seq url (:synctag metadata) (rest src))))))))
 

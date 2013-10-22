@@ -39,15 +39,15 @@
                        :map by-name-map}))
 
 (describe "handling modified indexes"
-  (it "will reset the etag of a modified index"
+  (it "will reset the synctag of a modified index"
     (with-full-setup 
       (fn [{:keys [storage index-engine] :as instance}]
         (add-animals instance)
         (add-by-bob-index instance)
         (indexing/wait-for-index-catch-up storage)
         (add-by-name-index instance)
-        (should= 0 (etag-to-integer
-                    (indexes/get-last-indexed-etag-for-index storage "by_name"))))))
+        (should= 0 (synctag-to-integer
+                    (indexes/get-last-indexed-synctag-for-index storage "by_name"))))))
   (it "will re-index documents for a modified index"
      (with-full-setup 
       (fn [{:keys [storage index-engine] :as instance}]

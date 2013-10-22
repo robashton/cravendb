@@ -5,8 +5,9 @@
             [cravendb.indexstore :as indexes] 
             [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs]
+            [cravendb.vclock :as vclock]
             [clojure.tools.logging :refer [info error debug]]
-            [cravendb.core :refer [zero-etag integer-to-etag etag-to-integer]]))
+            [cravendb.core :refer [zero-synctag integer-to-synctag synctag-to-integer]]))
 
 
 (defrecord Database [storage index-engine]
@@ -22,17 +23,20 @@
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)
-           :last-etag (atom (etag-to-integer (docs/last-etag-in storage))))))
+           :last-synctag (atom (synctag-to-integer (docs/last-synctag-in storage)))
+           :base-vclock (vclock/new)
+           :server-id "root"
+           )))
 
-(defn next-etag [last-etag]
-    (integer-to-etag (swap! last-etag inc)))
+(defn next-synctag [last-synctag]
+    (integer-to-synctag (swap! last-synctag inc)))
 
-(defn interpret-bulk-operation [{:keys [tx last-etag] :as state} op]
+(defn interpret-bulk-operation [{:keys [tx last-synctag] :as state} op]
   (assoc state :tx 
     (case (:operation op)
       :docs-delete (docs/delete-document tx (:id op))
       :docs-put (docs/store-document tx (:id op) (:document op) 
-                                   (next-etag last-etag)))))
+                                   (next-synctag last-synctag)))))
 
 (def default-query {
                     :index "default"
@@ -49,82 +53,90 @@
   (debug "Querying for " params)
   (query/execute storage index-engine (merge default-query params)))
 
-(defn is-conflict [session id current-etag]
-  (and current-etag (not= current-etag (docs/etag-for-doc session id))))
-
 (defn clear-conflicts [{:keys [storage]} id]
   (with-open [tx (s/ensure-transaction storage)] 
     (s/commit! (docs/without-conflicts tx id))))
 
+(defn in-tx [{:keys [storage last-synctag] :as instance} f]
+  (with-open [tx (s/ensure-transaction storage)] 
+    (s/commit!
+      (docs/write-last-synctag (f tx) @last-synctag))))
+
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  (assoc (docs/load-document-metadata storage id)
+         :synctag (docs/synctag-for-doc storage id)))
+
+(defn checked-history [instance supplied-history existing-history]
+  (let [last-version (or  supplied-history existing-history (:base-vclock instance))
+        next-version (vclock/next (:server-id instance) last-version)]
+    {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
+     :history next-version}))
+
+(defn check-document-write [instance id metadata success conflict]
+  (let [history-result 
+        (checked-history instance
+            (:history metadata) (:history (or (load-document-metadata instance id) {})))]
+         (if (:is-conflict history-result)
+           (conflict metadata)
+           (success (assoc metadata :history (:history history-result))))))
+
 (defn put-document 
-  ([instance id document] (put-document instance id document nil))
-  ([{:keys [storage last-etag] :as db} id document known-etag]
-  (debug "putting a document:" id document known-etag)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-etag
-        (if (is-conflict tx id known-etag)
-          (docs/store-conflict tx id document known-etag (next-etag last-etag))
-          (docs/store-document tx id document (next-etag last-etag)))
-        last-etag)))))
+  ([instance id document] (put-document instance id document {}))
+  ([{:keys [last-synctag] :as instance} id document metadata]
+  (debug "putting a document:" id document metadata)
+   (in-tx instance 
+     (fn [tx]
+       (check-document-write 
+         instance id metadata
+         #(docs/store-document tx id document (next-synctag last-synctag) %1)
+         #(docs/store-conflict tx id document (next-synctag last-synctag) %1))))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([{:keys [storage last-etag] :as db} id known-etag]
+  ([{:keys [last-synctag] :as instance} id metadata]
   (debug "deleting a document with id " id)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-etag
-        (if (is-conflict tx id known-etag)
-          (docs/store-conflict tx id :deleted known-etag (next-etag last-etag))
-          (docs/delete-document tx id (next-etag last-etag)))
-        last-etag)))))
+   (in-tx instance 
+     (fn [tx]
+       (check-document-write 
+         instance id metadata
+         #(docs/delete-document tx id (next-synctag last-synctag) %1)
+         #(docs/store-conflict tx id :deleted (next-synctag last-synctag) %1))))))
 
 (defn load-document 
   [{:keys [storage]} id]
   (debug "getting a document with id " id)
   (docs/load-document storage id))
 
-(defn load-document-metadata
-  [{:keys [storage]} id]
-  (debug "getting document metadata id " id)
-  {:etag (docs/etag-for-doc storage id)})
 
 (defn bulk 
-  [{:keys [storage last-etag]} operations]
+  [{:keys [last-synctag] :as instance} operations]
   (debug "Bulk operation: ")
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-etag
-        (:tx 
-          (reduce
-            interpret-bulk-operation
-            {:tx tx :last-etag last-etag}
-            operations))
-        last-etag))))
+  (in-tx instance 
+    (fn [tx] (:tx 
+    (reduce
+      interpret-bulk-operation
+      {:tx tx :last-synctag last-synctag}
+      operations)))))
 
 (defn put-index 
-  [{:keys [storage last-etag]} index]
+  [{:keys [last-synctag] :as instance} index]
   (debug "putting an in index:" index)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-etag
-        (indexes/put-index tx index (next-etag last-etag))
-        last-etag))))
+  (in-tx instance 
+    (fn [tx] 
+      (indexes/put-index tx index (next-synctag last-synctag)))))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
   (debug "getting index metadata id " id)
-  {:etag (indexes/etag-for-index storage id)})
+  {:synctag (indexes/synctag-for-index storage id)})
 
 (defn delete-index 
-  [{:keys [storage last-etag]} id]
+  [{:keys [storage last-synctag] :as instance} id]
   (debug "deleting an index" id)
-  (with-open [tx (s/ensure-transaction storage)]
-    (s/commit! 
-      (docs/write-last-etag
-        (indexes/delete-index tx id (next-etag last-etag))
-        last-etag))))
+  (in-tx instance 
+    (fn [tx] (indexes/delete-index tx id (next-synctag last-synctag)))))
 
 (defn load-index 
   [{:keys [storage]} id]

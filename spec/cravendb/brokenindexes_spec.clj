@@ -45,17 +45,17 @@
       (write-three-documents instance)
       (db/put-index instance (create-invalid-index))
       (indexing/wait-for-index-catch-up storage)
-      (should= (docs/last-etag-in storage) (indexing/last-indexed-etag storage))))) 
+      (should= (docs/last-synctag-in storage) (indexing/last-indexed-synctag storage))))) 
 
   (it "will not use this index in further indexing processes"
     (with-full-setup (fn [{:keys [storage] :as instance}]
       (write-three-documents instance)
       (db/put-index instance (create-invalid-index))
       (indexing/wait-for-index-catch-up storage)
-      (let [last-etag (docs/last-etag-in storage)]
+      (let [last-synctag (docs/last-synctag-in storage)]
         (write-three-documents instance)
         (indexing/wait-for-index-catch-up storage)
-        (should= last-etag (indexes/get-last-indexed-etag-for-index storage "invalid")))))) 
+        (should= last-synctag (indexes/get-last-indexed-synctag-for-index storage "invalid")))))) 
 
 
   (it "will carry on indexing non-broken indexes"
@@ -66,17 +66,17 @@
       (indexing/wait-for-index-catch-up storage)
       (write-three-documents instance)
       (indexing/wait-for-index-catch-up storage)
-      (should= (docs/last-etag-in storage) (indexing/last-indexed-etag storage))))))
+      (should= (docs/last-synctag-in storage) (indexing/last-indexed-synctag storage))))))
 
 (describe "Resetting an index"
-  (it "will reset the last indexed etag for that index"
+  (it "will reset the last indexed synctag for that index"
     (with-full-setup (fn [{:keys [storage] :as instance}]
       (write-three-documents instance)
       (db/put-index instance (create-invalid-index))
       (indexing/wait-for-index-catch-up storage)
       (with-open [tx (s/ensure-transaction storage)]
         (s/commit! (indexes/reset-index tx "invalid")))
-      (should= (zero-etag) (indexes/get-last-indexed-etag-for-index storage "invalid")))) )
+      (should= (zero-synctag) (indexes/get-last-indexed-synctag-for-index storage "invalid")))) )
   (it "will mark the index as not failed"
     (with-full-setup (fn [{:keys [storage] :as instance}]
       (write-three-documents instance)

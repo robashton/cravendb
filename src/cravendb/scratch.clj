@@ -1,148 +1,82 @@
 (ns cravendb.scratch
   "The sole purpose of this file is to act as a place to play with stuff in repl"
   (:use [cravendb.testing]
-        [cravendb.core])
-
-  (:require [ring.adapter.jetty :refer [run-jetty]]
-            [cravendb.http :as http]
-            [cravendb.client :as c] 
+        [cravendb.core]
+        [clojure.data.codec.base64])
+  (:require [cravendb.vclock :as v]
+            [cravendb.documents :as docs]
+            [clojurewerkz.vclock.core :as vclock]            
+            [clojure.edn :as edn]
             [cravendb.database :as db]
             [me.raynes.fs :as fs]
-            [cravendb.storage :as s]
-            [cravendb.documents :as docs]
-            [cravendb.core :refer [zero-etag]]
-            [cravendb.replication :as replication]
-            [clojure.tools.logging :refer [info error debug]]
             ))
 
-(def instance nil)
-(def destinstance nil)
+;; I think I should rename synctags, database-specific incrementor
+;; - Used for indexing location
+;; - Used for replication location
+;; - the "history" for an item
 
-;;
-;; What I really want is a stream of the whole documents and their metadata
-;; In the order in which they were written from a specific e-tag
-;; What I'd probably do is keep documents in memory once written
-;; because they'd need to be hit by both indexing and replication
-;;
-;; What I also probably want to do is keep a list of etags/ids written
-;; and generate the stream information from that rather than hitting the database
-;; ideally, consuming the stream shouldn't involve disk IO
-;; We can probably even push the stream as an edn stream using edn/read-string
-
-
-(defn start-master []
-  (def instance (db/create "testdb")) 
-    (def server 
-     (run-jetty 
-      (http/create-http-server instance) 
-      { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? false}))
-
-  (db/bulk instance
-      (map (fn [i]
-      {
-        :operation :docs-put
-        :id (str "docs-" i)
-        :document { :whatever (str "Trolololol" i)} 
-        }) (range 0 5000))))
-
-(defn start-slave []
-  (def destinstance (db/create "testdb2"))
-  (def replication-handle (replication/create destinstance "http://localhost:8080"))
-  (def destserver 
-    (run-jetty 
-    (http/create-http-server destinstance) 
-    { :port (Integer/parseInt (or (System/getenv "PORT") "8081")) :join? false})))
-
-(defn stop-master []
-   (.stop server)   
-   (.close instance))
-
-(defn stop-slave []
-  (.stop destserver) 
-  (.close destinstance)
-  (.close replication-handle))
-
-(defn start-slave-replication []
-  (replication/start replication-handle)
-  )
-
-(defn stop-slave-replication []
-  (replication/stop replication-handle))
+;; The server should assign client-ids
+;; When an in-flight transaction starts
+;; It should be a combination of the server id and some integer
+;; I can code that up in the REPL
 
 (defn start []
-  (start-master)
-  (start-slave))
+  (def instance (db/create "testdb")))
 
 (defn stop []
-  (stop-master)
-  (stop-slave))
+  (.close instance))
 
 (defn restart []
   (stop)
-  (fs/delete-dir "testdb") 
-  (fs/delete-dir "testdb2") 
+  (fs/delete-dir "testdb")
   (start))
 
-
 #_ (start)
+#_ (stop)
 #_ (restart)
- 
-
-;; Master -> Slave Happenings (easy)
-;; NOTE: We're not taking into account indexing as part of this if we bypass database
-;; Maybe indexing needs to be reading off a queue
-;; Or maybe indexing needs to have a queue as an extra
-
-;; On starting up the second server, we should see the documents that were written to the first
-;; They should have the same etags as the first
-;; They will anyway because it's a slave so it's "magic"
-
-#_ (count (c/stream-seq "http://localhost:8080"))
-#_ (count (c/stream-seq "http://localhost:8081"))
-#_ (first (c/stream-seq "http://localhost:8081"))
-#_ (first (c/stream-seq "http://localhost:8080"))
-
-;; On adding documents to the first server, they should appear on the second
-;; They should have the same etags as the first
-
-#_ (c/put-document "http://localhost:8080" "new-doc" { :hello "world"})
-#_ (c/get-document "http://localhost:8080" "new-doc")
-#_ (c/get-document "http://localhost:8081" "new-doc")
-
-;; On updating documents in the first server, they should update in the second
-;; They should have updated etags the same as the first
-
-#_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bill"})
-#_ (c/put-document "http://localhost:8080" "great-doc" { :hello "bob"})
-#_ (c/get-document "http://localhost:8081" "great-doc")
 
 
-;; The slave stores where it is currently caught up to in storage somewhere
-;; It also stores the number of documents it has received from each node
-;; This will be useful for testing and feedback
 
-#_ (replication-status (:storage destinstance) "http://localhost:8080")
+#_ (db/checked-history {:server-id "2"} "doc-1"nil nil) 
+#_ (db/put-document instance "doc-1" {:name "bob"})
+#_ (db/load-document instance "doc-1" )
+#_ (db/load-document-metadata instance "doc-1")
 
-;; If I shut down the slave, it should continue from where it left off
+#_ (db/put-document instance "doc-1" {:name "bob"}
+   (db/load-document-metadata instance "doc-1"))
 
-;; If I shut down the master, the slave should gracefully await instruction
 
-;; If I delete a document in master, it should be deleted in slave
+#_ (next-vclock "1" (vclock/fresh) nil)
+#_ (next-vclock "1" (vclock/fresh) 
+                (vclock-to-string (vclock/increment (vclock/fresh) "2")))
 
-#_ (c/delete-document "http://localhost:8080" "great-doc")
-#_ (c/get-document "http://localhost:8081" "great-doc")
 
-;; Master -> Master Happenings (Currently impossible)
-;; Will ignore this until we have tests for master -> slave in place
+; Writing a new document
+#_ (db/checked-history { :server-id "one" :base-vclock (v/new )} nil nil)
 
-;; On writing a document to the first server, it should appear in the second
-;; It should not be replicated back to the other server (how?)
-;; We could just provide the list in ordered e-tag terms, and we can do a look-up
-;; And prevent replication
+;; Writing a document without specifying a history
+#_ (db/checked-history { :server-id "one" :base-vclock (v/new )} nil (v/next "one" (v/new)))
 
-;; What happens when writing 
-;; doc-1 -> a1 -> b1
-;; doc-1 -> b2 -> a2
-;; We should know that a2 is a descendent of a1
-;; We can do that by using vector-clocks
-;; We could also achieve it by storing an audit history (this would get expensive)
+;; Writing a document specifying an invalid
+
+#_ (db/checked-history { :server-id "one" :base-vclock (v/new )} 
+                       (v/next "two" (v/new)) (v/next "one" (v/new)))
+
+#_ (v/descends? 
+     (v/next "one" (v/next "two" (v/new)))
+     (v/next "one" (v/new))
+     )
+
+
+#_ (vclock/descends?
+     (vclock/increment (vclock/increment (vclock/increment (vclock/fresh) "three") "two") "one")
+     (vclock/increment (vclock/increment (vclock/fresh) "three") "one"))
+
+#_ (with-full-setup 
+  (fn [{:keys [storage] :as instance}]
+    (db/put-document instance "1" "hello world")
+    (let [old-meta (docs/load-document-metadata storage "1")]
+      (db/put-document instance "1" "hello world")   
+      (db/put-document instance "1" "hello bob" old-meta))))
+

@@ -18,18 +18,18 @@
 
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! (indexes/put-index tx 
-            { :id "test" :map "(fn [doc] nil)"} (integer-to-etag 1))))
+            { :id "test" :map "(fn [doc] nil)"} (integer-to-synctag 1))))
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
-            (docs/store-document "1" (pr-str { :fod "bar" }) (integer-to-etag 2)) 
+            (docs/store-document "1" (pr-str { :fod "bar" }) (integer-to-synctag 2)) 
             (s/commit!)))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
 
-        (should= (integer-to-etag 2) 
-                 (indexes/get-last-indexed-etag-for-index db "test")))))) 
+        (should= (integer-to-synctag 2) 
+                 (indexes/get-last-indexed-synctag-for-index db "test")))))) 
 
 (def test-index 
   "(fn [doc] (if (:whatever doc) { \"whatever\" (:whatever doc) } nil ))")
