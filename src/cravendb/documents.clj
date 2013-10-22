@@ -42,12 +42,13 @@
   [tx last-synctag]
   (s/store tx last-synctag-key (integer-to-synctag last-synctag)))
 
-(defn store-conflict [db id document old-synctag new-synctag]
-  (s/store db (str conflict-prefix id new-synctag)
+(defn store-conflict [db id document synctag metadata]
+  (s/store db (str conflict-prefix id synctag)
            (pr-str {
-                    :synctag new-synctag
+                    :synctag synctag
                     :id id
-                    :data document })))
+                    :data document
+                    :metadata metadata })))
 
 (defn conflicts 
   ([db] (conflicts db ""))

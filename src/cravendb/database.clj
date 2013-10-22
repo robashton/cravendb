@@ -65,6 +65,19 @@
     (s/commit!
       (docs/write-last-synctag (f tx) @last-synctag))))
 
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  (assoc (docs/load-document-metadata storage id)
+         :synctag (docs/synctag-for-doc storage id)))
+
+(defn checked-history [instance id supplied-history existing-history]
+  (let [last-version (or existing-history supplied-history (:base-vclock instance))
+        next-version (vclock/next 
+                       (:server-id instance) (:base-vclock instance) 
+                       (or supplied-history existing-history))]
+    {:is-conflict (not (vclock/descends? next-version last-version))
+     :history next-version}))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
@@ -72,12 +85,12 @@
   (debug "putting a document:" id document metadata)
    (in-tx instance 
      (fn [tx]
-       (docs/store-document 
-         tx id document (next-synctag last-synctag) 
-         (update-in 
-           (merge (load-document-metadata instance id) metadata) 
-           [:history] 
-           #(vclock/next (:server-id instance) (:base-vclock instance) %1)))))))
+       (let [history-result (checked-history instance id 
+                            (:history metadata) (:history (or (load-document-metadata instance id) {})))]
+         (if (:is-conflict history-result)
+            (docs/store-conflict tx id document (next-synctag last-synctag) metadata)
+            (docs/store-document tx id document (next-synctag last-synctag) 
+               (assoc metadata :history (:history history-result)))))))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
@@ -92,11 +105,6 @@
   (debug "getting a document with id " id)
   (docs/load-document storage id))
 
-(defn load-document-metadata
-  [{:keys [storage]} id]
-  (debug "getting document metadata id " id)
-  (assoc (docs/load-document-metadata storage id)
-         :synctag (docs/synctag-for-doc storage id)))
 
 (defn bulk 
   [{:keys [last-synctag] :as instance} operations]
