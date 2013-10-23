@@ -46,8 +46,8 @@ by-name-animal-filter	spec/cravendb/updatingindexes_spec.clj	/^(def by-name-anim
 by-name-map	spec/cravendb/indexengine_spec.clj	/^(def by-name-map "(fn [doc] { \\"name\\" (:name doc) })")$/;"	f
 by-name-map	spec/cravendb/indexing_spec.clj	/^(def by-name-map $/;"	f
 by-name-map	spec/cravendb/updatingindexes_spec.clj	/^(def by-name-map $/;"	f
-check-document-write	src/cravendb/database.clj	/^(defn check-document-write [instance id metadata success conflict]$/;"	f
-checked-history	src/cravendb/database.clj	/^(defn checked-history [instance supplied-history existing-history]$/;"	f
+check-document-write	src/cravendb/database.clj	/^(defn check-document-write [tx id metadata success conflict]$/;"	f
+checked-history	src/cravendb/database.clj	/^(defn checked-history [tx supplied-history existing-history]$/;"	f
 clear-conflicts	src/cravendb/database.clj	/^(defn clear-conflicts [{:keys [storage]} id]$/;"	f
 clear-test-data	src/cravendb/testing.clj	/^(defn clear-test-data []$/;"	f
 close-engine	src/cravendb/indexengine.clj	/^(defn close-engine [engine]$/;"	f
@@ -140,7 +140,7 @@ has-item?	src/cravendb/querylanguage.clj	/^(defn has-item? [k v] (binary-conditi
 has-word-starting-with?	src/cravendb/querylanguage.clj	/^(defn has-word-starting-with? [k v] (binary-condition "starts-with" k v))  ;; for now$/;"	f
 has-word?	src/cravendb/querylanguage.clj	/^(defn has-word? [k v] (binary-condition "=" k v))  ;; for now$/;"	f
 import-prescriptions	src/cravendb/load.clj	/^(defn import-prescriptions []$/;"	f
-in-tx	src/cravendb/database.clj	/^(defn in-tx [{:keys [storage last-synctag] :as instance} f]$/;"	f
+in-tx	src/cravendb/database.clj	/^(defn in-tx $/;"	f
 index-catchup!	src/cravendb/indexing.clj	/^(defn index-catchup! [db index]$/;"	f
 index-doc-id	src/cravendb/indexstore.clj	/^(defn index-doc-id [id]$/;"	f
 index-docs	src/cravendb/indexing.clj	/^(defn index-docs [tx indexes ids]$/;"	f
