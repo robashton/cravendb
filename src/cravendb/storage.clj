@@ -22,11 +22,12 @@
     0
     (.getInt (ByteBuffer/wrap input))))
 
-(defn safe-get [db k]
+(defn safe-get [db k options]
   (try
-    (.get db k)
+    (if options
+      (.get db k options)   
+      (.get db k)) 
     (catch Exception e 
-      (println e) 
       nil)))
 
 (defprotocol Storage 
@@ -55,9 +56,7 @@
   (let [cached (get-in ops [:cache id])]
     (if (= cached :deleted) nil
       (or cached 
-          (if (:options ops)
-            (.get (:db ops) (to-db id) (:options ops)) 
-            (.get (:db ops) (to-db id)))))))
+        (safe-get (:db ops) (to-db id) (:options ops))))))
 
 (defn get-integer [ops id]
   (from-db-int (get-blob ops id)))

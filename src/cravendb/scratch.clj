@@ -8,6 +8,7 @@
             [clojurewerkz.vclock.core :as vclock]            
             [clojure.edn :as edn]
             [cravendb.database :as db]
+            [cravendb.storage :as s]
             [me.raynes.fs :as fs]
             ))
 
@@ -41,7 +42,7 @@
 #_ (db/checked-history {:server-id "2"} "doc-1"nil nil) 
 #_ (db/put-document instance "doc-1" {:name "bob"})
 #_ (db/load-document instance "doc-1" )
-#_ (db/load-document-metadata instance "doc-1")
+#_ (v/string-to-vclock (:history (db/load-document-metadata instance "doc-1")))
 
 #_ (db/put-document instance "doc-1" {:name "bob"}
    (db/load-document-metadata instance "doc-1"))
@@ -62,6 +63,9 @@
 
 #_ (db/checked-history { :server-id "one" :base-vclock (v/new )} 
                        (v/next "two" (v/new)) (v/next "one" (v/new)))
+
+
+#_ (s/get-string instance "doc-doc-1")
 
 #_ (v/descends? 
      (v/next "one" (v/next "two" (v/new)))

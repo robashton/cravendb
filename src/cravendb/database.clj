@@ -24,6 +24,7 @@
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)
            :last-synctag (atom (synctag-to-integer (docs/last-synctag-in storage)))
+           :tx-count (atom 0)
            :base-vclock (vclock/new)
            :server-id "root"
            )))
@@ -57,10 +58,16 @@
   (with-open [tx (s/ensure-transaction storage)] 
     (s/commit! (docs/without-conflicts tx id))))
 
-(defn in-tx [{:keys [storage last-synctag] :as instance} f]
+(defn in-tx 
+  [{:keys [storage last-synctag tx-count server-id base-vclock] :as instance} f]
   (with-open [tx (s/ensure-transaction storage)] 
-    (s/commit!
-      (docs/write-last-synctag (f tx) @last-synctag))))
+    (-> tx
+      (assoc :e-id (str server-id (swap! tx-count inc))
+             :base-vclock base-vclock)
+      (f)
+      (docs/write-last-synctag @last-synctag) 
+      (s/commit!))
+    (swap! tx-count dec)))
 
 (defn load-document-metadata
   [{:keys [storage]} id]
@@ -68,16 +75,16 @@
   (assoc (docs/load-document-metadata storage id)
          :synctag (docs/synctag-for-doc storage id)))
 
-(defn checked-history [instance supplied-history existing-history]
-  (let [last-version (or  supplied-history existing-history (:base-vclock instance))
-        next-version (vclock/next (:server-id instance) last-version)]
+(defn checked-history [tx supplied-history existing-history]
+  (let [last-version (or  supplied-history existing-history (:base-vclock tx))
+        next-version (vclock/next (:e-id tx) last-version)]
     {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
      :history next-version}))
 
-(defn check-document-write [instance id metadata success conflict]
+(defn check-document-write [tx id metadata success conflict]
   (let [history-result 
-        (checked-history instance
-            (:history metadata) (:history (or (load-document-metadata instance id) {})))]
+        (checked-history tx
+            (:history metadata) (:history (or (load-document-metadata tx id) {})))]
          (if (:is-conflict history-result)
            (conflict metadata)
            (success (assoc metadata :history (:history history-result))))))
@@ -89,7 +96,7 @@
    (in-tx instance 
      (fn [tx]
        (check-document-write 
-         instance id metadata
+         tx id metadata
          #(docs/store-document tx id document (next-synctag last-synctag) %1)
          #(docs/store-conflict tx id document (next-synctag last-synctag) %1))))))
 
@@ -100,7 +107,7 @@
    (in-tx instance 
      (fn [tx]
        (check-document-write 
-         instance id metadata
+         tx id metadata
          #(docs/delete-document tx id (next-synctag last-synctag) %1)
          #(docs/store-conflict tx id :deleted (next-synctag last-synctag) %1))))))
 
@@ -108,7 +115,6 @@
   [{:keys [storage]} id]
   (debug "getting a document with id " id)
   (docs/load-document storage id))
-
 
 (defn bulk 
   [{:keys [last-synctag] :as instance} operations]
@@ -143,6 +149,3 @@
   (debug "getting an index with id " id)
   (with-open [tx (s/ensure-transaction storage)]
     (indexes/load-index tx id)))
-  
-
-

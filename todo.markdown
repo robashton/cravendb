@@ -25,6 +25,7 @@
 
 - Deleting indexes should ideally delete the persistence for those indexes
 - Handle indexes that can't be compiled for some reason
+- Indexes should ideally be defended from concurrency too
 
 ### Pending tasks
 
