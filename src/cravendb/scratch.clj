@@ -45,8 +45,8 @@
 #_ (v/string-to-vclock (:history (db/load-document-metadata instance "doc-1")))
 
 #_ (db/put-document instance "doc-1" {:name "bob"}
-   (db/load-document-metadata instance "doc-1"))
-
+   (db/in-tx instance (fn [tx]
+                        (db/load-document-metadata tx "doc-1")))) 
 
 #_ (next-vclock "1" (vclock/fresh) nil)
 #_ (next-vclock "1" (vclock/fresh) 
@@ -82,5 +82,6 @@
     (db/put-document instance "1" "hello world")
     (let [old-meta (docs/load-document-metadata storage "1")]
       (db/put-document instance "1" "hello world")   
-      (db/put-document instance "1" "hello bob" old-meta))))
+      (db/put-document instance "1" "hello bob" old-meta))
+    (docs/conflicts storage)))
 

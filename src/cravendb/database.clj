@@ -84,7 +84,7 @@
 (defn check-document-write [tx id metadata success conflict]
   (let [history-result 
         (checked-history tx
-            (:history metadata) (:history (or (load-document-metadata tx id) {})))]
+            (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
          (if (:is-conflict history-result)
            (conflict metadata)
            (success (assoc metadata :history (:history history-result))))))

@@ -24,13 +24,16 @@
                  [org.apache.lucene/lucene-queryparser "4.4.0"]
                  [org.apache.lucene/lucene-analyzers-common "4.4.0"]
                  [org.clojure/data.codec "0.1.0"]
+                 [spyscope "0.1.3"]
                  [org.apache.lucene/lucene-highlighter "4.4.0"]]
 
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :profiles {:dev {
                    :dependencies [[speclj "2.7.2"]
                                   [speclj-growl "1.0.0-SNAPSHOT"]
-                                  [speclj-growl "2.1.0"]]}}
+                                  [speclj-growl "2.1.0"]]}
+             }
+  :injections [(require 'spyscope.core)]
   :plugins [[speclj "2.7.2"]]
   :main cravendb.http
   :test-paths ["spec/"])

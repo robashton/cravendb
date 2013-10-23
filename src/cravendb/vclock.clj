@@ -20,7 +20,7 @@
   (vclock-to-string (vclock/fresh)))
 
 (defn descends? [child parent]
-  (vclock/descends?  (string-to-vclock child) (string-to-vclock parent)))
+  (vclock/descends?  (string-to-vclock child)  (string-to-vclock parent)))
 
 (defn next [e-id supplied]
   (vclock-to-string
