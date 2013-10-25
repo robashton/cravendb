@@ -30,21 +30,21 @@
     (catch Exception e 
       nil)))
 
-(defprotocol Storage 
-  (close [this])) 
-
 (defrecord LevelTransaction [db options path]
-  Storage
+  java.io.Closeable
   (close [this]
     (debug "Closing the snapshot")
     (.close (.snapshot options))))
 
 (defrecord LevelStorage [path db]
-  Storage
+  java.io.Closeable
   (close [this] 
     (debug "Closing the actual storage engine")
     (.close db) 
     nil))
+
+(defrecord MemoryStorage [memory])
+(defrecord MemoryTransaction [memory])
 
 (defn store [ops id data]
   (assoc-in ops [:cache id] (to-db data))) 
@@ -52,11 +52,17 @@
 (defn delete [ops id]
   (assoc-in ops [:cache id] :deleted))
 
-(defn get-blob [ops id]
+(defmulti get-blob (fn [ops id] (if (:db ops) :disk :memory)))
+(defmethod get-blob :disk [ops id]
   (let [cached (get-in ops [:cache id])]
     (if (= cached :deleted) nil
       (or cached 
         (safe-get (:db ops) (to-db id) (:options ops))))))
+
+(defmethod get-blob :memory [ops id]
+  (let [cached (get-in ops [:cache id])]
+    (if (= cached :deleted) nil
+      (or cached (get-in ops @[:memory id])))))
 
 (defn get-integer [ops id]
   (from-db-int (get-blob ops id)))
@@ -69,7 +75,8 @@
     (.iterator (:db ops) (:options ops))  
     (.iterator (:db ops))))
 
-(defn commit! [{:keys [db cache]}]
+(defmulti commit! (fn [i] (if (:db i) :disk :memory)))
+(defmethod commit! :disk [{:keys [db cache]}]
   (with-open [batch (.createWriteBatch db)]
     (doseq [[id value] cache]
       (if (= value :deleted)
@@ -80,12 +87,20 @@
       (.write db batch wo)))
   nil)
 
-(defn ensure-transaction [ops]
-  (debug "Opening transaction")
+(defmethod commit! :memory [{:keys[ memory cache]}]
+  (swap! memory #(reduce (fn [m [k v]] (if (= :deleted v) (dissoc m k) (assoc m k v))) %1 cache)))
+
+(defmulti ensure-transaction (fn [ops] (if (:db ops) :disk :memory)))
+(defmethod ensure-transaction :disk [ops]
+  (debug "Opening transaction") 
   (let [options (ReadOptions.)
-        snapshot (.getSnapshot (:db ops))]
-    (.snapshot options snapshot)
-    (LevelTransaction. (:db ops) options (:path ops))))
+          snapshot (.getSnapshot (:db ops))]
+      (.snapshot options snapshot)
+      (LevelTransaction. (:db ops) options (:path ops))))
+
+(defmethod ensure-transaction :memory [ops]
+  (debug "Opening transaction") 
+  (MemoryTransaction. (:memory ops)))
 
 (defn create-db [dir]
   (let [options (Options.)]
@@ -94,3 +109,6 @@
 
 (defn create-storage [dir]
   (LevelStorage. dir (create-db dir)))
+
+(defn create-memory-storage []
+  (MemoryStorage. (atom {})))

@@ -1,6 +1,7 @@
 target
 .lein-*
 .log
+.nrepl*
 test
 logs
 testdir
