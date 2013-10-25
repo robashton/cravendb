@@ -128,7 +128,13 @@
   nil)
 
 (defmethod commit! :memory [{:keys[ memory cache]}]
-  (swap! memory #(reduce (fn [m [k v]] (if (= :deleted v) (dissoc m k) (assoc m k v))) %1 cache)))
+  (swap! memory 
+         #(persistent!  
+            (reduce (fn [m [k v]] 
+                      (if (= :deleted v) 
+                        (dissoc! m k) 
+                        (assoc! m k v))) 
+                    (transient %1) cache))))
 
 (defmulti ensure-transaction (fn [ops] (if (:db ops) :disk :memory)))
 (defmethod ensure-transaction :disk [ops]
