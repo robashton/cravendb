@@ -91,8 +91,8 @@
   (->> (iterator-seq (:inner iter))
    (map expand-iterator-str))) 
 (defmethod as-seq :memory [iter]
-  (map #(update-in (zipmap [:k :v] %1) [:v] from-db-str) 
-    (drop-while #(> 0 (compare (first %1) @(:start iter))) (sort (or (:snapshot iter) @(:memory iter))))))
+  (map (fn [i] {:k (key i) :v (from-db-str (val i))}) 
+       (drop-while #(> 0 (compare (key %1) @(:start iter))) (or (:snapshot iter) @(:memory iter)))))
 
 
 (defmulti seek (fn [i v] (if (:inner i) :disk :memory)))
@@ -101,8 +101,6 @@
   iter)
 (defmethod seek :memory [iter value]
   (swap! (:start iter) (fn [i] value)))
-
-
 
 (defmulti get-iterator (fn [i] (if (:db i) :disk :memory)))
 
@@ -129,12 +127,11 @@
 
 (defmethod commit! :memory [{:keys[ memory cache]}]
   (swap! memory 
-         #(persistent!  
-            (reduce (fn [m [k v]] 
-                      (if (= :deleted v) 
-                        (dissoc! m k) 
-                        (assoc! m k v))) 
-                    (transient %1) cache))))
+         #(reduce (fn [m [k v]] 
+                    (if (= :deleted v) 
+                      (dissoc m k) 
+                      (assoc m k v))) 
+                  %1 cache)))
 
 (defmulti ensure-transaction (fn [ops] (if (:db ops) :disk :memory)))
 (defmethod ensure-transaction :disk [ops]
@@ -157,4 +154,4 @@
   (LevelStorage. dir (create-db dir)))
 
 (defn create-in-memory-storage []
-  (MemoryStorage. (atom {})))
+  (MemoryStorage. (atom (sorted-map))))
