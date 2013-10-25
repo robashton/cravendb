@@ -14,7 +14,8 @@
   (str (:id index) "-" (or (:synctag index) "")))
 
 (defn open-storage-for-index [path index]
-  (let [storage (lucene/create-index (File. path (storage-path-for-index index)))]
+  (let [storage (if path (lucene/create-index (File. path (storage-path-for-index index)))
+                         (lucene/create-memory-index))]
     (-> index
       (assoc :storage storage)
       (assoc :writer (lucene/open-writer storage)))))

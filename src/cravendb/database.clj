@@ -19,7 +19,7 @@
 
 (defn create
   [path]
-  (let [storage (s/create-storage path)
+  (let [storage (s/create-in-memory-storage)
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)

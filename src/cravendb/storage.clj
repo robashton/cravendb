@@ -43,7 +43,7 @@
     (.close db) 
     nil))
 
-(defrecord MemoryStorage [path memory]
+(defrecord MemoryStorage [memory]
   java.io.Closeable
   (close [this]))
 (defrecord MemoryTransaction [path snapshot memory]
@@ -150,5 +150,5 @@
 (defn create-storage [dir]
   (LevelStorage. dir (create-db dir)))
 
-#_ (defn create-storage [dir]
-  (MemoryStorage. dir (atom {})))
+(defn create-in-memory-storage []
+  (MemoryStorage. (atom {})))
