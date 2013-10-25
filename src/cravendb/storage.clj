@@ -43,8 +43,15 @@
     (.close db) 
     nil))
 
-(defrecord MemoryStorage [memory])
-(defrecord MemoryTransaction [memory])
+(defrecord MemoryStorage [path memory]
+  java.io.Closeable
+  (close [this]))
+(defrecord MemoryTransaction [path snapshot memory]
+  java.io.Closeable
+  (close [this]))
+(defrecord MemoryIterator [snapshot memory start]
+  java.io.Closeable
+  (close [this]))
 
 (defn store [ops id data]
   (assoc-in ops [:cache id] (to-db data))) 
@@ -62,7 +69,7 @@
 (defmethod get-blob :memory [ops id]
   (let [cached (get-in ops [:cache id])]
     (if (= cached :deleted) nil
-      (or cached (get-in ops @[:memory id])))))
+      (or cached (get (or (:snapshot ops) @(:memory ops)) id)))))
 
 (defn get-integer [ops id]
   (from-db-int (get-blob ops id)))
@@ -78,20 +85,35 @@
   { :k (from-db-str (.getKey i))
     :v (from-db-str (.getValue i)) })
 
-(defn as-seq [iter]
+
+(defmulti as-seq (fn [i] (if (:inner i) :disk :memory)))
+(defmethod as-seq :disk [iter]
   (->> (iterator-seq (:inner iter))
    (map expand-iterator-str))) 
-(defn seek [iter value]
+(defmethod as-seq :memory [iter]
+  (map #(update-in (zipmap [:k :v] %1) [:v] from-db-str) 
+    (drop-while #(> 0 (compare (first %1) @(:start iter))) (sort (or (:snapshot iter) @(:memory iter))))))
+
+
+(defmulti seek (fn [i v] (if (:inner i) :disk :memory)))
+(defmethod seek :disk [iter value]
   (.seek (:inner iter) (to-db value))
   iter)
+(defmethod seek :memory [iter value]
+  (swap! (:start iter) (fn [i] value)))
 
-(defn get-iterator 
-  ([ops start] (seek (get-iterator ops) start)) 
-  ([ops]
-   (StorageIterator.
+
+
+(defmulti get-iterator (fn [i] (if (:db i) :disk :memory)))
+
+(defmethod get-iterator :disk [ops]
+  (StorageIterator.
      (if (:options ops)
         (.iterator (:db ops) (:options ops))  
-        (.iterator (:db ops))))))
+        (.iterator (:db ops)))))
+
+(defmethod get-iterator :memory [ops]
+  (MemoryIterator. (:snapshot ops) (:memory ops) (atom nil)))
 
 (defmulti commit! (fn [i] (if (:db i) :disk :memory)))
 (defmethod commit! :disk [{:keys [db cache]}]
@@ -118,15 +140,15 @@
 
 (defmethod ensure-transaction :memory [ops]
   (debug "Opening transaction") 
-  (MemoryTransaction. (:memory ops)))
+  (MemoryTransaction. (:path ops) @(:memory ops) (:memory ops)))
 
 (defn create-db [dir]
   (let [options (Options.)]
     (.createIfMissing options true)
     (.open (JniDBFactory/factory) (File. dir) options)))
 
-(defn create-storage [dir]
+#_ (defn create-storage [dir]
   (LevelStorage. dir (create-db dir)))
 
-(defn create-memory-storage []
-  (MemoryStorage. (atom {})))
+(defn create-storage [dir]
+  (MemoryStorage. dir (atom {})))
