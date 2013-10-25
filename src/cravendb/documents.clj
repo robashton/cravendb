@@ -54,7 +54,8 @@
   ([db] (conflicts db ""))
   ([db prefix]
     (debug "About to iterate conflicts" prefix)
-      (with-open [iter (s/get-iterator db (str conflict-prefix prefix))] 
+      (with-open [iter (s/get-iterator db )] 
+        (s/seek iter (str conflict-prefix prefix))
         (doall (->> (s/as-seq iter) 
             (take-while #(is-conflict-entry-for %1 prefix))
             (map (comp edn/read-string :v)))))))

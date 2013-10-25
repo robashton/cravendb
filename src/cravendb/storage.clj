@@ -147,8 +147,8 @@
     (.createIfMissing options true)
     (.open (JniDBFactory/factory) (File. dir) options)))
 
-#_ (defn create-storage [dir]
+(defn create-storage [dir]
   (LevelStorage. dir (create-db dir)))
 
-(defn create-storage [dir]
+#_ (defn create-storage [dir]
   (MemoryStorage. dir (atom {})))
