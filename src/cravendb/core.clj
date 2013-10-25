@@ -1,11 +1,6 @@
 (ns cravendb.core
   (:require [cravendb.storage :as s]))
 
-(defn expand-iterator-str [i]
-  { :k (s/from-db-str (.getKey i))
-    :v (s/from-db-str (.getValue i)) })
-
-(defn extract-value-from-expanded-iterator [m] (m :v))
 
 (defn integer-to-synctag [integer]
   (format "%030d" integer))

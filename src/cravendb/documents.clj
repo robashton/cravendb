@@ -23,13 +23,13 @@
   (.startsWith k synctags-to-docs-prefix))
 
 (defn is-synctag-docs-entry [m]
-  (is-synctags-to-docs-key (m :k)))
+  (is-synctags-to-docs-key (:k m)))
 
 (defn is-conflict-entry [m]
-  (.startsWith (m :k) conflict-prefix))
+  (.startsWith (:k m) conflict-prefix))
 
 (defn is-conflict-entry-for [m doc-id]
-  (.startsWith (m :k) (str conflict-prefix doc-id)))
+  (.startsWith (:k m) (str conflict-prefix doc-id)))
 
 (defn synctag-for-doc [db doc-id]
   (s/get-string db (str docs-to-synctags-prefix doc-id)))
@@ -54,14 +54,11 @@
   ([db] (conflicts db ""))
   ([db prefix]
     (debug "About to iterate conflicts" prefix)
-      (with-open [iter (s/get-iterator db)] 
-        (.seek iter (s/to-db (str conflict-prefix prefix)))
-        (doall
-          (->> 
-            (iterator-seq iter)
-            (map expand-iterator-str)
+      (with-open [iter (s/get-iterator db )] 
+        (s/seek iter (str conflict-prefix prefix))
+        (doall (->> (s/as-seq iter) 
             (take-while #(is-conflict-entry-for %1 prefix))
-            (map (comp edn/read-string extract-value-from-expanded-iterator)))))))
+            (map (comp edn/read-string :v)))))))
 
 (defn without-conflict [tx doc-id synctag]
    (s/delete tx (str conflict-prefix doc-id synctag)))
@@ -96,19 +93,14 @@
     (s/store (str docs-to-metadata-prefix id) (pr-str metadata)))))
 
 (defn iterate-documents-prefixed-with [iter prefix]
-  (.seek iter (s/to-db (str document-prefix prefix)))
-  (->> 
-    (iterator-seq iter)
-    (map expand-iterator-str)
+  (s/seek iter (str document-prefix prefix))
+  (->> (s/as-seq iter)
     (take-while (partial is-document-key-prefixed-with prefix))
-    (map (comp edn/read-string extract-value-from-expanded-iterator))) )
+    (map (comp edn/read-string :v))) )
 
 (defn iterate-synctags-after [iter synctag]
   (debug "About to iterate synctags after" synctag)
-  (.seek iter (s/to-db (str synctags-to-docs-prefix (next-synctag synctag))))
-  (->> 
-    (iterator-seq iter)
-    (map expand-iterator-str)
-    (take-while is-synctag-docs-entry)
-    (map extract-value-from-expanded-iterator)
-    (distinct)))
+  (s/seek iter (str synctags-to-docs-prefix (next-synctag synctag)))
+  (->> (s/as-seq iter) (take-while is-synctag-docs-entry) (map :v) (distinct)))
+
+
