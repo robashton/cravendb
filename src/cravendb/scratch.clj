@@ -10,7 +10,23 @@
             [cravendb.database :as db]
             [cravendb.storage :as s]
             [me.raynes.fs :as fs]
-            ))
+            [cravendb.client :as client]))
+
+#_ (with-test-server 
+      (fn []
+        (client/put-index 
+          "http://localhost:9000" 
+          "by_username" 
+          "(fn [doc] {\"username\" (:username doc)})")
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "2" { :username "alice"})
+        (client/query 
+          "http://localhost:9000" 
+          { :query "(= \"username\" \"bob\")" :index "by_username" :wait true}))) 
 
 ;; I think I should rename synctags, database-specific incrementor
 ;; - Used for indexing location

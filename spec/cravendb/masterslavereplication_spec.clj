@@ -54,6 +54,7 @@
 
     (before
       (insert-2000-documents (:instance @master))
+      (Thread/sleep 2000) ;; I'll remove this when I have a way of waiting for indexing from client
       (@wait-for-replication))
 
     (it "will cause the slave to contain all of the documents from the master"

@@ -70,10 +70,28 @@
 (defn get-string [ops id]
   (from-db-str (get-blob ops id)))
 
-(defn get-iterator [ops]
-  (if (:options ops)
-    (.iterator (:db ops) (:options ops))  
-    (.iterator (:db ops))))
+(defrecord StorageIterator [inner]
+  java.io.Closeable
+  (close [this] (.close inner)))
+
+(defn expand-iterator-str [i]
+  { :k (from-db-str (.getKey i))
+    :v (from-db-str (.getValue i)) })
+
+(defn as-seq [iter]
+  (->> (iterator-seq (:inner iter))
+   (map expand-iterator-str))) 
+(defn seek [iter value]
+  (.seek (:inner iter) (to-db value))
+  iter)
+
+(defn get-iterator 
+  ([ops start] (seek (get-iterator ops) start)) 
+  ([ops]
+   (StorageIterator.
+     (if (:options ops)
+        (.iterator (:db ops) (:options ops))  
+        (.iterator (:db ops))))))
 
 (defmulti commit! (fn [i] (if (:db i) :disk :memory)))
 (defmethod commit! :disk [{:keys [db cache]}]
