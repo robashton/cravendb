@@ -1,5 +1,5 @@
 (ns cravendb.http
-  (:require [ring.adapter.jetty :refer [run-jetty]]
+  (:require [org.httpkit.server :refer [run-server]]
             [clojure.edn :as edn]
             [compojure.route :as route]
             [compojure.handler :as handler]
@@ -96,7 +96,7 @@
 
 (defn -main []
   (with-open [instance (db/create "testdb")]
-    (run-jetty 
+    (run-server 
       (create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true}) 
     (debug "Shutting down")))

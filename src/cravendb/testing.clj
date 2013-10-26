@@ -1,6 +1,6 @@
 (ns cravendb.testing
   (:require [me.raynes.fs :as fs]
-            [ring.adapter.jetty :refer [run-jetty]]
+            [org.httpkit.server :refer [run-server]]
             [cravendb.documents :as docs]
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as s]
@@ -34,13 +34,13 @@
 (defn with-test-server [testfn]
   (clear-test-data)
   (with-open [instance (database/create "testdir")]
-    (try (let [server (run-jetty 
+    (try (let [server (run-server 
                    (http/create-http-server instance) 
                     { :port 9000 :join? false} )]
       (try
         (testfn)
         (finally
-          (.stop server))))))
+          (server))))))
   (clear-test-data))
 
 (defn start-server 
@@ -52,10 +52,10 @@
     :port port
     :url (str "http://localhost:" port)
     :instance instance
-    :server (run-jetty (http/create-http-server instance)
+    :server (run-server (http/create-http-server instance)
                         {:port port :join? false}) })))
 
 (defn stop-server [info]
-  (.stop (:server info))
+  ((:server info)) 
   (.close (:instance info))
   (fs/delete-dir (str "testdir" (:port info))))

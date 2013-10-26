@@ -7,7 +7,7 @@
                  [com.cemerick/url "0.1.0"]
                  [liberator "0.9.0"]
                  [instaparse "1.2.2"]
-                 [ring "1.2.0"]
+                 [http-kit "2.1.12"]
                  [compojure "1.1.5"]
                  [serializable-fn "1.1.3"]
                  [clojurewerkz/vclock "1.0.0"]
