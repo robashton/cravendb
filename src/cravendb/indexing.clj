@@ -27,7 +27,7 @@
     })
 
 (defn wait-for-index-catch-up 
-  ([db] (wait-for-index-catch-up db 5))
+  ([db] (wait-for-index-catch-up db 1))
   ([db timeout]
    (let [last-synctag (synctag-to-integer (docs/last-synctag-in db))
           start-time (tl/local-now) ]

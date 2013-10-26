@@ -162,6 +162,7 @@
 
 (defn pump-indexes! [engine]
   (-> engine 
+    refresh-indexes!
     remove-any-finished-chasers 
     start-new-chasers
     pump-indexes-at-head!
@@ -177,7 +178,6 @@
 (defn start-indexing [engine ea]
   (let [task (future 
         (loop []
-          (send ea refresh-indexes!)
           (send ea try-pump-indexes ea)
           (Thread/sleep 50)
           (recur)))]

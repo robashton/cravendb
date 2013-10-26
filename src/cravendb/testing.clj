@@ -21,9 +21,7 @@
 (defn with-full-setup [testfn]
   (clear-test-data)
   (with-open [instance (database/create "testdir")]
-    (let [result (testfn instance)]
-      (clear-test-data)      
-        result)))
+    (testfn instance)))
 
 (defn inside-tx [testfn]
   (with-db 
