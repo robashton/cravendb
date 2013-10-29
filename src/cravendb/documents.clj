@@ -73,7 +73,7 @@
     (s/store (str document-prefix id) (pr-str document))
     (s/store (str synctags-to-docs-prefix synctag) id)
     (s/store (str docs-to-synctags-prefix id) synctag)
-    (s/store (str docs-to-metadata-prefix id) (pr-str metadata)))))
+    (s/store (str docs-to-metadata-prefix id) (pr-str (assoc metadata :synctag synctag))))))
 
 (defn load-document [session id] 
   (if-let [raw-doc (s/get-string session (str document-prefix id))]

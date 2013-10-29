@@ -72,8 +72,7 @@
 (defn load-document-metadata
   [{:keys [storage]} id]
   (debug "getting document metadata id " id)
-  (assoc (docs/load-document-metadata storage id)
-         :synctag (docs/synctag-for-doc storage id)))
+  (docs/load-document-metadata storage id))
 
 (defn checked-history [tx supplied-history existing-history]
   (let [last-version (or  supplied-history existing-history (:base-vclock tx))
