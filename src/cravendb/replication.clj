@@ -14,7 +14,6 @@
           :last-synctag (:synctag metadata)
           :total (inc total)) 
         (do
-          (println "DELETING YO" id doc metadata)
           (assoc state
           :tx (docs/delete-document tx id (:synctag metadata))
           :last-synctag (:synctag metadata)
