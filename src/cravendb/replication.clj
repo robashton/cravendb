@@ -10,7 +10,7 @@
          {:keys [id doc metadata]}]
       (if doc
         (assoc state
-          :tx (docs/store-document tx id doc (:synctag metadata))
+          :tx (docs/store-document tx id doc (:synctag metadata) metadata)
           :last-synctag (:synctag metadata)
           :total (inc total)) 
         (assoc state
