@@ -90,7 +90,7 @@
     (s/delete (str document-prefix id))
     (s/store (str synctags-to-docs-prefix synctag) id)
     (s/store (str docs-to-synctags-prefix id) synctag)
-    (s/store (str docs-to-metadata-prefix id) (pr-str metadata)))))
+    (s/store (str docs-to-metadata-prefix id) (pr-str (assoc metadata :synctag synctag))))))
 
 (defn iterate-documents-prefixed-with [iter prefix]
   (s/seek iter (str document-prefix prefix))

@@ -13,10 +13,12 @@
           :tx (docs/store-document tx id doc (:synctag metadata))
           :last-synctag (:synctag metadata)
           :total (inc total)) 
-        (assoc state
+        (do
+          (println "DELETING YO" id doc metadata)
+          (assoc state
           :tx (docs/delete-document tx id (:synctag metadata))
           :last-synctag (:synctag metadata)
-          :total (inc total)))) 
+          :total (inc total))))) 
     { :tx tx :total 0 :last-synctag (zero-synctag) }
     items))
 
