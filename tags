@@ -20,10 +20,13 @@ LevelTransaction	src/cravendb/storage.clj	/^(defrecord LevelTransaction [db opti
 LuceneIndex	src/cravendb/lucene.clj	/^(defrecord LuceneIndex [analyzer directory config]$/;"	f
 LuceneIndexReading	src/cravendb/lucene.clj	/^(defrecord LuceneIndexReading [reader analyzer]$/;"	f
 LuceneIndexWriting	src/cravendb/lucene.clj	/^(defrecord LuceneIndexWriting [writer analyzer]$/;"	f
+MemoryIterator	src/cravendb/storage.clj	/^(defrecord MemoryIterator [snapshot memory start]$/;"	f
+MemoryStorage	src/cravendb/storage.clj	/^(defrecord MemoryStorage [memory]$/;"	f
+MemoryTransaction	src/cravendb/storage.clj	/^(defrecord MemoryTransaction [path snapshot memory]$/;"	f
 NOT	src/cravendb/querylanguage.clj	/^(defn NOT [& v] (list-condition "not" v))$/;"	f
 OR	src/cravendb/querylanguage.clj	/^(defn OR [& v] (list-condition "or" v))$/;"	f
 ReplicationHandle	src/cravendb/replication.clj	/^(defrecord ReplicationHandle [instance source-url]$/;"	f
-Storage	src/cravendb/storage.clj	/^(defprotocol Storage $/;"	f
+StorageIterator	src/cravendb/storage.clj	/^(defrecord StorageIterator [inner]$/;"	f
 accepted-types	src/cravendb/http.clj	/^(def accepted-types ["application\/edn" "text\/plain" "text\/html"])$/;"	f
 add-1000-documents	spec/cravendb/query_spec.clj	/^(defn add-1000-documents [instance]$/;"	f
 add-alpha-whatevers	spec/cravendb/query_spec.clj	/^(defn add-alpha-whatevers [instance]$/;"	f
@@ -37,6 +40,9 @@ add-standard-data-set	spec/cravendb/defaultindex_spec.clj	/^(defn add-standard-d
 all	src/cravendb/defaultindexes.clj	/^(defn all [] [$/;"	f
 all-indexes	src/cravendb/indexengine.clj	/^(defn all-indexes [db]$/;"	f
 apply-map-to-document	src/cravendb/indexing.clj	/^(defn apply-map-to-document [index doc id]$/;"	f
+as-seq	src/cravendb/storage.clj	/^(defmethod as-seq :disk [iter]$/;"	f
+as-seq	src/cravendb/storage.clj	/^(defmethod as-seq :memory [iter]$/;"	f
+as-seq	src/cravendb/storage.clj	/^(defmulti as-seq (fn [i] (if (:inner i) :disk :memory)))$/;"	f
 binary-condition	src/cravendb/querylanguage.clj	/^(defn binary-condition [n k v]$/;"	f
 bulk	src/cravendb/database.clj	/^(defn bulk $/;"	f
 bulk-operation	src/cravendb/client.clj	/^(defn bulk-operation [url ops]$/;"	f
@@ -54,7 +60,9 @@ close-engine	src/cravendb/indexengine.clj	/^(defn close-engine [engine]$/;"	f
 close-obsolete-indexes!	src/cravendb/indexengine.clj	/^(defn close-obsolete-indexes! [existing new deleted]$/;"	f
 commit!	src/cravendb/clienttransaction.clj	/^(defn commit! [{:keys [href] :as tx}]$/;"	f
 commit!	src/cravendb/lucene.clj	/^(defn commit! [index]$/;"	f
-commit!	src/cravendb/storage.clj	/^(defn commit! [{:keys [db cache]}]$/;"	f
+commit!	src/cravendb/storage.clj	/^(defmethod commit! :disk [{:keys [db cache]}]$/;"	f
+commit!	src/cravendb/storage.clj	/^(defmethod commit! :memory [{:keys[ memory cache]}]$/;"	f
+commit!	src/cravendb/storage.clj	/^(defmulti commit! (fn [i] (if (:db i) :disk :memory)))$/;"	f
 compile-index	src/cravendb/indexengine.clj	/^(defn compile-index [index]$/;"	f
 compiled-indexes	src/cravendb/indexengine.clj	/^(defn compiled-indexes [handle] $/;"	f
 conflict-prefix	src/cravendb/documents.clj	/^(def conflict-prefix "conflict-")$/;"	f
@@ -74,6 +82,7 @@ create-equals-clause	src/cravendb/queryparsing.clj	/^(defn create-equals-clause 
 create-greater-than-clause	src/cravendb/queryparsing.clj	/^(defn create-greater-than-clause [[field-type field-name] [value-type value-value]]$/;"	f
 create-greater-than-or-equal-clause	src/cravendb/queryparsing.clj	/^(defn create-greater-than-or-equal-clause [[field-type field-name] [value-type value-value]]$/;"	f
 create-http-server	src/cravendb/http.clj	/^(defn create-http-server [instance]$/;"	f
+create-in-memory-storage	src/cravendb/storage.clj	/^(defn create-in-memory-storage []$/;"	f
 create-index	src/cravendb/lucene.clj	/^(defn create-index [file]$/;"	f
 create-index-stats	src/cravendb/indexing.clj	/^(defn create-index-stats [i]$/;"	f
 create-invalid-index	spec/cravendb/brokenindexes_spec.clj	/^(defn create-invalid-index []  $/;"	f
@@ -90,7 +99,7 @@ create-test-indexes	spec/cravendb/indexing_spec.clj	/^(defn create-test-indexes 
 create-valid-index	spec/cravendb/brokenindexes_spec.clj	/^(defn create-valid-index []  $/;"	f
 create-wildcard	src/cravendb/queryparsing.clj	/^(defn create-wildcard [in]$/;"	f
 default-headers	src/cravendb/client.clj	/^(def default-headers { :accept "application\/edn" })$/;"	f
-default-query	src/cravendb/database.clj	/^(def default-query {$/;"	f
+default-query	src/cravendb/database.clj	/^(def default-query { :index "default"$/;"	f
 delete	src/cravendb/storage.clj	/^(defn delete [ops id]$/;"	f
 delete-all-entries-for	src/cravendb/lucene.clj	/^(defn delete-all-entries-for [index ref-id]$/;"	f
 delete-document	src/cravendb/client.clj	/^(defn delete-document [url id]$/;"	f
@@ -107,15 +116,16 @@ docs-to-synctags-prefix	src/cravendb/documents.clj	/^(def docs-to-synctags-prefi
 document-id-field	src/cravendb/lucene.clj	/^(defn document-id-field [ref-id]$/;"	f
 document-prefix	src/cravendb/documents.clj	/^(def document-prefix "doc-")$/;"	f
 empty-replication-queue	src/cravendb/replication.clj	/^(defn empty-replication-queue [storage-destination source-url synctag]$/;"	f
-ensure-transaction	src/cravendb/storage.clj	/^(defn ensure-transaction [ops]$/;"	f
+ensure-transaction	src/cravendb/storage.clj	/^(defmethod ensure-transaction :disk [ops]$/;"	f
+ensure-transaction	src/cravendb/storage.clj	/^(defmethod ensure-transaction :memory [ops]$/;"	f
+ensure-transaction	src/cravendb/storage.clj	/^(defmulti ensure-transaction (fn [ops] (if (:db ops) :disk :memory)))$/;"	f
 errors	src/cravendb/indexstore.clj	/^(defn errors [tx index-id]$/;"	f
 ex-error	src/cravendb/indexengine.clj	/^(defn ex-error [prefix ex]$/;"	f
 ex-expand	src/cravendb/core.clj	/^(defn ex-expand [ex]$/;"	f
 execute	src/cravendb/query.clj	/^(defn execute [db index-engine {:keys [index wait wait-duration] :as opts}]$/;"	f
 expand-document	src/cravendb/stream.clj	/^(defn expand-document [instance id]$/;"	f
-expand-iterator-str	src/cravendb/core.clj	/^(defn expand-iterator-str [i]$/;"	f
+expand-iterator-str	src/cravendb/storage.clj	/^(defn expand-iterator-str [i]$/;"	f
 extract-name-from-result	spec/cravendb/defaultindex_spec.clj	/^(defn extract-name-from-result [results]$/;"	f
-extract-value-from-expanded-iterator	src/cravendb/core.clj	/^(defn extract-value-from-expanded-iterator [m] (m :v))$/;"	f
 finish-map-process!	src/cravendb/indexing.clj	/^(defn finish-map-process! $/;"	f
 finish-map-process-for-writer!	src/cravendb/indexing.clj	/^(defn finish-map-process-for-writer! [{:keys [max-synctag tx stats] :as output} writer]$/;"	f
 finish-partial-map-process!	src/cravendb/indexing.clj	/^(defn finish-partial-map-process! $/;"	f
@@ -126,12 +136,16 @@ from-db-str	src/cravendb/storage.clj	/^(defn from-db-str [input]$/;"	f
 from-http	src/cravendb/client.clj	/^(defn from-http [input]$/;"	f
 from-synctag	src/cravendb/stream.clj	/^(defn from-synctag [instance synctag]$/;"	f
 generate-key-name	src/cravendb/defaultindexes.clj	/^(defn generate-key-name [prefix k]$/;"	f
-get-blob	src/cravendb/storage.clj	/^(defn get-blob [ops id]$/;"	f
+get-blob	src/cravendb/storage.clj	/^(defmethod get-blob :disk [ops id]$/;"	f
+get-blob	src/cravendb/storage.clj	/^(defmethod get-blob :memory [ops id]$/;"	f
+get-blob	src/cravendb/storage.clj	/^(defmulti get-blob (fn [ops id] (if (:db ops) :disk :memory)))$/;"	f
 get-document	src/cravendb/client.clj	/^(defn get-document [url id]$/;"	f
 get-index	src/cravendb/client.clj	/^(defn get-index [url id]$/;"	f
 get-index-storage	src/cravendb/indexengine.clj	/^(defn get-index-storage [ops index-id]$/;"	f
 get-integer	src/cravendb/storage.clj	/^(defn get-integer [ops id]$/;"	f
-get-iterator	src/cravendb/storage.clj	/^(defn get-iterator [ops]$/;"	f
+get-iterator	src/cravendb/storage.clj	/^(defmethod get-iterator :disk [ops]$/;"	f
+get-iterator	src/cravendb/storage.clj	/^(defmethod get-iterator :memory [ops]$/;"	f
+get-iterator	src/cravendb/storage.clj	/^(defmulti get-iterator (fn [i] (if (:db i) :disk :memory)))$/;"	f
 get-last-indexed-synctag-for-index	src/cravendb/indexstore.clj	/^(defn get-last-indexed-synctag-for-index [tx id]$/;"	f
 get-string	src/cravendb/storage.clj	/^(defn get-string [ops id]$/;"	f
 gp-row	src/cravendb/load.clj	/^(defn gp-row [in]$/;"	f
@@ -245,7 +259,10 @@ replication-total	src/cravendb/replication.clj	/^(defn replication-total [storag
 reset-index	src/cravendb/indexstore.clj	/^(defn reset-index [tx index-id]$/;"	f
 resource-exists	src/cravendb/http.clj	/^(defn resource-exists [ctx rfn mfn]$/;"	f
 restart	src/cravendb/scratch.clj	/^(defn restart []$/;"	f
-safe-get	src/cravendb/storage.clj	/^(defn safe-get [db k]$/;"	f
+safe-get	src/cravendb/storage.clj	/^(defn safe-get [db k options]$/;"	f
+seek	src/cravendb/storage.clj	/^(defmethod seek :disk [iter value]$/;"	f
+seek	src/cravendb/storage.clj	/^(defmethod seek :memory [iter value]$/;"	f
+seek	src/cravendb/storage.clj	/^(defmulti seek (fn [i v] (if (:inner i) :disk :memory)))$/;"	f
 set-last-indexed-synctag-for-index	src/cravendb/indexstore.clj	/^(defn set-last-indexed-synctag-for-index [tx id synctag]$/;"	f
 set-synctags-of-index-and-head	spec/cravendb/indexengine_spec.clj	/^(defn set-synctags-of-index-and-head [db index-synctag-int head-synctag-int]$/;"	f
 standard-response	src/cravendb/http.clj	/^(defn standard-response [ctx data]$/;"	f

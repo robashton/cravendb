@@ -9,7 +9,6 @@
             [clojure.tools.logging :refer [info error debug]]
             [cravendb.core :refer [zero-synctag integer-to-synctag synctag-to-integer]]))
 
-
 (defrecord Database [storage index-engine]
   java.io.Closeable
   (close [this] 
@@ -19,15 +18,14 @@
 
 (defn create
   [path]
-  (let [storage (s/create-storage path)
+  (let [storage (s/create-in-memory-storage)
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)
            :last-synctag (atom (synctag-to-integer (docs/last-synctag-in storage)))
            :tx-count (atom 0)
            :base-vclock (vclock/new)
-           :server-id "root"
-           )))
+           :server-id "root")))
 
 (defn next-synctag [last-synctag]
     (integer-to-synctag (swap! last-synctag inc)))
@@ -37,18 +35,18 @@
     (case (:operation op)
       :docs-delete (docs/delete-document tx (:id op))
       :docs-put (docs/store-document tx (:id op) (:document op) 
-                                   (next-synctag last-synctag)))))
+                                   (next-synctag last-synctag)
+                                    {} ;; Meta-data (copied from input)
+                                     ))))
 
-(def default-query {
-                    :index "default"
-                    :wait-duration 5
-                    :wait false
-                    :query "*"
-                    :sort-order :asc
-                    :sort-by nil
-                    :offset 0
-                    :amount 1000
-                    })
+(def default-query { :index "default"
+                     :wait-duration 5
+                     :wait false
+                     :query "*"
+                     :sort-order :asc
+                     :sort-by nil
+                     :offset 0
+                     :amount 1000 })
 (defn query
   [{:keys [storage index-engine]} params]
   (debug "Querying for " params)
@@ -63,17 +61,12 @@
   (with-open [tx (s/ensure-transaction storage)] 
     (-> tx
       (assoc :e-id (str server-id (swap! tx-count inc))
-             :base-vclock base-vclock)
+             :base-vclock base-vclock
+             :server-id server-id)
       (f)
       (docs/write-last-synctag @last-synctag) 
       (s/commit!))
     (swap! tx-count dec)))
-
-(defn load-document-metadata
-  [{:keys [storage]} id]
-  (debug "getting document metadata id " id)
-  (assoc (docs/load-document-metadata storage id)
-         :synctag (docs/synctag-for-doc storage id)))
 
 (defn checked-history [tx supplied-history existing-history]
   (let [last-version (or  supplied-history existing-history (:base-vclock tx))
@@ -81,13 +74,22 @@
     {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
      :history next-version}))
 
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  (assoc (docs/load-document-metadata storage id)
+         :synctag (docs/synctag-for-doc storage id)))
+
 (defn check-document-write [tx id metadata success conflict]
   (let [history-result 
         (checked-history tx
             (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
          (if (:is-conflict history-result)
            (conflict metadata)
-           (success (assoc metadata :history (:history history-result))))))
+           (success 
+             (assoc metadata 
+                    :history (:history history-result)
+                    :server-id (:server-id tx))))))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
