@@ -10,12 +10,12 @@
          {:keys [id doc metadata]}]
       (if doc
         (assoc state
-          :tx (docs/store-document tx id doc (:synctag metadata))
+          :tx (docs/store-document tx id doc metadata)
           :last-synctag (:synctag metadata)
           :total (inc total)) 
         (do
           (assoc state
-          :tx (docs/delete-document tx id (:synctag metadata))
+          :tx (docs/delete-document tx id metadata)
           :last-synctag (:synctag metadata)
           :total (inc total))))) 
     { :tx tx :total 0 :last-synctag (zero-synctag) }
