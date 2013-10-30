@@ -35,9 +35,8 @@
     (case (:operation op)
       :docs-delete (docs/delete-document tx (:id op))
       :docs-put (docs/store-document tx (:id op) (:document op) 
-                                   (next-synctag last-synctag)
-                                    {} ;; Meta-data (copied from input)
-                                     ))))
+                                   {:synctag (next-synctag last-synctag)}))))
+
 
 (def default-query { :index "default"
                      :wait-duration 5
@@ -62,11 +61,17 @@
     (-> tx
       (assoc :e-id (str server-id (swap! tx-count inc))
              :base-vclock base-vclock
+             :last-synctag last-synctag
              :server-id server-id)
       (f)
       (docs/write-last-synctag @last-synctag) 
       (s/commit!))
     (swap! tx-count dec)))
+
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  (docs/load-document-metadata storage id))
 
 (defn checked-history [tx supplied-history existing-history]
   (let [last-version (or  supplied-history existing-history (:base-vclock tx))
@@ -86,10 +91,10 @@
   (let [history-result 
         (checked-history tx
             (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
-         (if (:is-conflict history-result)
-           (conflict metadata)
-           (success 
-             (assoc metadata 
+         ((if (:is-conflict history-result) conflict success)
+            (assoc metadata :history (:history history-result)
+                            :synctag (next-synctag (:last-synctag tx))))))
+
                     :history (:history history-result)
                     :primary-server (:server-id tx)
                     )))))
@@ -102,8 +107,8 @@
      (fn [tx]
        (check-document-write 
          tx id metadata
-         #(docs/store-document tx id document (next-synctag last-synctag) %1)
-         #(docs/store-conflict tx id document (next-synctag last-synctag) %1))))))
+         #(docs/store-document tx id document %1)
+         #(docs/store-conflict tx id document %1))))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
@@ -113,8 +118,8 @@
      (fn [tx]
        (check-document-write 
          tx id metadata
-         #(docs/delete-document tx id (next-synctag last-synctag) %1)
-         #(docs/store-conflict tx id :deleted (next-synctag last-synctag) %1))))))
+         #(docs/delete-document tx id %1)
+         #(docs/store-conflict tx id :deleted %1))))))
 
 (defn load-document 
   [{:keys [storage]} id]
@@ -136,7 +141,7 @@
   (debug "putting an in index:" index)
   (in-tx instance 
     (fn [tx] 
-      (indexes/put-index tx index (next-synctag last-synctag)))))
+      (indexes/put-index tx index {:synctag (next-synctag last-synctag)}))))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -147,7 +152,7 @@
   [{:keys [storage last-synctag] :as instance} id]
   (debug "deleting an index" id)
   (in-tx instance 
-    (fn [tx] (indexes/delete-index tx id (next-synctag last-synctag)))))
+    (fn [tx] (indexes/delete-index tx id {:synctag (next-synctag last-synctag)}))))
 
 (defn load-index 
   [{:keys [storage]} id]

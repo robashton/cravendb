@@ -26,6 +26,8 @@
 - Deleting indexes should ideally delete the persistence for those indexes
 - Handle indexes that can't be compiled for some reason
 - Indexes should ideally be defended from concurrency too
+- Bulk operations don't respect history (uh oh)
+- history checking isn't actually thread-safe 
 
 ### Pending tasks
 

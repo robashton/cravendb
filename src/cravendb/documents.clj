@@ -7,7 +7,6 @@
 
 
 (def synctags-to-docs-prefix "synctags-to-docs-")
-(def docs-to-synctags-prefix "docs-to-synctags-")
 (def conflict-prefix "conflict-")
 (def document-prefix "doc-")
 (def last-synctag-key "last-synctag")
@@ -31,8 +30,6 @@
 (defn is-conflict-entry-for [m doc-id]
   (.startsWith (:k m) (str conflict-prefix doc-id)))
 
-(defn synctag-for-doc [db doc-id]
-  (s/get-string db (str docs-to-synctags-prefix doc-id)))
 
 (defn last-synctag-in
   [storage]
@@ -42,10 +39,9 @@
   [tx last-synctag]
   (s/store tx last-synctag-key (integer-to-synctag last-synctag)))
 
-(defn store-conflict [db id document synctag metadata]
-  (s/store db (str conflict-prefix id synctag)
+(defn store-conflict [db id document metadata]
+  (s/store db (str conflict-prefix id (:synctag metadata))
            (pr-str {
-                    :synctag synctag
                     :id id
                     :data document
                     :metadata metadata })))
@@ -64,16 +60,14 @@
    (s/delete tx (str conflict-prefix doc-id synctag)))
 
 (defn without-conflicts [tx doc-id]
-  (reduce #(without-conflict %1 (:id %2) (:synctag %2)) tx (conflicts tx doc-id)))
+  (reduce #(without-conflict %1 (:id %2) (get-in %2 [:metadata :synctag])) tx (conflicts tx doc-id)))
 
 (defn store-document 
-  ([db id document synctag] (store-document db id document synctag {}))
-  ([db id document synctag metadata] 
+  [db id document metadata] 
   (-> db
     (s/store (str document-prefix id) (pr-str document))
-    (s/store (str synctags-to-docs-prefix synctag) id)
-    (s/store (str docs-to-synctags-prefix id) synctag)
-    (s/store (str docs-to-metadata-prefix id) (pr-str metadata)))))
+    (s/store (str synctags-to-docs-prefix (:synctag metadata)) id)
+    (s/store (str docs-to-metadata-prefix id) (pr-str metadata))))
 
 (defn load-document [session id] 
   (if-let [raw-doc (s/get-string session (str document-prefix id))]
@@ -83,14 +77,15 @@
   (if-let [raw-doc (s/get-string session (str docs-to-metadata-prefix id))]
     (edn/read-string raw-doc) nil))
 
+(defn synctag-for-doc [db doc-id]
+  (:synctag (load-document-metadata db doc-id)))
+
 (defn delete-document 
-  ([session id synctag] (delete-document session id synctag {}))
-  ([session id synctag metadata]
+  [session id metadata]
   (-> session
     (s/delete (str document-prefix id))
-    (s/store (str synctags-to-docs-prefix synctag) id)
-    (s/store (str docs-to-synctags-prefix id) synctag)
-    (s/store (str docs-to-metadata-prefix id) (pr-str metadata)))))
+    (s/store (str synctags-to-docs-prefix (:synctag metadata)) id)
+    (s/store (str docs-to-metadata-prefix id) (pr-str metadata))))
 
 (defn iterate-documents-prefixed-with [iter prefix]
   (s/seek iter (str document-prefix prefix))

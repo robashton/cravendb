@@ -21,16 +21,16 @@
   (it "links an synctag with a document upon writing"
     (inside-tx (fn [tx]
       (should= "1337" (-> tx
-          (docs/store-document "1" "hello" "1337")
+          (docs/store-document "1" "hello" {:synctag "1337"})
           (docs/synctag-for-doc "1"))))))
 
   (it "can retrieve documents written since an synctag"
     (with-db (fn [db]
       (with-open [tx (s/ensure-transaction db)] 
         (->
-          (docs/store-document tx "1" "hello" (integer-to-synctag 1)) 
-          (docs/store-document "2" "hello" (integer-to-synctag 2))
-          (docs/store-document "3" "hello" (integer-to-synctag 3))
+          (docs/store-document tx "1" "hello" {:synctag (integer-to-synctag 1)}) 
+          (docs/store-document "2" "hello" {:synctag (integer-to-synctag 2)})
+          (docs/store-document "3" "hello" {:synctag (integer-to-synctag 3)})
           (s/commit!))
         (with-open [tx (s/ensure-transaction db)]
           (with-open [iter (s/get-iterator tx)]

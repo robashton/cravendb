@@ -4,16 +4,39 @@
         [cravendb.core]
         [clojure.data.codec.base64])
   (:require [cravendb.vclock :as v]
-            [clojure.pprint :refer [pprint]]
             [cravendb.documents :as docs]
             [clojurewerkz.vclock.core :as vclock]            
             [clojure.edn :as edn]
             [cravendb.database :as db]
             [cravendb.storage :as s]
             [me.raynes.fs :as fs]
-            [cravendb.replication :as r]
-            [cravendb.stream :as stream]
             [cravendb.client :as client]))
+
+#_ (with-test-server 
+      (fn []
+        (client/put-index 
+          "http://localhost:9000" 
+          "by_username" 
+          "(fn [doc] {\"username\" (:username doc)})")
+        (client/put-document 
+          "http://localhost:9000" 
+          "1" { :username "bob"})
+        (client/put-document 
+          "http://localhost:9000" 
+          "2" { :username "alice"})
+        (client/query 
+          "http://localhost:9000" 
+          { :query "(= \"username\" \"bob\")" :index "by_username" :wait true}))) 
+
+;; I think I should rename synctags, database-specific incrementor
+;; - Used for indexing location
+;; - Used for replication location
+;; - the "history" for an item
+
+;; The server should assign client-ids
+;; When an in-flight transaction starts
+;; It should be a combination of the server id and some integer
+;; I can code that up in the REPL
 
 (defn start []
   (def instance (db/create "testdb")))
@@ -29,50 +52,5 @@
 #_ (start)
 #_ (stop)
 #_ (restart)
-
-#_ (do
-     (db/put-document instance "doc-1" { :foo "bar"})
-     (db/put-document instance "doc-2" { :foo "bar"})
-     (db/put-document instance "doc-3" { :foo "bar"})
-     (db/put-document instance "doc-4" { :foo "bar"})
-     (db/put-document instance "doc-5" { :foo "bar"})
-     )
-
-#_ (stream/from-synctag instance (zero-synctag))
-
-#_ (def tx (assoc (s/ensure-transaction (:storage instance)) :e-id "1"
-                  :base-vclock (:base-vclock instance)
-                  :server-id "bob"))
-
-#_ (db/check-document-write tx "doc-1"  {}
-                            (fn [metadata]
-                              (println "success" metadata))
-                            (fn [metadata] 
-                              (println "failure"  metadata)))
-
-#_ (pprint (r/replicate-into tx
-                       [
-                        { :id "1" :doc {:foo "bar"} :metadata {:history "123235" :primary-server "bob"}}
-                        { :id "2" :doc {:foo "bar"} :metadata {:history "123235" :primary-server "bob"}}
-                        { :id "3" :doc {:foo "bar"} :metadata {:history "123235" :primary-server "bob"}}
-                        { :id "4" :doc {:foo "bar"} :metadata {:history "123235" :primary-server "bob"}}
-                        ]
-                       ))
-
-;; Replication doesn't currently check history
-;; Replication doesn't currently check primary-server to prevent infinite replication
-;; Replication doesn't currently create a new local synctag
-
-
-
-;; Once we have this, we need to do it as a bulk operation via the database code-path
-;; We *need* that in-flight transaction manager because bulk operations are *dangerous*
-;; Y'know, it'd be great if synctags were a part of metadata
-
-
-
-
-
-
 
 

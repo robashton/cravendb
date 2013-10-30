@@ -7,23 +7,23 @@
 
   (:use [speclj.core]))
 
-(defn insert-2000-documents [instance] 
+(defn insert-200-documents [instance] 
   (db/bulk instance
       (map (fn [i]
       {
         :operation :docs-put
         :id (str "docs-" i)
         :document { :whatever (str "Trolololol" i)} 
-        }) (range 0 2000)))) 
+        }) (range 0 200)))) 
 
 (describe "Getting a stream of documents from a source server"
   (with-all master (start-server))
   (before-all 
-    (insert-2000-documents (:instance @master)))
+    (insert-200-documents (:instance @master)))
   (after-all (stop-server @master))
 
   (it "will stream all of the documents"
-    (should= 2000 (count (c/stream-seq (:url @master)))))
+    (should= 200 (count (c/stream-seq (:url @master)))))
 
   (it "will start a page from the next synctag specified"
     (let [stream (c/stream-seq (:url @master))
@@ -53,11 +53,11 @@
     "a bulk insert on master"
 
     (before
-      (insert-2000-documents (:instance @master))
+      (insert-200-documents (:instance @master))
       (@wait-for-replication))
 
     (it "will cause the slave to contain all of the documents from the master"
-      (should= 2000 (count (c/stream-seq (:url @slave)))))
+      (should= 200 (count (c/stream-seq (:url @slave)))))
 
     (it "will cause the slave to contain identical metadata"
       (should==

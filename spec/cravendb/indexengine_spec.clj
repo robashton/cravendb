@@ -82,9 +82,9 @@
 (describe "Running index catch-ups"
   (it "will run indexes that are behind until they are caught up"
     (with-full-setup (fn [{:keys [storage] :as instance}]
-      (database/put-document instance "1" (pr-str { :foo "bar" }) ) 
-      (database/put-document instance "2" (pr-str { :foo "bas" }) ) 
-      (database/put-document instance "3" (pr-str { :foo "baz" }) )
+      (database/put-document instance "1" { :foo "bar" } ) 
+      (database/put-document instance "2" { :foo "bas" } ) 
+      (database/put-document instance "3" { :foo "baz" } )
       (indexing/wait-for-index-catch-up storage 1)
       (store-test-index! instance)
       (indexing/wait-for-index-catch-up storage index-id 1)
@@ -97,10 +97,10 @@
     (with-open [db (s/create-storage "testdir")
               engine (indexengine/create-engine db)]
       (with-open [tx (s/ensure-transaction db)]
-        (s/commit! (indexes/put-index tx { :id index-id :map by-name-map} "001")))
+        (s/commit! (indexes/put-index tx { :id index-id :map by-name-map} {:synctag "001"})))
       (let [state-with-index (indexengine/refresh-indexes! @(:ea engine))]
         (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/delete-index tx index-id "002")))
+          (s/commit! (indexes/delete-index tx index-id {:synctag "002"})))
         (let [state-without-index (indexengine/refresh-indexes! state-with-index)]
           (should== ["default"] (map key (:compiled-indexes state-without-index)))))))) 
 
