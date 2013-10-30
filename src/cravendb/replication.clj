@@ -2,7 +2,16 @@
   (:require [cravendb.documents :as docs]
             [cravendb.core :refer [zero-synctag synctag-to-integer integer-to-synctag]]
             [cravendb.storage :as s]
+            [cravendb.vclock :as v]
             [cravendb.client :as c]))
+
+(defn conflict-status 
+  [current candidate]
+  (cond
+    (nil? current) :write
+    (v/descends? candidate current) :write
+    (v/descends? current candidate) :skip
+    :else :conflict))
 
 (defn replicate-into [tx items] 
   (reduce 

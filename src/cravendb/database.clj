@@ -79,25 +79,19 @@
     {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
      :history next-version}))
 
-;; This is a hack around synctags not being stored as part of metadata, they should be though
-;; and in the future they will
 (defn load-document-metadata
   [{:keys [storage]} id]
   (debug "getting document metadata id " id)
-  (assoc (docs/load-document-metadata storage id)
-         :synctag (docs/synctag-for-doc storage id)))
+  (docs/load-document-metadata storage id))
 
 (defn check-document-write [tx id metadata success conflict]
   (let [history-result 
         (checked-history tx
-            (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
+          (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
          ((if (:is-conflict history-result) conflict success)
             (assoc metadata :history (:history history-result)
+                            :primary-server (:server-id tx)
                             :synctag (next-synctag (:last-synctag tx))))))
-
-                    :history (:history history-result)
-                    :primary-server (:server-id tx)
-                    )))))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))

@@ -10,7 +10,9 @@
             [cravendb.database :as db]
             [cravendb.storage :as s]
             [me.raynes.fs :as fs]
-            [cravendb.client :as client]))
+            [cravendb.client :as client]
+            [cravendb.replication :as r]
+            [clojure.pprint :refer [pprint]]))
 
 #_ (with-test-server 
       (fn []
@@ -28,16 +30,6 @@
           "http://localhost:9000" 
           { :query "(= \"username\" \"bob\")" :index "by_username" :wait true}))) 
 
-;; I think I should rename synctags, database-specific incrementor
-;; - Used for indexing location
-;; - Used for replication location
-;; - the "history" for an item
-
-;; The server should assign client-ids
-;; When an in-flight transaction starts
-;; It should be a combination of the server id and some integer
-;; I can code that up in the REPL
-
 (defn start []
   (def instance (db/create "testdb")))
 
@@ -52,5 +44,42 @@
 #_ (start)
 #_ (stop)
 #_ (restart)
+
+;; Bulk operations need to check history for conflicts
+;; Replication needs to check history for conflicts
+;; 
+
+#_ (def tx (assoc (s/ensure-transaction (:storage instance))
+              :e-id "root-1" 
+               :base-vclock (:base-vclock instance)
+               :last-synctag (:last-synctag instance)
+               :server-id "root"))
+
+#_ (pprint (r/replicate-into tx [
+                      { :id "doc-1" :doc { :foo "bar" } :metadata { :synctag (integer-to-synctag 0)}}
+                      { :id "doc-2" :doc { :foo "bar" } :metadata { :synctag (integer-to-synctag 1)}}
+                      { :id "doc-3" :doc { :foo "bar" } :metadata { :synctag (integer-to-synctag 2)}}
+                      { :id "doc-4" :doc { :foo "bar" } :metadata { :synctag (integer-to-synctag 3)}}
+                      { :id "doc-5" :doc { :foo "bar" } :metadata { :synctag (integer-to-synctag 4)}}
+                      ]))
+
+
+;; Conflict scenarios
+;; Document doesn't exist yet -> write away!
+#_ (r/conflict-status
+  nil (v/next "1" (v/new)))
+
+;; Document exists, history is in the past -> write away!
+#_ (r/conflict-status
+  (v/next "1" (v/new)) (v/next "1" (v/next "1" (v/new))))
+
+;; Document exists, history is in the future -> drop it!
+#_ (r/conflict-status
+    (v/next "1" (v/next "1" (v/new))) (v/next "1" (v/new)))
+
+;; Document exists, history is conflicting -> conflict
+#_ (r/conflict-status
+    (v/next "1" (v/next "1" (v/new))) (v/next "2" (v/next "1" (v/new))))
+
 
 
