@@ -43,7 +43,7 @@
   (it "will have the document id in the conflict information"
     (should= "1" (:id (first (:conflicts @results)))))
   (it "will have a new synctag in the conflict information"
-    (should= (integer-to-synctag 3) (:synctag (first (:conflicts @results)))))
+    (should= (integer-to-synctag 3) (get-in (first (:conflicts @results)) [:metadata :synctag])))
   (it "will have the alternative document in the conflict information"
     (should= "hello bob" (:data (first (:conflicts @results)))))
   (it "will leave the original document intact"

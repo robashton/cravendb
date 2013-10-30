@@ -31,16 +31,19 @@
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "doc-1" { :title "hello" :author "rob"} (integer-to-synctag 1))
-        (docs/store-document "doc-2" { :title "morning" :author "vicky"}(integer-to-synctag 2))
-        (docs/store-document "doc-3" { :title "goodbye" :author "james"} (integer-to-synctag 3))
+        (docs/store-document "doc-1" { :title "hello" :author "rob"}    
+                             {:synctag (integer-to-synctag 1)})
+        (docs/store-document "doc-2" { :title "morning" :author "vicky"}
+                             {:synctag (integer-to-synctag 2)})
+        (docs/store-document "doc-3" { :title "goodbye" :author "james"}
+                             {:synctag (integer-to-synctag 3)})
         (s/commit!)))))
 
 (def write-one-document 
   (fn [db]
     (with-open [tx (s/ensure-transaction db)]
       (-> tx
-        (docs/store-document "2" { :title "morning" :author "vicky"} (integer-to-synctag 4))
+        (docs/store-document "2" { :title "morning" :author "vicky"} {:synctag (integer-to-synctag 4)})
         (s/commit!)))))
 
 (describe "indexing some documents"
@@ -82,7 +85,7 @@
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! 
             (indexes/put-index tx 
-                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"} (integer-to-synctag 6))))
+                { :id "by_author" :map "(fn [doc] {\"author\" (doc :author)})"} {:synctag (integer-to-synctag 6)})))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
@@ -102,7 +105,7 @@
   (it "will start each tracker off at zero status"
       (with-db (fn [db]
         (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/put-index tx { :id "test" } (integer-to-synctag 1))))
+          (s/commit! (indexes/put-index tx { :id "test" } {:synctag (integer-to-synctag 1)})))
         
         (should= (integer-to-synctag 0) 
                  (indexes/get-last-indexed-synctag-for-index db "test")))))
@@ -113,14 +116,14 @@
 
         (with-open [tx (s/ensure-transaction db)]
           (-> tx
-            (docs/store-document "1" { :foo "bar" } (integer-to-synctag 1)) 
-            (docs/store-document "2" { :foo "bas" } (integer-to-synctag 2)) 
-            (docs/store-document "3" { :foo "baz" } (integer-to-synctag 3))
+            (docs/store-document "1" { :foo "bar" } {:synctag (integer-to-synctag 1)}) 
+            (docs/store-document "2" { :foo "bas" } {:synctag (integer-to-synctag 2)}) 
+            (docs/store-document "3" { :foo "baz" } {:synctag (integer-to-synctag 3)})
             (s/commit!)))
 
         (with-open [tx (s/ensure-transaction db)]
           (s/commit! (indexes/put-index tx 
-            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} (integer-to-synctag 4))))
+            { :id "test" :map "(fn [doc] {\"foo\" (:foo doc)})"} {:synctag (integer-to-synctag 4)})))
 
         (with-open [ie (indexengine/create-engine db)]
           (indexing/index-documents! db (indexengine/compiled-indexes ie)))
