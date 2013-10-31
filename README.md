@@ -6,7 +6,8 @@
 - It is based loosely on RavenDB's design
 - A rough to-do can be found in the file "todo.markdown"
 - Most likely we're talking
-  - MVCC
+  - Vector clocks to ease conflcits
+  - MVCC by default
   - Master/Master replication by default
   - Dynamic queries over un-indexed documents
   - Distributed joins across indexed documents
