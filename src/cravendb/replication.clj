@@ -9,9 +9,33 @@
   [current candidate]
   (cond
     (nil? current) :write
+    (v/same? candidate current) :skip
     (v/descends? candidate current) :write
     (v/descends? current candidate) :skip
     :else :conflict))
+
+
+(defn handle-item [tx id action {:keys [id doc metadata]}]
+  (case action
+    :skip tx
+    :write (docs/store-document tx id doc metadata)
+    :conflict (docs/store-conflict tx id doc metadata)))
+
+(defn action-for
+  [item]
+  (if (:doc item) 
+    :store
+    :delete))
+
+(defn action-into-tx 
+  [tx status {:keys [id doc metadata] :as item}]
+  (case [status (action-for item)]
+    [:skip :delete] tx
+    [:skip :store] tx
+    [:write :store] (docs/store-document tx id doc metadata)
+    [:write :delete] (docs/delete-document tx id metadata)
+    [:conflict :store] (docs/store-conflict tx id doc metadata)
+    [:conflict :delete] (docs/store-conflict tx id :deleted metadata)))
 
 (defn replicate-into [tx items] 
   (reduce 

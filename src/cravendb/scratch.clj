@@ -77,9 +77,27 @@
 #_ (r/conflict-status
     (v/next "1" (v/next "1" (v/new))) (v/next "1" (v/new)))
 
+;; Document exists, history is the same -> drop it
+#_ (r/conflict-status
+     (v/next "1" (v/new)) (v/next "1" (v/new)))
+
 ;; Document exists, history is conflicting -> conflict
 #_ (r/conflict-status
     (v/next "1" (v/next "1" (v/new))) (v/next "2" (v/next "1" (v/new))))
+
+;; If there is no document specified, it's a delete
+;; If there is a document specifeid, it's a write
+(r/replication-action [tx item]
+    (if (:doc item) 
+      (fn [tx] (docs/store-document tx (:id item) (:doc item) (:metadata item)))
+      (fn [tx] (docs/delete-document tx (:id item) (:metadata item)))))
+
+
+;; Okay, so if conflict we should write a conflict
+;; If write, we should the write the document
+;; If skip, we should return the un-modified 
+
+
 
 
 

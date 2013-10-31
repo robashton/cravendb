@@ -19,6 +19,8 @@
 (defn new []
   (vclock-to-string (vclock/fresh)))
 
+(defn same? [one two] (= one two)) ;; They're just strings
+
 (defn descends? [child parent]
   (vclock/descends?  (string-to-vclock child)  (string-to-vclock parent)))
 
