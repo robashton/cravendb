@@ -26,15 +26,19 @@
     :store
     :delete))
 
+(defn adjust-metadata 
+  [tx metadata]
+  (assoc metadata :synctag (s/next-synctag tx)))
+
 (defn action-into-tx 
   [tx {:keys [id doc metadata] :as item}]
   (case [(status-for tx item) (action-for item)]
     [:skip :delete] tx
     [:skip :store] tx
-    [:write :store] (docs/store-document tx id doc metadata)
-    [:write :delete] (docs/delete-document tx id metadata)
-    [:conflict :store] (docs/store-conflict tx id doc metadata)
-    [:conflict :delete] (docs/store-conflict tx id :deleted metadata)))
+    [:write :store] (docs/store-document tx id doc (adjust-metadata tx metadata))
+    [:write :delete] (docs/delete-document tx id (adjust-metadata tx metadata))
+    [:conflict :store] (docs/store-conflict tx id doc (adjust-metadata tx metadata))
+    [:conflict :delete] (docs/store-conflict tx id :deleted (adjust-metadata tx metadata))))
 
 (defn replicate-into [tx items] 
   (reduce 
