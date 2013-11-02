@@ -8,16 +8,14 @@
 
 (defn url-for-doc-id [url id]
   (str url "/document/" id))
-
 (defn url-for-index-id [url id]
   (str url "/index/" id))
-
 (defn url-for-bulk-ops [url]
   (str url "/bulk"))
-
+(defn url-for-conflicts [url]
+  (str url "/conflicts"))
 (defn url-for-stream [url synctag]
   (str url "/stream?synctag=" (or synctag "")))
-
 (defn url-for-query [url opts]
   (str 
     url "/query/"
@@ -83,6 +81,12 @@
     (force-into-list
       (process-response
         (http/GET client (url-for-query url opts) :headers default-headers)))))
+
+(defn get-conflicts [url]
+  (with-open [client (http/create-client)]
+    (force-into-list
+      (process-response
+        (http/GET client (url-for-conflicts url) :headers default-headers)))))
 
 (defn stream 
   ([url] (stream url nil))

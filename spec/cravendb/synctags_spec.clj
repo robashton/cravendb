@@ -10,13 +10,13 @@
 (describe "Sync tags"
   (it "will have an synctag starting at zero before anything is written"
     (inside-tx (fn [db]
-      (should= (synctag-to-integer (docs/last-synctag-in db)) 0))))
+      (should= (synctag-to-integer (s/last-synctag-in db)) 0))))
 
   (it "Will have an synctag greater than zero after committing a single document"
     (with-full-setup (fn [instance]
       (db/put-document instance "1" "hello")
       (should 
-        (< 0 (synctag-to-integer (docs/last-synctag-in (:storage instance))))))))
+        (< 0 (synctag-to-integer (s/last-synctag-in (:storage instance))))))))
 
   (it "links an synctag with a document upon writing"
     (inside-tx (fn [tx]

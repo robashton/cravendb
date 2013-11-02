@@ -2,22 +2,52 @@
   (:require [cravendb.documents :as docs]
             [cravendb.core :refer [zero-synctag synctag-to-integer integer-to-synctag]]
             [cravendb.storage :as s]
+            [cravendb.vclock :as v]
             [cravendb.client :as c]))
+
+(defn conflict-status 
+  [current candidate]
+  (cond
+    (nil? current) :write
+    (v/same? candidate current) :skip
+    (v/descends? candidate current) :write
+    (v/descends? current candidate) :skip
+    :else :conflict))
+
+(defn status-for
+  [tx {:keys [id metadata]}]
+  (conflict-status
+    (get (docs/load-document-metadata tx id) :history)
+    (get metadata :history)))
+
+(defn action-for
+  [item]
+  (if (:doc item) 
+    :store
+    :delete))
+
+(defn adjust-metadata 
+  [tx metadata]
+  (assoc metadata :synctag (s/next-synctag tx)))
+
+(defn action-into-tx 
+  [tx {:keys [id doc metadata] :as item}]
+  (case [(status-for tx item) (action-for item)]
+    [:skip :delete] tx
+    [:skip :store] tx
+    [:write :store] (docs/store-document tx id doc (adjust-metadata tx metadata))
+    [:write :delete] (docs/delete-document tx id (adjust-metadata tx metadata))
+    [:conflict :store] (docs/store-conflict tx id doc (adjust-metadata tx metadata))
+    [:conflict :delete] (docs/store-conflict tx id :deleted (adjust-metadata tx metadata))))
 
 (defn replicate-into [tx items] 
   (reduce 
     (fn [{:keys [tx total last-synctag] :as state} 
-         {:keys [id doc metadata]}]
-      (if doc
-        (assoc state
-          :tx (docs/store-document tx id doc metadata)
-          :last-synctag (:synctag metadata)
-          :total (inc total)) 
-        (do
-          (assoc state
-          :tx (docs/delete-document tx id metadata)
-          :last-synctag (:synctag metadata)
-          :total (inc total))))) 
+         {:keys [id doc metadata] :as item}]
+      (assoc state
+        :tx (action-into-tx tx item)
+        :last-synctag (:synctag metadata)
+        :total (inc total)))
     { :tx tx :total 0 :last-synctag (zero-synctag) }
     items))
 
@@ -54,12 +84,15 @@
     (if (not (empty? items))
       (recur (replicate-from storage-destination source-url items)))))
 
-(defn replication-loop [storage source-url]
-  (loop []
-    (empty-replication-queue 
+(defn pump-replication [storage source-url]
+  (empty-replication-queue 
       storage     
       source-url
-      (last-replicated-synctag storage source-url))
+      (last-replicated-synctag storage source-url)))
+
+(defn replication-loop [storage source-url]
+  (loop []
+    (pump-replication storage source-url)
     (Thread/sleep 50)
     (recur)))
 

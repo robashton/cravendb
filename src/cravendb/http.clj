@@ -65,6 +65,13 @@
                       ctx 
                       (db/query instance (get-in ctx [:request :params]))))))
 
+    ;; ANOTHER UWAGA!!
+    (ANY "/conflicts" []
+       (resource
+        :available-media-types accepted-types
+        :handle-ok (fn [ctx] 
+                     (standard-response ctx (db/conflicts instance)))))
+
     (ANY "/bulk" []
       (resource
         :allowed-methods [:post]

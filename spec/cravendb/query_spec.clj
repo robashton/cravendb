@@ -22,14 +22,14 @@
                          :id "by_whatever" 
                          :map test-index})) 
 
-(defn add-1000-documents [instance]
+(defn add-100-documents [instance]
   (database/bulk instance
     (map (fn [i]
            {
             :operation :docs-put
             :id (str "docs-" i)
             :document { :whatever (str i)} 
-            }) (range 0 1000))))
+            }) (range 0 100))))
 
 (defn add-alpha-whatevers [instance]
   (database/put-document instance "docs-1" { :whatever "zebra"})
@@ -42,7 +42,7 @@
     (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
       (add-by-whatever-index instance) 
-      (add-1000-documents instance)
+      (add-100-documents instance)
       (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 0 10)) 
                 (map :whatever 
@@ -53,12 +53,12 @@
     (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
       (add-by-whatever-index instance) 
-      (add-1000-documents instance)
+      (add-100-documents instance)
       (indexing/wait-for-index-catch-up storage 50)
-      (should== (map str (range 995 1000)) 
+      (should== (map str (range 95 100)) 
                 (map :whatever 
                      (database/query instance 
-                      { :query "*" :amount 10 :offset 995 :index "by_whatever"})))))))
+                      { :query "*" :amount 10 :offset 95 :index "by_whatever"})))))))
 
 (describe "sorting"
   (it "will default to ascending order on a string"

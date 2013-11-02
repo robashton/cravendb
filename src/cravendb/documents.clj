@@ -30,22 +30,12 @@
 (defn is-conflict-entry-for [m doc-id]
   (.startsWith (:k m) (str conflict-prefix doc-id)))
 
-
-(defn last-synctag-in
-  [storage]
-  (or (s/get-string storage last-synctag-key) (zero-synctag)) )
-
-(defn write-last-synctag
-  [tx last-synctag]
-  (s/store tx last-synctag-key (integer-to-synctag last-synctag)))
-
 (defn store-conflict [db id document metadata]
   (s/store db (str conflict-prefix id (:synctag metadata))
            (pr-str {
                     :id id
                     :data document
                     :metadata metadata })))
-
 (defn conflicts 
   ([db] (conflicts db ""))
   ([db prefix]
