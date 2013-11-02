@@ -6,8 +6,7 @@
             [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs]
             [cravendb.vclock :as vclock]
-            [clojure.tools.logging :refer [info error debug]]
-            [cravendb.core :refer [zero-synctag integer-to-synctag synctag-to-integer]]))
+            [clojure.tools.logging :refer [info error debug]]))
 
 (defrecord Database [storage index-engine]
   java.io.Closeable
@@ -18,24 +17,20 @@
 
 (defn create
   [path]
-  (let [storage (s/create-in-memory-storage)
+  (let [storage (s/create-storage path)
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
     (assoc (Database. storage index-engine)
-           :last-synctag (atom (synctag-to-integer (docs/last-synctag-in storage)))
            :tx-count (atom 0)
            :base-vclock (vclock/new)
            :server-id "root")))
-
-(defn next-synctag [{:keys [last-synctag]}]
-  (integer-to-synctag (swap! last-synctag inc)))
 
 (defn interpret-bulk-operation [{:keys [tx instance] :as state} op]
   (assoc state :tx 
     (case (:operation op)
       :docs-delete (docs/delete-document tx (:id op))
       :docs-put (docs/store-document tx (:id op) (:document op) 
-                                   {:synctag (next-synctag instance)}))))
+                                   {:synctag (s/next-synctag tx)}))))
 
 
 (def default-query { :index "default"
@@ -61,10 +56,8 @@
     (-> tx
       (assoc :e-id (str server-id (swap! tx-count inc))
              :base-vclock base-vclock
-             :last-synctag last-synctag
              :server-id server-id)
       (f)
-      (docs/write-last-synctag @last-synctag) 
       (s/commit!))
     (swap! tx-count dec)))
 
@@ -91,7 +84,7 @@
          ((if (:is-conflict history-result) conflict success)
             (assoc metadata :history (:history history-result)
                             :primary-server (:server-id tx)
-                            :synctag (next-synctag tx)))))
+                            :synctag (s/next-synctag tx)))))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
@@ -135,7 +128,7 @@
   (debug "putting an in index:" index)
   (in-tx instance 
     (fn [tx] 
-      (indexes/put-index tx index {:synctag (next-synctag instance)}))))
+      (indexes/put-index tx index {:synctag (s/next-synctag tx)}))))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -146,7 +139,7 @@
   [instance id]
   (debug "deleting an index" id)
   (in-tx instance 
-    (fn [tx] (indexes/delete-index tx id {:synctag (next-synctag instance)}))))
+    (fn [tx] (indexes/delete-index tx id {:synctag (s/next-synctag tx)}))))
 
 (defn load-index 
   [{:keys [storage]} id]

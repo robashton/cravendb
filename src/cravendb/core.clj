@@ -1,6 +1,4 @@
-(ns cravendb.core
-  (:require [cravendb.storage :as s]))
-
+(ns cravendb.core)
 
 (defn integer-to-synctag [integer]
   (format "%030d" integer))

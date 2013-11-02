@@ -29,7 +29,7 @@
 (defn wait-for-index-catch-up 
   ([db] (wait-for-index-catch-up db 1))
   ([db timeout]
-   (let [last-synctag (synctag-to-integer (docs/last-synctag-in db))
+   (let [last-synctag (synctag-to-integer (s/last-synctag-in db))
           start-time (tl/local-now) ]
      (debug "starting waiting for index catch-up" last-synctag)
     (while (and
@@ -39,7 +39,7 @@
       (debug "looping for index catch-up" last-synctag (last-indexed-synctag db))
       (Thread/sleep 100))))
    ([db index-id timeout]
-    (let [last-synctag (synctag-to-integer (docs/last-synctag-in db))
+    (let [last-synctag (synctag-to-integer (s/last-synctag-in db))
           start-time (tl/local-now) ]
     (while (and
               (> timeout (tc/in-seconds (tc/interval start-time (tl/local-now))))

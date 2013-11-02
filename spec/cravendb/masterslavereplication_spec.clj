@@ -1,6 +1,7 @@
 (ns cravendb.masterslavereplication-spec
   (:require [cravendb.database :as db]
             [cravendb.client :as c]
+            [cravendb.storage :as s]
             [cravendb.testing :refer [start-server stop-server]]
             [cravendb.replication :as replication]
             [cravendb.documents :as docs])
@@ -41,7 +42,7 @@
     (with replicator (replication/create (:instance @slave) (:url @master)))
     (with wait-for-replication 
       (fn [] (replication/wait-for @replicator 
-               (docs/last-synctag-in (get-in @master [:instance :storage])))))
+               (s/last-synctag-in (get-in @master [:instance :storage])))))
     (before 
       (replication/start @replicator))
     (after
