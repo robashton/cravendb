@@ -75,7 +75,7 @@
   (def source (db/create "testdb_source"))
   (def dest (db/create "testdb_dest"))
   (def server-source (run-server (http/create-http-server source) { :port 8090}))
-  (def server-dest (run-server (http/create-http-server source) {:port 8091})))
+  (def server-dest (run-server (http/create-http-server dest) {:port 8091})))
 
 (defn stop []
   (server-source)
@@ -112,13 +112,25 @@
 #_ (db/put-document source "doc-2" { :foo "bar"})
 #_ (db/put-document dest "doc-3" { :foo "bar"})
 
-
 ;; No conflicts, and the documents are in both servers?
-#_ (db/load-document source "doc-3")
+#_ (db/load-document source "doc-1")
+#_ (db/load-document dest "doc-1")
+
+#_ (db/load-document source "doc-2")
 #_ (db/load-document dest "doc-2")
 
-;; They're not in both servers because we're not getting new synctags when writing documents
-;; via replication
+#_ (db/load-document source "doc-3")
+#_ (db/load-document dest "doc-3")
+
+;; How about when we cause a conflict by writing the same thing to different servers
+
+;; How about when we cause a conflict by modifying something on two different servers
+
+;; What about when we have three servers? 
+;; We need to make sure we're not writing in a big-ass loop
+;; Theoretically the history of an object should prevent that
+
+;; We pass the above, then we're largely sane and we can write some tests
 
 
 
