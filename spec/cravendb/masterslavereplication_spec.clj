@@ -41,14 +41,10 @@
     (with slave (start-server 8081))
     (with replicator (replication/create (:instance @slave) (:url @master)))
     (with wait-for-replication 
-      (fn [] (replication/wait-for @replicator 
-               (s/last-synctag-in (get-in @master [:instance :storage])))))
-    (before 
-      (replication/start @replicator))
+      (fn [] (replication/pump-replication (get-in @slave [:instance :storage]) (:url @master))))
     (after
       (stop-server @master)
-      (stop-server @slave)
-      (replication/stop @replicator))
+      (stop-server @slave))
 
   (describe 
     "a bulk insert on master"

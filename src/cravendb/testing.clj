@@ -43,9 +43,9 @@
 
 (defn start-server 
   ([] (start-server 8080))
-  ([port]
+  ([port & opts]
   (fs/delete-dir (str "testdir" port))
-  (let [instance (database/create (str "testdir" port))] 
+  (let [instance (apply database/create (str "testdir" port) opts)] 
     {
     :port port
     :url (str "http://localhost:" port)

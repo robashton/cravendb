@@ -17,8 +17,8 @@
 (defn status-for
   [tx {:keys [id metadata]}]
   (conflict-status
-#spy/p    (get (docs/load-document-metadata tx id) :history)
-#spy/p    (get metadata :history)))
+    (get (docs/load-document-metadata tx id) :history)
+    (get metadata :history)))
 
 (defn action-for
   [item]

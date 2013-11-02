@@ -51,6 +51,9 @@
   (with-open [tx (s/ensure-transaction storage)] 
     (s/commit! (docs/without-conflicts tx id))))
 
+(defn conflicts [{:keys [storage]}]
+  (docs/conflicts storage))
+
 (defn in-tx 
   [{:keys [storage last-synctag tx-count server-id base-vclock] :as instance} f]
   (with-open [tx (s/ensure-transaction storage)] 
