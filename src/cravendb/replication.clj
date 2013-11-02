@@ -80,12 +80,15 @@
     (if (not (empty? items))
       (recur (replicate-from storage-destination source-url items)))))
 
-(defn replication-loop [storage source-url]
-  (loop []
-    (empty-replication-queue 
+(defn pump-replication [storage source-url]
+  (empty-replication-queue 
       storage     
       source-url
-      (last-replicated-synctag storage source-url))
+      (last-replicated-synctag storage source-url)))
+
+(defn replication-loop [storage source-url]
+  (loop []
+    (pump-replication storage source-url)
     (Thread/sleep 50)
     (recur)))
 
