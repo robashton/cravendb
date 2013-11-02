@@ -16,14 +16,15 @@
     (.close storage)))
 
 (defn create
-  [path]
+  [path & opts]
   (let [storage (s/create-storage path)
         index-engine (indexengine/create-engine storage)]
     (indexengine/start index-engine)
-    (assoc (Database. storage index-engine)
-           :tx-count (atom 0)
-           :base-vclock (vclock/new)
-           :server-id "root")))
+    (merge (Database. storage index-engine)
+           { :server-id "root"
+             :base-vclock (vclock/new)
+             :tx-count (atom 0) }
+            (apply hash-map opts))))
 
 (defn interpret-bulk-operation [{:keys [tx instance] :as state} op]
   (assoc state :tx 

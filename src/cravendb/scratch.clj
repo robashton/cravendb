@@ -72,8 +72,8 @@
 ;; or the daisy chaining of replication destinations
 
 (defn start []
-  (def source (db/create "testdb_source"))
-  (def dest (db/create "testdb_dest"))
+  (def source (db/create "testdb_source" :server-id "src"))
+  (def dest (db/create "testdb_dest" :server-id "dest"))
   (def server-source (run-server (http/create-http-server source) { :port 8090}))
   (def server-dest (run-server (http/create-http-server dest) {:port 8091})))
 
@@ -94,6 +94,7 @@
 #_ (restart)
 
 
+
 ;; So theoretically if I run these then there should be no conflicts
 ;; because replication would skip un-recognised documents
 ;; Synctags will be screwed though
@@ -112,7 +113,11 @@
 #_ (db/put-document source "doc-2" { :foo "bar"})
 #_ (db/put-document dest "doc-3" { :foo "bar"})
 
-;; No conflicts, and the documents are in both servers?
+;; How about when we cause a conflict by writing the same thing to different servers
+;; Hmmm, this shouldn't do this
+#_ (db/put-document source "doc-4" { :foo "source" })
+#_ (db/put-document dest "doc-4" { :foo "dest" })
+
 #_ (db/load-document source "doc-1")
 #_ (db/load-document dest "doc-1")
 
@@ -122,7 +127,9 @@
 #_ (db/load-document source "doc-3")
 #_ (db/load-document dest "doc-3")
 
-;; How about when we cause a conflict by writing the same thing to different servers
+#_ (db/load-document source "doc-4")
+#_ (db/load-document dest "doc-4")
+
 
 ;; How about when we cause a conflict by modifying something on two different servers
 
@@ -131,14 +138,5 @@
 ;; Theoretically the history of an object should prevent that
 
 ;; We pass the above, then we're largely sane and we can write some tests
-
-
-
-
-
-
-
-
-
-
-
+;; The above examples all assume we're writing to the db without specifying history
+;; if we do specify history then that needs to work too (I believe that's covered elsewhere though
