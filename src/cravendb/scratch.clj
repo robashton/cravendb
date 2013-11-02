@@ -74,8 +74,8 @@
 (defn start []
   (def source (db/create "testdb_source"))
   (def dest (db/create "testdb_dest"))
-  (def server-source (run-server (http/create-http-server source) { :port 8081}))
-  (def server-dest (run-server (http/create-http-server source) {:port 8082})))
+  (def server-source (run-server (http/create-http-server source) { :port 8090}))
+  (def server-dest (run-server (http/create-http-server source) {:port 8091})))
 
 (defn stop []
   (server-source)
@@ -97,25 +97,25 @@
 ;; So theoretically if I run these then there should be no conflicts
 ;; because replication would skip un-recognised documents
 ;; Synctags will be screwed though
-#_ (r/pump-replication (:storage dest) "http://localhost:8081")
-#_ (r/pump-replication (:storage source) "http://localhost:8082")
-#_ (r/last-replicated-synctag (:storage dest) "http://localhost:8081")
-#_ (r/last-replicated-synctag (:storage source) "http://localhost:8082")
+#_ (r/pump-replication (:storage dest) "http://localhost:8090")
+#_ (r/pump-replication (:storage source) "http://localhost:8091")
+#_ (r/last-replicated-synctag (:storage dest) "http://localhost:8090")
+#_ (r/last-replicated-synctag (:storage source) "http://localhost:8091")
 #_ (docs/conflicts (:storage dest))
 #_ (docs/conflicts (:storage source))
 
 ;; So, let's stick a document in source, get it into dest, then run the replication to prove no side effects
-(db/put-document source "doc-1" { :foo "bar"})
+#_ (db/put-document source "doc-1" { :foo "bar"})
 ;; Great, two way replication seemed fairly sound
 
 ;; How about sticking two different documents, one in each server
-(db/put-document source "doc-2" { :foo "bar"})
-(db/put-document dest "doc-3" { :foo "bar"})
+#_ (db/put-document source "doc-2" { :foo "bar"})
+#_ (db/put-document dest "doc-3" { :foo "bar"})
 
 
 ;; No conflicts, and the documents are in both servers?
-(db/load-document source "doc-3")
-(db/load-document dest "doc-2")
+#_ (db/load-document source "doc-3")
+#_ (db/load-document dest "doc-2")
 
 ;; They're not in both servers because we're not getting new synctags when writing documents
 ;; via replication

@@ -27,15 +27,15 @@
            :base-vclock (vclock/new)
            :server-id "root")))
 
-(defn next-synctag [last-synctag]
-    (integer-to-synctag (swap! last-synctag inc)))
+(defn next-synctag [{:keys [last-synctag]}]
+  (integer-to-synctag (swap! last-synctag inc)))
 
-(defn interpret-bulk-operation [{:keys [tx last-synctag] :as state} op]
+(defn interpret-bulk-operation [{:keys [tx instance] :as state} op]
   (assoc state :tx 
     (case (:operation op)
       :docs-delete (docs/delete-document tx (:id op))
       :docs-put (docs/store-document tx (:id op) (:document op) 
-                                   {:synctag (next-synctag last-synctag)}))))
+                                   {:synctag (next-synctag instance)}))))
 
 
 (def default-query { :index "default"
@@ -91,7 +91,7 @@
          ((if (:is-conflict history-result) conflict success)
             (assoc metadata :history (:history history-result)
                             :primary-server (:server-id tx)
-                            :synctag (next-synctag (:last-synctag tx))))))
+                            :synctag (next-synctag tx)))))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
@@ -106,11 +106,11 @@
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([{:keys [last-synctag] :as instance} id metadata]
+  ([instance id metadata]
   (debug "deleting a document with id " id)
    (in-tx instance 
      (fn [tx]
-       (check-document-write 
+       (check-document-write
          tx id metadata
          #(docs/delete-document tx id %1)
          #(docs/store-conflict tx id :deleted %1))))))
@@ -121,21 +121,21 @@
   (docs/load-document storage id))
 
 (defn bulk 
-  [{:keys [last-synctag] :as instance} operations]
+  [instance operations]
   (debug "Bulk operation: ")
   (in-tx instance 
     (fn [tx] (:tx 
     (reduce
       interpret-bulk-operation
-      {:tx tx :last-synctag last-synctag}
+      {:tx tx :instance instance}
       operations)))))
 
 (defn put-index 
-  [{:keys [last-synctag] :as instance} index]
+  [instance index]
   (debug "putting an in index:" index)
   (in-tx instance 
     (fn [tx] 
-      (indexes/put-index tx index {:synctag (next-synctag last-synctag)}))))
+      (indexes/put-index tx index {:synctag (next-synctag instance)}))))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -143,10 +143,10 @@
   {:synctag (indexes/synctag-for-index storage id)})
 
 (defn delete-index 
-  [{:keys [storage last-synctag] :as instance} id]
+  [instance id]
   (debug "deleting an index" id)
   (in-tx instance 
-    (fn [tx] (indexes/delete-index tx id {:synctag (next-synctag last-synctag)}))))
+    (fn [tx] (indexes/delete-index tx id {:synctag (next-synctag instance)}))))
 
 (defn load-index 
   [{:keys [storage]} id]
