@@ -14,12 +14,11 @@
     (v/descends? current candidate) :skip
     :else :conflict))
 
-
-(defn handle-item [tx id action {:keys [id doc metadata]}]
-  (case action
-    :skip tx
-    :write (docs/store-document tx id doc metadata)
-    :conflict (docs/store-conflict tx id doc metadata)))
+(defn status-for
+  [tx {:keys [id metadata]}]
+  (conflict-status
+    (get (docs/load-document-metadata tx id) :history)
+    (get metadata :history)))
 
 (defn action-for
   [item]
@@ -28,8 +27,8 @@
     :delete))
 
 (defn action-into-tx 
-  [tx status {:keys [id doc metadata] :as item}]
-  (case [status (action-for item)]
+  [tx {:keys [id doc metadata] :as item}]
+  (case [(status-for tx item) (action-for item)]
     [:skip :delete] tx
     [:skip :store] tx
     [:write :store] (docs/store-document tx id doc metadata)
@@ -40,17 +39,11 @@
 (defn replicate-into [tx items] 
   (reduce 
     (fn [{:keys [tx total last-synctag] :as state} 
-         {:keys [id doc metadata]}]
-      (if doc
-        (assoc state
-          :tx (docs/store-document tx id doc metadata)
-          :last-synctag (:synctag metadata)
-          :total (inc total)) 
-        (do
-          (assoc state
-          :tx (docs/delete-document tx id metadata)
-          :last-synctag (:synctag metadata)
-          :total (inc total))))) 
+         {:keys [id doc metadata] :as item}]
+      (assoc state
+        :tx (action-into-tx tx item)
+        :last-synctag (:synctag metadata)
+        :total (inc total)))
     { :tx tx :total 0 :last-synctag (zero-synctag) }
     items))
 

@@ -87,16 +87,13 @@
 
 ;; If there is no document specified, it's a delete
 ;; If there is a document specifeid, it's a write
-(r/replication-action [tx item]
-    (if (:doc item) 
-      (fn [tx] (docs/store-document tx (:id item) (:doc item) (:metadata item)))
-      (fn [tx] (docs/delete-document tx (:id item) (:metadata item)))))
-
+#_ (r/action-for { :doc "blah"})
+#_ (r/action-for {})
 
 ;; Okay, so if conflict we should write a conflict
 ;; If write, we should the write the document
 ;; If skip, we should return the un-modified 
-
+#_ (action-into-tx tx )
 
 
 
