@@ -39,4 +39,21 @@
 #_ (stop)
 #_ (restart)
 
+(defn store-task [state]
+  
+  )
 
+(defn delete-task [state]
+  
+  )
+
+(defn delete-index-data [instance state]
+
+  )
+
+(defn run-next-task [instance]
+  
+  )
+
+;; Should probably look at doing this as a macro
+(deftask "delete-index-data" delete-index-data)
