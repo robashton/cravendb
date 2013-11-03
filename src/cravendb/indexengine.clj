@@ -179,10 +179,10 @@
 
 (defn start-indexing [engine ea]
   (let [task (future 
-        (loop []
-          (send ea try-pump-indexes ea)
-          (Thread/sleep 50)
-          (recur)))]
+    (loop []
+      (send ea try-pump-indexes ea)
+      (Thread/sleep 50)
+      (recur)))]
    (assoc engine :worker-future task)))
 
 (defn stop-indexing [engine]
