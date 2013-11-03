@@ -98,6 +98,8 @@
     (debug "Closing any obsolete indexes" newly-opened newly-deleted)
     (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
 
+    ;; TODO: This is where I'll schedule the deletion of storage
+
     (debug "Updating engine's list of indexes")
     (assoc engine :compiled-indexes
       (-> (apply dissoc compiled-indexes (map key newly-deleted))
