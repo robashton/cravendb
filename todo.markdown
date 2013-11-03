@@ -62,4 +62,5 @@
 - See if slingshot is deprecated or not
 - Ribol - Have a gander, but only a gander
 - Look at lamina for async operations           
+- Might want to use Quartz for scheduling things in the future (there's a joke there somewhere)
 
