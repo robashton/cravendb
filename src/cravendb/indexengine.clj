@@ -8,10 +8,19 @@
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
            [cravendb.indexing :as indexing]
+           [cravendb.tasks :as tasks]
            [clojure.edn :as edn]))
 
 (defn storage-path-for-index [index]
   (str (:id index) "-" (or (:synctag index) "")))
+
+(def index-queue "indexengine")
+(def index-queue-handlers
+  {
+   :delete-index-data 
+   (fn [storage index]
+     
+    )})
 
 (defn open-storage-for-index [path index]
   (let [storage (if path (lucene/create-index (File. path (storage-path-for-index index)))
@@ -98,7 +107,8 @@
     (debug "Closing any obsolete indexes" newly-opened newly-deleted)
     (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
 
-    ;; TODO: This is where I'll schedule the deletion of storage
+    (doseq [index newly-deleted]
+      (tasks/queue index-queue :delete-index-data index))
 
     (debug "Updating engine's list of indexes")
     (assoc engine :compiled-indexes
@@ -176,6 +186,13 @@
    (do
      (send ea pump-indexes!)
      (assoc engine :running-pump true))))
+
+(defn start-background-tasks [storage]
+  (let [task (future 
+    (loop []
+      (tasks/pump storage index-queue index-queue-handlers)
+      (recur)))]
+   (assoc engine :background-future task)))
 
 (defn start-indexing [engine ea]
   (let [task (future 
