@@ -5,6 +5,7 @@
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
+           [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
            [cravendb.indexing :as indexing]
@@ -18,8 +19,9 @@
 (def index-queue-handlers
   {
    :delete-index-data 
-   (fn [storage index]
-     
+   (fn [{:keys [path] :as db} index]
+     (if path
+       (fs/delete-dir (File. (path (storage-path-for-index index)))))
     )})
 
 (defn open-storage-for-index [path index]
@@ -107,8 +109,10 @@
     (debug "Closing any obsolete indexes" newly-opened newly-deleted)
     (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
 
-    (doseq [index newly-deleted]
-      (tasks/queue index-queue :delete-index-data index))
+    (if (not-empty newly-deleted) 
+      (with-open [tx (s/ensure-transaction db)]
+        (s/commit!
+          (reduce #(tasks/queue %1 index-queue :delete-index-data %2) tx newly-deleted))))
 
     (debug "Updating engine's list of indexes")
     (assoc engine :compiled-indexes
@@ -187,12 +191,17 @@
      (send ea pump-indexes!)
      (assoc engine :running-pump true))))
 
-(defn start-background-tasks [storage]
+(defn start-background-tasks [{:keys [db] :as engine}]
   (let [task (future 
     (loop []
-      (tasks/pump storage index-queue index-queue-handlers)
+      (tasks/pump db index-queue index-queue-handlers)
+      (Thread/sleep 1000) ; teehee
       (recur)))]
    (assoc engine :background-future task)))
+
+(defn stop-background-tasks [engine]
+   (future-cancel (:background-future engine))
+   (dissoc engine :background-future))
 
 (defn start-indexing [engine ea]
   (let [task (future 
@@ -217,7 +226,8 @@
     (await ea)))
 
 (defn start [ops]
-  (send (:ea ops) start-indexing (:ea ops)))
+  (send (:ea ops) start-indexing (:ea ops))
+  (send (:ea ops) start-background-tasks))
 
 (defn get-index-storage [ops index-id]
   (get-in @(:ea ops) [:compiled-indexes index-id :storage]))
@@ -225,6 +235,7 @@
 (defn stop [ops]
  (debug "Stopping indexing agents")
  (send (:ea ops) stop-indexing)
+ (send (:ea ops) stop-background-tasks)
  (await (:ea ops)))
 
 (defn handle-agent-error [engine e]
