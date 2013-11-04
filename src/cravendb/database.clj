@@ -26,12 +26,30 @@
              :tx-count (atom 0) }
             (apply hash-map opts))))
 
-(defn interpret-bulk-operation [{:keys [tx instance] :as state} op]
-  (assoc state :tx 
-    (case (:operation op)
-      :docs-delete (docs/delete-document tx (:id op))
-      :docs-put (docs/store-document tx (:id op) (:document op) 
-                                   {:synctag (s/next-synctag tx)}))))
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  (docs/load-document-metadata storage id))
+
+(defn checked-history [tx supplied-history existing-history]
+  (let [last-version (or  supplied-history existing-history (:base-vclock tx))
+        next-version (vclock/next (:e-id tx) last-version)]
+    {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
+     :history next-version}))
+
+(defn load-document-metadata
+  [{:keys [storage]} id]
+  (debug "getting document metadata id " id)
+  (docs/load-document-metadata storage id))
+
+(defn check-document-write [tx id metadata success conflict]
+  (let [history-result 
+        (checked-history tx
+          (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
+         ((if (:is-conflict history-result) conflict success)
+            (assoc metadata :history (:history history-result)
+                            :primary-server (:server-id tx)
+                            :synctag (s/next-synctag tx)))))
 
 
 (def default-query { :index "default"
@@ -65,30 +83,6 @@
       (s/commit!))
     (swap! tx-count dec)))
 
-(defn load-document-metadata
-  [{:keys [storage]} id]
-  (debug "getting document metadata id " id)
-  (docs/load-document-metadata storage id))
-
-(defn checked-history [tx supplied-history existing-history]
-  (let [last-version (or  supplied-history existing-history (:base-vclock tx))
-        next-version (vclock/next (:e-id tx) last-version)]
-    {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
-     :history next-version}))
-
-(defn load-document-metadata
-  [{:keys [storage]} id]
-  (debug "getting document metadata id " id)
-  (docs/load-document-metadata storage id))
-
-(defn check-document-write [tx id metadata success conflict]
-  (let [history-result 
-        (checked-history tx
-          (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
-         ((if (:is-conflict history-result) conflict success)
-            (assoc metadata :history (:history history-result)
-                            :primary-server (:server-id tx)
-                            :synctag (s/next-synctag tx)))))
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
@@ -116,6 +110,18 @@
   [{:keys [storage]} id]
   (debug "getting a document with id " id)
   (docs/load-document storage id))
+
+(defn interpret-bulk-operation 
+  [{:keys [tx instance] :as state}
+   {:keys [id operation metadata document]}]
+  (assoc state :tx 
+    (case operation
+      :docs-delete (check-document-write tx id metadata
+                      #(docs/delete-document tx id %1)
+                      #(docs/store-conflict tx id :deleted %1)) 
+      :docs-put  (check-document-write tx id metadata
+                      #(docs/store-document tx id document %1)
+                      #(docs/store-conflict tx id :deleted %1)))))
 
 (defn bulk 
   [instance operations]

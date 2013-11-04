@@ -27,7 +27,6 @@
 - Handle indexes that can't be compiled for some reason
 - Indexes should ideally be defended from concurrency too
 - Failed tasks
-- Bulk operations don't respect history (uh oh)
 
 ### Pending tasks
 
