@@ -57,7 +57,7 @@
       (do
         (assoc-in 
           in-flight
-          [:transactions txid :ops docid :request] :skip)))))
+          [:transactions newtx :ops docid :status] :conflict)))))
 
 (defn post-write-checks
   [in-flight txid doc-id]
@@ -73,12 +73,12 @@
       (update-in [:documents id :refs] conj txid)
       (post-write-checks txid id))))
 
-(defn finish-with-document [in-flight doc-id]
-  (dissoc-in in-flight [:documents doc-id]))
+(defn finish-with-document [txid]
+  (fn [in-flight doc-id] (dissoc-in in-flight [:documents doc-id])))
 
 (defn clean-up [txid]
   (fn [in-flight]
-    (-> (reduce finish-with-document 
+    (-> (reduce (finish-with-document txid) 
             in-flight 
             (map (comp :id val) (get-in in-flight [:transactions txid :ops])))
       (dissoc-in [:transactions txid]))))
@@ -102,12 +102,12 @@
                                            :id id 
                                            :metadata metadata })))
  
-(defn write-operation [tx {:keys [request id document metadata]}] 
-  (case request
-    :doc-add (docs/store-document tx id document metadata)
-    :doc-delete (docs/delete-document tx id metadata)
-    :skip tx
-    ))
+(defn write-operation [tx {:keys [status request id document metadata]}] 
+  (case [status request]
+    [nil :doc-add] (docs/store-document tx id document metadata)
+    [nil :doc-delete] (docs/delete-document tx id metadata)
+    [:conflict :doc-add] (docs/store-conflict tx id document metadata)
+    [:conflict :doc-delete] (docs/store-conflict tx id :deleted metadata)))
 
 ;; For calling once a transaction is actually committed
 (defn complete! [{:keys [in-flight]} txid]

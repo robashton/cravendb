@@ -52,10 +52,10 @@
       (inflight/add-document @te @txid-2 "doc-1" { :name "2"} {})
       (inflight/complete! @te @txid-2)
       (inflight/complete! @te @txid-1))
-      (it "will write the second document (last-write-wins)"
-        (should== {:name "2"} (docs/load-document @db "doc-1")))
-      (it "will not generate a conflict"
-        (should= 0 (count (docs/conflicts @db)))))
+      (it "will write the first document"
+        (should== {:name "1"} (docs/load-document @db "doc-1")))
+      (it "will generate a conflict document for the second write"
+        (should== {:name "2"} (first (map :data (docs/conflicts @db))))))
 
   (describe "Two clients writing at the same time, no history specified, second client deletes"
     (with txid-1 (inflight/open @te))
@@ -67,10 +67,10 @@
       (inflight/delete-document @te @txid-2 "doc-1" {})
       (inflight/complete! @te @txid-2)
       (inflight/complete! @te @txid-1))
-      (it "will delete the document (last-write wins)"
-        (should= nil (docs/load-document @db "doc-1")))
-      (it "will not generate a conflict"
-        (should= 0 (count (docs/conflicts @db)))))
+      (it "will write the first document"
+        (should= { :name "1" } (docs/load-document @db "doc-1")))
+      (it "will generate a conflict document for the :delete"
+        (should= :deleted (first (map :data (docs/conflicts @db))))))
 
   (describe "Two clients adding a new document simultaneously"
             
