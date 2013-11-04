@@ -17,7 +17,7 @@
   (let [txid (swap! tx-count inc)] 
     (swap! in-flight #(assoc-in %1 [:transactions txid] 
                       { :tx (s/ensure-transaction db)
-                        :ops () }))
+                        :ops {} }))
     txid))
 
 (defn history-in-db [db id]
@@ -29,8 +29,9 @@
 (defn conflict-status 
   [current supplied]
   (cond
-    (nil? current) :write ;; We don't know about this document
-    (v/same? supplied current) :write ;; Client didn't specify and no conflict
+    (nil? supplied) :write ;; They didn't bother giving us a history, last write wins
+    (nil? current) :write ;; We don't know about this document so just write it
+    (v/same? supplied current) :write ;; Isn't this nice, good little client
     (v/descends? supplied current) :write ;; Client specified, knows the future 
     :else :conflict)) ;; Who knows, conflict!
 
@@ -50,25 +51,36 @@
   
   )
 
-(defn write-request [db txid request id document metadata]
+(defn winner-for [newtx docid]
+  (fn [in-flight txid]
+    (if (= txid newtx) in-flight
+      (do
+        (assoc-in 
+          in-flight
+          [:transactions txid :ops docid :request] :skip)))))
+
+(defn post-write-checks
+  [in-flight txid doc-id]
+  (reduce 
+    (winner-for txid doc-id) 
+    in-flight 
+    (get-in in-flight [:documents doc-id :refs])))
+
+(defn write-request [db txid {:keys [metadata id] :as item}]
   (fn [in-flight]
     (-> in-flight
-      (update-in [:transactions txid :ops] 
-                conj { 
-                  :id id
-                  :request request 
-                  :document document 
-                  :metadata metadata})
-      (assoc-in [:documents id] { :document document :metadata metadata}))))
+      (assoc-in [:transactions txid :ops id] item)
+      (update-in [:documents id :refs] conj txid)
+      (post-write-checks txid id))))
 
 (defn finish-with-document [in-flight doc-id]
   (dissoc-in in-flight [:documents doc-id]))
 
 (defn clean-up [txid]
-  (fn [{:keys [in-flight]}]
-    (->(reduce finish-with-document 
+  (fn [in-flight]
+    (-> (reduce finish-with-document 
             in-flight 
-            (map :id (get-in in-flight [:transactions txid :ops])))
+            (map (comp :id val) (get-in in-flight [:transactions txid :ops])))
       (dissoc-in [:transactions txid]))))
 
 (defn is-registered? 
@@ -80,18 +92,25 @@
   (boolean (get-in @in-flight [:transactions txid])))
 
 (defn add-document [{:keys [in-flight db]} txid id document metadata]
-  (swap! in-flight (write-request db txid :doc-add id document metadata)))
+  (swap! in-flight (write-request db txid {:request :doc-add 
+                                           :id id 
+                                           :document document 
+                                           :metadata metadata })))
 
 (defn delete-document [{:keys [in-flight db]} txid id metadata]
-  (swap! in-flight (write-request db txid :doc-delete id nil metadata)))
+  (swap! in-flight (write-request db txid {:request :doc-delete
+                                           :id id 
+                                           :metadata metadata })))
  
 (defn write-operation [tx {:keys [request id document metadata]}] 
   (case request
     :doc-add (docs/store-document tx id document metadata)
-    :doc-delete (docs/delete-document tx id metadata)))
+    :doc-delete (docs/delete-document tx id metadata)
+    :skip tx
+    ))
 
 ;; For calling once a transaction is actually committed
 (defn complete! [{:keys [in-flight]} txid]
   (let [{:keys [tx ops]} (get-in @in-flight [:transactions txid])] 
-    (s/commit! (reduce write-operation tx ops)))
+    (s/commit! (reduce write-operation tx (map val ops))))
   (swap! in-flight (clean-up txid)))

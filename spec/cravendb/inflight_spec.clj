@@ -44,20 +44,21 @@
     (it "will clear the transaction from the in-flight system"
        (should-not (inflight/is-txid? @te @txid))))
   
- (describe "Adding a conflicting document via the in-flight system"
+  (describe "Two clients writing at the same time without specifying history"
     (with txid-1 (inflight/open @te))
     (with txid-2 (inflight/open @te))
     (before
-      (inflight/add-document @txid-1 "doc-1" { :name "1"} {})
-      (inflight/add-document @txid-2 "doc-1" { :name "2"} {})
-      (inflight/complete! @te @txid-1)
-      (inflight/complete! @te @txid-2)))
+      (inflight/add-document @te @txid-1 "doc-1" { :name "1"} {})
+      (inflight/add-document @te @txid-2 "doc-1" { :name "2"} {})
+      (inflight/complete! @te @txid-2)
+      (inflight/complete! @te @txid-1))
 
-    (it "will write the first document to storage"
-      (should== {:name "1"} (docs/load-document @db "doc-1")))
+      (it "will write the second document (last-write-wins)"
+        (should== {:name "2"} (docs/load-document @db "doc-1")))
 
-    (it "will write a conflict for the second document"
-      (should== {:name "1"} (first (map :doc (docs/conflicts @db)))))
+      (it "will not generate a conflict"
+        (should= 0 (count (docs/conflicts @db)))))
+
 
   (describe "Deleting a conflicting document via the in-flight system"
             
