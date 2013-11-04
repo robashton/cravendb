@@ -22,7 +22,7 @@
 (defn same? [one two] (= one two)) ;; They're just strings
 
 (defn descends? [child parent]
-  (vclock/descends?  (string-to-vclock child)  (string-to-vclock parent)))
+  (and (not (same? child parent)) (vclock/descends?  (string-to-vclock child)  (string-to-vclock parent))))
 
 (defn next [e-id supplied]
   (vclock-to-string

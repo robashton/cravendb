@@ -41,37 +41,41 @@
          :synctag (s/next-synctag tx)
          :history (v/next (str ""))))
 
-(defn add-success
-  [in-flight txid id request document metadata]
-  
-  )
-
-(defn add-conflict
-  [in-flight txid id request document metadata]
-  
-  )
-
-(defn winner-for [newtx docid]
+(defn check-against [newest-tx docid]
   (fn [in-flight txid]
-    (if (= txid newtx) in-flight
-      (do
-        (assoc-in 
+    (if (= txid newest-tx) in-flight
+      (do (assoc-in 
           in-flight
-          [:transactions newtx :ops docid :status] :conflict)))))
+          [:transactions newest-tx :ops docid :status] :conflict)))))
 
 (defn post-write-checks
   [in-flight txid doc-id]
   (reduce 
-    (winner-for txid doc-id) 
+    (check-against txid doc-id) 
     in-flight 
     (get-in in-flight [:documents doc-id :refs])))
 
-(defn write-request [db txid {:keys [metadata id] :as item}]
+(defn ensure-history
+  [in-flight {:keys [db]} txid id]
+  (update-in in-flight [:transactions txid :ops id :metadata :history]
+             #(or %1 (history-in-db db id) (v/new))))
+
+
+(defn update-written-metadata 
+  [in-flight {:keys [server-id db]} txid id]
+  (-> in-flight
+    (update-in [:transactions txid :ops id :metadata :history]
+              #(v/next (str server-id txid) %1))
+    (assoc-in [:transactions txid :ops id :metadata :synctag] (s/next-synctag db))))
+
+(defn write-request [handle txid {:keys [metadata id] :as item}]
   (fn [in-flight]
     (-> in-flight
       (assoc-in [:transactions txid :ops id] item)
       (update-in [:documents id :refs] conj txid)
-      (post-write-checks txid id))))
+      (ensure-history handle txid id)
+      (post-write-checks txid id)
+      (update-written-metadata handle txid id))))
 
 (defn finish-with-document [txid]
   (fn [in-flight doc-id] (dissoc-in in-flight [:documents doc-id])))
@@ -91,14 +95,16 @@
   [{:keys [in-flight]} txid]
   (boolean (get-in @in-flight [:transactions txid])))
 
-(defn add-document [{:keys [in-flight db]} txid id document metadata]
-  (swap! in-flight (write-request db txid {:request :doc-add 
+(defn add-document 
+  [{:keys [in-flight db] :as handle} txid id document metadata]
+  (swap! in-flight (write-request handle txid {:request :doc-add 
                                            :id id 
                                            :document document 
                                            :metadata metadata })))
 
-(defn delete-document [{:keys [in-flight db]} txid id metadata]
-  (swap! in-flight (write-request db txid {:request :doc-delete
+(defn delete-document 
+  [{:keys [in-flight db] :as handle} txid id metadata]
+  (swap! in-flight (write-request handle txid {:request :doc-delete
                                            :id id 
                                            :metadata metadata })))
  

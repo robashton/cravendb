@@ -4,6 +4,7 @@
         [cravendb.core])
 
   (:require
+    [cravendb.vclock :as v]
     [cravendb.documents :as docs]
     [cravendb.storage :as s]
     [cravendb.inflight :as inflight]
@@ -72,9 +73,24 @@
       (it "will generate a conflict document for the :delete"
         (should= :deleted (first (map :data (docs/conflicts @db))))))
 
-  (describe "Two clients adding a new document simultaneously"
-            
-            )
+  (describe "A client writing with no history when a document already exists"
+    (with txid (inflight/open @te))
+    (with old-history (v/next "boo" (v/new)))
+    (before
+      (with-open [tx (s/ensure-transaction @db)] 
+        (s/commit! (docs/store-document tx "doc-1" {:name "old-doc"} { :history @old-history}))
+      (inflight/add-document @te @txid "doc-1" {:name "new-doc"} {})
+      (inflight/complete! @te @txid)))
+    (it "will write the document to storage"
+      (should== { :name "new-doc" } (docs/load-document @db "doc-1")))
+    (it "will clear the document from the in-flight system"
+      (should-not (inflight/is-registered? @te "doc-1")))
+    (it "will be a descendent of the old document"
+      (should (v/descends? 
+                (:history (docs/load-document-metadata @db "doc-1"))
+                @old-history)))
+    (it "will not generate a conflict"
+        (should= 0 (count (docs/conflicts @db)))))
 
   (describe "Two clients modifying an existing simultaneously"
             
