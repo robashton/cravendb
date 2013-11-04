@@ -24,16 +24,15 @@
 
 ### Immediate issues
 
-- Deleting indexes should ideally delete the persistence for those indexes
 - Handle indexes that can't be compiled for some reason
 - Indexes should ideally be defended from concurrency too
+- Failed tasks
 - Bulk operations don't respect history (uh oh)
 
 ### Pending tasks
 
 - I should have an in-flight transaction system for dealing with concurrency (history checks aren't threadsafe)
 - Client should be handling HTTP results properly
-- Meta data storage for documents
 - Bulk operations doesn't take into account history on put
 - Need some tests for three-way replication checking etc
 - Automatic peer discovery
@@ -44,6 +43,7 @@
 
 - How best to deal with conflicts in a multi-master scenario? At the moment we remain inconsistent
 - The indexing engine isn't as robust as I'd like it to be
+- Can I use core.async to help make the index engine code better?
 - Can I use leveldb's write/read options to do my work for me?
 - Need to formalise that database thing and whether it supports transactions
 - I need to show sensible parsing errors on parsing failure
