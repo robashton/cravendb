@@ -60,7 +60,6 @@
   (update-in in-flight [:transactions txid :ops id :metadata :history]
              #(or %1 (history-in-db db id) (v/new))))
 
-
 (defn update-written-metadata 
   [in-flight {:keys [server-id db]} txid id]
   (-> in-flight

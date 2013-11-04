@@ -92,16 +92,31 @@
     (it "will not generate a conflict"
         (should= 0 (count (docs/conflicts @db)))))
 
-  (describe "Two clients modifying an existing simultaneously"
-            
+  (describe "Two clients both providing history trying to write a document"
+    (with txid-1 (inflight/open @te))
+    (with txid-2 (inflight/open @te))
+    (with old-history (v/next "boo" (v/new)))
+    (before
+       (with-open [tx (s/ensure-transaction @db)] 
+        (s/commit! (docs/store-document tx "doc-1" {:name "old-doc"} { :history @old-history})))
+      (inflight/add-document @te @txid-1 "doc-1" { :name "1"} {})
+      (inflight/add-document @te @txid-2 "doc-1" { :name "2"} {})
+      (inflight/complete! @te @txid-2)
+      (inflight/complete! @te @txid-1))
+      (it "will write the first document"
+        (should== {:name "1"} (docs/load-document @db "doc-1")))
+      (it "will write the first document as a descendent of the orignal"
+        (should (v/descends? 
+                (:history (docs/load-document-metadata @db "doc-1"))
+                @old-history)))
+      (it "will generate a conflict for the second document"
+          
+          )
+      (it "will write the conflict as a descendent of the original"
+
             )
 
-  (describe "Two clients writing a new document consecutively"
-            
-            )
-  (describe "A client deleting a document then another client adding a document"
-            
-            ))
+  (describe "A client providing an out of date history when writing"   )))  
 
 
 
