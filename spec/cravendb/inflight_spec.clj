@@ -30,14 +30,34 @@
     (it "will clear the transaction from the in-flight system"
        (should-not (inflight/is-txid? @te @txid))))
 
-  
   (describe "Deleting a single document via the in-flight system"
-            
-            )
+    (with txid (inflight/open @te))
+    (before
+      (with-open [tx (s/ensure-transaction @db)] 
+        (s/commit! (docs/store-document tx "doc-1" {} {}))
+      (inflight/delete-document @te @txid "doc-1" {})
+      (inflight/complete! @te @txid)))
+    (it "will write the document to storage"
+      (should-not (docs/load-document @db "doc-1")))
+    (it "will clear the document from the in-flight system"
+      (should-not (inflight/is-registered? @te "doc-1")))
+    (it "will clear the transaction from the in-flight system"
+       (should-not (inflight/is-txid? @te @txid))))
   
  (describe "Adding a conflicting document via the in-flight system"
-            
-            ) 
+    (with txid-1 (inflight/open @te))
+    (with txid-2 (inflight/open @te))
+    (before
+      (inflight/add-document @txid-1 "doc-1" { :name "1"} {})
+      (inflight/add-document @txid-2 "doc-1" { :name "2"} {})
+      (inflight/complete! @te @txid-1)
+      (inflight/complete! @te @txid-2)))
+
+    (it "will write the first document to storage"
+      (should== {:name "1"} (docs/load-document @db "doc-1")))
+
+    (it "will write a conflict for the second document"
+      (should== {:name "1"} (first (map :doc (docs/conflicts @db)))))
 
   (describe "Deleting a conflicting document via the in-flight system"
             
@@ -50,7 +70,13 @@
   (describe "Two clients modifying an existing simultaneously"
             
             )
-  )
+
+  (describe "Two clients writing a new document consecutively"
+            
+            )
+  (describe "A client deleting a document then another client adding a document"
+            
+            ))
 
 
 

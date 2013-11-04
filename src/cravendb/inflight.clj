@@ -82,12 +82,13 @@
 (defn add-document [{:keys [in-flight db]} txid id document metadata]
   (swap! in-flight (write-request db txid :doc-add id document metadata)))
 
-(defn remove-document [{:keys [in-flight db]} tx txid id metadata]
+(defn delete-document [{:keys [in-flight db]} txid id metadata]
   (swap! in-flight (write-request db txid :doc-delete id nil metadata)))
  
 (defn write-operation [tx {:keys [request id document metadata]}] 
   (case request
-    :doc-add (docs/store-document tx id document metadata)))
+    :doc-add (docs/store-document tx id document metadata)
+    :doc-delete (docs/delete-document tx id metadata)))
 
 ;; For calling once a transaction is actually committed
 (defn complete! [{:keys [in-flight]} txid]
