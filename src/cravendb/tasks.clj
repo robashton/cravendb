@@ -1,6 +1,7 @@
 (ns cravendb.tasks
   (:refer-clojure :exclude [peek] )
-  (:require [cravendb.storage :as s]))  
+  (:require [cravendb.storage :as s]
+            [clojure.edn :as edn]))  
 
 (def task-prefix "tasks-")
 
@@ -18,14 +19,14 @@
            (s/as-seq 
              (s/seek iter (str task-prefix queue)))))))
 
-(defn handle-task [id task handlers]
+(defn handle-task [db id task handlers]
   (if-let [handler (handlers (:handle task))]
-    (handler task)))
+    (handler db task)))
 
 (defn pump [db queue handlers]
  (with-open [tx (s/ensure-transaction db)]
     (if-let [{:keys [k v]} (peek tx)]
-      (do (handle-task k v handlers)
+      (do (handle-task db k v handlers)
         (-> tx
           (delete k)
           (s/commit!))))))
