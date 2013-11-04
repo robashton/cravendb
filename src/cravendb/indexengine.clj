@@ -215,11 +215,8 @@
   (future-cancel (:worker-future engine))
   (assoc engine :worker-future nil))
 
-(defprotocol EngineOperations
-  (close [this]))
-
 (defrecord EngineHandle [ea]
-  EngineOperations
+  java.io.Closeable
   (close [this]
     (debug "Closing engine handle")
     (send ea close-engine)
