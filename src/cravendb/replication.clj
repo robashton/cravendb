@@ -6,40 +6,12 @@
             [cravendb.inflight :as inflight]
             [cravendb.client :as c]))
 
-(defn conflict-status 
-  [current candidate]
-  (cond
-    (nil? current) :write
-    (v/same? candidate current) :skip
-    (v/descends? candidate current) :write
-    (v/descends? current candidate) :skip
-    :else :conflict))
-
-(defn status-for
-  [tx {:keys [id metadata]}]
-  (conflict-status
-    (get (docs/load-document-metadata tx id) :history)
-    (get metadata :history)))
 
 (defn action-for
   [item]
   (if (:doc item) 
     :store
     :delete))
-
-(defn adjust-metadata 
-  [tx metadata]
-  (assoc metadata :synctag (s/next-synctag tx)))
-
-(defn action-into-tx 
-  [tx {:keys [id doc metadata] :as item}]
-  (case [(status-for tx item) (action-for item)]
-    [:skip :delete] tx
-    [:skip :store] tx
-    [:write :store] (docs/store-document tx id doc (adjust-metadata tx metadata))
-    [:write :delete] (docs/delete-document tx id (adjust-metadata tx metadata))
-    [:conflict :store] (docs/store-conflict tx id doc (adjust-metadata tx metadata))
-    [:conflict :delete] (docs/store-conflict tx id :deleted (adjust-metadata tx metadata))))
 
 (defn store-last-synctag [tx url synctag]
   (s/store tx (str "replication-last-synctag-" url) (synctag-to-integer synctag)))
