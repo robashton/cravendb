@@ -110,11 +110,11 @@
                 (:history (docs/load-document-metadata @db "doc-1"))
                 @old-history)))
       (it "will generate a conflict for the second document"
-          
-          )
+        (should== { :name "2"} (first (map :data (docs/conflicts @db)))))
       (it "will write the conflict as a descendent of the original"
-
-            )
+        (should (v/descends? 
+                (first (map (comp :history :metadata) (docs/conflicts @db)))
+                @old-history)))
 
   (describe "A client providing an out of date history when writing"   )))  
 
