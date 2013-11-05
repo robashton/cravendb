@@ -12,8 +12,12 @@
   "Various scenarios between servers 'one' and 'two"
     (with one (start-server 8080 :server-id "one"))
     (with two (start-server 8081 :server-id "two"))
-    (with one->two (fn [] (r/pump-replication (get-in @two [:instance :storage]) (:url @one))))
-    (with two->one (fn [] (r/pump-replication (get-in @one [:instance :storage]) (:url @two))))
+    (with one->two (fn [] (r/pump-replication 
+                            (get-in @two [:instance :ifh])
+                            (get-in @two [:instance :storage]) (:url @one))))
+    (with two->one (fn [] (r/pump-replication 
+                            (get-in @one [:instance :ifh])
+                            (get-in @one [:instance :storage]) (:url @two))))
     (after
       (stop-server @one)
       (stop-server @two))

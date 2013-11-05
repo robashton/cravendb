@@ -7,7 +7,6 @@
             [cravendb.http :as http]
             [cravendb.database :as database]))
       
-
 (defn clear-test-data []
   (fs/delete-dir "testdir"))
 

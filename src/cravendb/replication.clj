@@ -3,6 +3,7 @@
             [cravendb.core :refer [zero-synctag synctag-to-integer integer-to-synctag]]
             [cravendb.storage :as s]
             [cravendb.vclock :as v]
+            [cravendb.inflight :as inflight]
             [cravendb.client :as c]))
 
 (defn conflict-status 
@@ -59,46 +60,52 @@
      :last-synctag (last-replicated-synctag storage source-url)
      :total (replication-total storage source-url) })
 
-(defn replicate-into [tx items] 
-  (reduce 
-    (fn [{:keys [tx total last-synctag] :as state} 
-         {:keys [id doc metadata] :as item}]
-      (assoc state
-        :tx (action-into-tx tx item)
-        :last-synctag (:synctag metadata)
-        :total (inc total)))
-    { :tx tx :total 0 :last-synctag (zero-synctag) }
-    items))
+(defn replicate-into [ifh items] 
+  (let [txid (inflight/open ifh)
+        result (reduce 
+          (fn [{:keys [total last-synctag] :as state} 
+              {:keys [id doc metadata] :as item}]
+            (case (action-for item)
+              :delete (inflight/delete-document ifh txid id metadata)
+              :store (inflight/add-document ifh txid id doc metadata))
+            (assoc state
+              :last-synctag (:synctag metadata)
+              :total (inc total)))
+            { :total 0 :last-synctag (zero-synctag) } items)] 
 
-(defn replicate-from [storage source-url items]
-  (with-open [tx (s/ensure-transaction storage)] 
-    (let [{:keys [tx last-synctag total]} (replicate-into tx (take 100 items))] 
+    (inflight/complete! ifh txid)
+    result))
+
+(defn replicate-from [ifh storage source-url items]
+  (let [{:keys [last-synctag total]} (replicate-into ifh (take 100 items))] 
+    (with-open [tx (s/ensure-transaction storage)] 
       (-> tx
         (store-last-synctag source-url last-synctag)
         (store-last-total source-url total)
-        (s/commit!))))
-    (drop 100 items))
+        (s/commit!))))(drop 100 items))
 
-(defn empty-replication-queue [storage-destination source-url synctag]
+(defn empty-replication-queue [ifh storage-destination source-url synctag]
   (loop [items (c/stream-seq source-url synctag)]
     (if (not (empty? items))
-      (recur (replicate-from storage-destination source-url items)))))
+      (recur (replicate-from ifh storage-destination source-url items)))))
 
-(defn pump-replication [storage source-url]
+(defn pump-replication [ifh storage source-url]
   (empty-replication-queue 
+      ifh
       storage     
       source-url
       (last-replicated-synctag storage source-url)))
 
-(defn replication-loop [storage source-url]
+(defn replication-loop [ifh storage source-url]
   (loop []
-    (pump-replication storage source-url)
-    (Thread/sleep 50)
+    (pump-replication ifh storage source-url)
+    (Thread/sleep 50) 
     (recur)))
 
 (defn start [handle]
   (assoc handle
     :future (future (replication-loop 
+                      (get-in handle [:instance :ifh])
                       (get-in handle [:instance :storage]) 
                       (:source-url handle)))))
 
