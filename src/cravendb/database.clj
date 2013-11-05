@@ -5,10 +5,11 @@
             [cravendb.indexstore :as indexes] 
             [cravendb.indexengine :as indexengine] 
             [cravendb.documents :as docs]
+            [cravendb.inflight :as inflight]
             [cravendb.vclock :as vclock]
             [clojure.tools.logging :refer [info error debug]]))
 
-(defrecord Database [storage index-engine]
+(defrecord Database [storage index-engine ifh]
   java.io.Closeable
   (close [this] 
     (indexengine/stop index-engine)
@@ -16,41 +17,18 @@
     (.close storage)))
 
 (defn create
-  [path & opts]
+  [path & kvs]
   (let [storage (s/create-storage path)
-        index-engine (indexengine/create-engine storage)]
+        index-engine (indexengine/create-engine storage)
+        opts (apply hash-map kvs) ]
     (indexengine/start index-engine)
-    (merge (Database. storage index-engine)
-           { :server-id "root"
-             :base-vclock (vclock/new)
-             :tx-count (atom 0) }
-            (apply hash-map opts))))
+    (merge (Database. storage index-engine 
+                      (inflight/create storage (or (:server-id opts) "root"))))))
 
 (defn load-document-metadata
   [{:keys [storage]} id]
   (debug "getting document metadata id " id)
   (docs/load-document-metadata storage id))
-
-(defn checked-history [tx supplied-history existing-history]
-  (let [last-version (or  supplied-history existing-history (:base-vclock tx))
-        next-version (vclock/next (:e-id tx) last-version)]
-    {:is-conflict (not (vclock/descends? (or supplied-history next-version) (or existing-history last-version)))
-     :history next-version}))
-
-(defn load-document-metadata
-  [{:keys [storage]} id]
-  (debug "getting document metadata id " id)
-  (docs/load-document-metadata storage id))
-
-(defn check-document-write [tx id metadata success conflict]
-  (let [history-result 
-        (checked-history tx
-          (:history metadata) (:history (or (docs/load-document-metadata tx id) {})))]
-         ((if (:is-conflict history-result) conflict success)
-            (assoc metadata :history (:history history-result)
-                            :primary-server (:server-id tx)
-                            :synctag (s/next-synctag tx)))))
-
 
 (def default-query { :index "default"
                      :wait-duration 5
@@ -72,73 +50,42 @@
 (defn conflicts [{:keys [storage]}]
   (docs/conflicts storage))
 
-(defn in-tx 
-  [{:keys [storage last-synctag tx-count server-id base-vclock] :as instance} f]
-  (with-open [tx (s/ensure-transaction storage)] 
-    (-> tx
-      (assoc :e-id (str server-id (swap! tx-count inc))
-             :base-vclock base-vclock
-             :server-id server-id)
-      (f)
-      (s/commit!))
-    (swap! tx-count dec)))
-
-
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
-  ([{:keys [last-synctag] :as instance} id document metadata]
+  ([{:keys [ifh]} id document metadata]
   (debug "putting a document:" id document metadata)
-   (in-tx instance 
-     (fn [tx]
-       (check-document-write 
-         tx id metadata
-         #(docs/store-document tx id document %1)
-         #(docs/store-conflict tx id document %1))))))
+   (let [txid (inflight/open ifh)]
+     (inflight/add-document ifh txid id document metadata)
+     (inflight/complete! ifh txid))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([instance id metadata]
+  ([{:keys [ifh]} id metadata]
   (debug "deleting a document with id " id)
-   (in-tx instance 
-     (fn [tx]
-       (check-document-write
-         tx id metadata
-         #(docs/delete-document tx id %1)
-         #(docs/store-conflict tx id :deleted %1))))))
+   (let [txid (inflight/open ifh)]
+     (inflight/delete-document ifh txid id metadata)
+     (inflight/complete! ifh txid))))
 
 (defn load-document 
   [{:keys [storage]} id]
   (debug "getting a document with id " id)
   (docs/load-document storage id))
 
-(defn interpret-bulk-operation 
-  [{:keys [tx instance] :as state}
-   {:keys [id operation metadata document]}]
-  (assoc state :tx 
-    (case operation
-      :docs-delete (check-document-write tx id metadata
-                      #(docs/delete-document tx id %1)
-                      #(docs/store-conflict tx id :deleted %1)) 
-      :docs-put  (check-document-write tx id metadata
-                      #(docs/store-document tx id document %1)
-                      #(docs/store-conflict tx id :deleted %1)))))
-
 (defn bulk 
-  [instance operations]
+  [{:keys [ifh]} operations]
   (debug "Bulk operation: ")
-  (in-tx instance 
-    (fn [tx] (:tx 
-    (reduce
-      interpret-bulk-operation
-      {:tx tx :instance instance}
-      operations)))))
+  (let [txid (inflight/open ifh)]
+    (doseq [{:keys [id operation metadata document]} operations]
+      (case operation
+        :docs-delete (inflight/delete-document ifh txid id metadata)
+        :docs-put (inflight/add-document ifh txid id document metadata)))
+     (inflight/complete! ifh txid)))
 
 (defn put-index 
-  [instance index]
+  [{:keys [storage]} index]
   (debug "putting an in index:" index)
-  (in-tx instance 
-    (fn [tx] 
-      (indexes/put-index tx index {:synctag (s/next-synctag tx)}))))
+  (with-open [tx (s/ensure-transaction storage)] 
+    (s/commit! (indexes/put-index tx index {:synctag (s/next-synctag tx)}))))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -146,10 +93,10 @@
   {:synctag (indexes/synctag-for-index storage id)})
 
 (defn delete-index 
-  [instance id]
+  [{:keys [storage]} id]
   (debug "deleting an index" id)
-  (in-tx instance 
-    (fn [tx] (indexes/delete-index tx id {:synctag (s/next-synctag tx)}))))
+  (with-open [tx (s/ensure-transaction storage)] 
+    (s/commit! (indexes/delete-index tx id {:synctag (s/next-synctag tx)}))))
 
 (defn load-index 
   [{:keys [storage]} id]
