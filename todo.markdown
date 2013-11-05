@@ -38,7 +38,7 @@
 
 ### Pending debt/questions/bugs
 
-- How best to deal with conflicts in a multi-master scenario? At the moment we remain inconsistent
+- How best to deal with conflicts in a multi-master scenario? At the moment we remain inconsistent across the cluster
 - The indexing engine isn't as robust as I'd like it to be
 - Can I use core.async to help make the index engine code better?
 - Can I use leveldb's write/read options to do my work for me?

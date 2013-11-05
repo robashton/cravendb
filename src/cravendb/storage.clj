@@ -122,6 +122,7 @@
 (defn bootstrap-storage
   [storage]
   (assoc storage
+    :closed (agent false)
     :last-synctag (atom (synctag-to-integer (last-synctag-in storage)))))
 
 (defn next-synctag [{:keys [last-synctag]}]
