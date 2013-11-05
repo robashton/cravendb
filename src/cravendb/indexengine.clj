@@ -142,8 +142,7 @@
    :id (:id index)
    :future 
     (future
-      (indexing/index-catchup! (:db engine) index))
-   })
+      (indexing/index-catchup! (:db engine) index)) })
 
 (defn indexes-which-require-a-chaser [engine]
   (filter 
@@ -199,8 +198,14 @@
       (recur)))]
    (assoc engine :background-future task)))
 
+(defn wait-for [f]
+  (loop []
+    (while (not (future-done? f))
+      (Thread/sleep 10))))
+
 (defn stop-background-tasks [engine]
    (future-cancel (:background-future engine))
+   (wait-for (:background-future engine))
    (dissoc engine :background-future))
 
 (defn start-indexing [engine ea]
@@ -213,6 +218,10 @@
 
 (defn stop-indexing [engine]
   (future-cancel (:worker-future engine))
+  (wait-for (:worker-future engine))
+   (doseq [i (:chasers engine)]
+     (future-cancel (:future i))
+     (wait-for (:future i)))
   (assoc engine :worker-future nil))
 
 (defrecord EngineHandle [ea]

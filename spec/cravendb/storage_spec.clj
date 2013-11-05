@@ -59,6 +59,15 @@
                (s/commit!))
             (should= nil (s/get-string tx2 "1")))))))
 
+;; This can happen on shut-down sometimes
+;;(describe "closing a tx after storage has been closed"
+;;  (it "will not fall over screaming"
+;;    (let [tx (atom {})] 
+;;      (with-db
+;;        (fn [db]
+;;          (swap! tx #(do (println %1) (s/ensure-transaction db)))))
+;;      (.close @tx)))) 
+
 (describe "Deleting an object that does not exist"
   (it "will achieve nothing"
       (with-db 
