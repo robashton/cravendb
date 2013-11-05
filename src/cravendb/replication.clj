@@ -40,17 +40,6 @@
     [:conflict :store] (docs/store-conflict tx id doc (adjust-metadata tx metadata))
     [:conflict :delete] (docs/store-conflict tx id :deleted (adjust-metadata tx metadata))))
 
-(defn replicate-into [tx items] 
-  (reduce 
-    (fn [{:keys [tx total last-synctag] :as state} 
-         {:keys [id doc metadata] :as item}]
-      (assoc state
-        :tx (action-into-tx tx item)
-        :last-synctag (:synctag metadata)
-        :total (inc total)))
-    { :tx tx :total 0 :last-synctag (zero-synctag) }
-    items))
-
 (defn store-last-synctag [tx url synctag]
   (s/store tx (str "replication-last-synctag-" url) (synctag-to-integer synctag)))
 
@@ -69,6 +58,17 @@
     {
      :last-synctag (last-replicated-synctag storage source-url)
      :total (replication-total storage source-url) })
+
+(defn replicate-into [tx items] 
+  (reduce 
+    (fn [{:keys [tx total last-synctag] :as state} 
+         {:keys [id doc metadata] :as item}]
+      (assoc state
+        :tx (action-into-tx tx item)
+        :last-synctag (:synctag metadata)
+        :total (inc total)))
+    { :tx tx :total 0 :last-synctag (zero-synctag) }
+    items))
 
 (defn replicate-from [storage source-url items]
   (with-open [tx (s/ensure-transaction storage)] 
