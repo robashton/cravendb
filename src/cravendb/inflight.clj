@@ -29,36 +29,27 @@
 (defn conflict-status 
   [current supplied]
   (cond
-    (nil? supplied) :write ;; They didn't bother giving us a history, last write wins
-    (nil? current) :write ;; We don't know about this document so just write it
+    (nil? current) :write ;; First time seeing this document ever
     (v/same? supplied current) :write ;; Isn't this nice, good little client
     (v/descends? supplied current) :write ;; Client specified, knows the future 
     :else :conflict)) ;; Who knows, conflict!
 
-(defn adjust-metadata 
-  [tx metadata old-history]
-  (assoc metadata 
-         :synctag (s/next-synctag tx)
-         :history (v/next (str ""))))
+(defn last-known-history [in-flight db doc-id]
+  (or (get-in in-flight [:documents doc-id :current-history]) 
+      (history-in-db db doc-id)))
 
-(defn check-against [newest-tx docid]
-  (fn [in-flight txid]
-    (if (= txid newest-tx) in-flight
-      (do (assoc-in 
-          in-flight
-          [:transactions newest-tx :ops docid :status] :conflict)))))
-
-(defn post-write-checks
-  [in-flight txid doc-id]
-  (reduce 
-    (check-against txid doc-id) 
-    in-flight 
-    (get-in in-flight [:documents doc-id :refs])))
+(defn check-against-existing [in-flight db txid doc-id]
+  (assoc-in in-flight
+    [:transactions txid :ops doc-id :status] 
+    (conflict-status (last-known-history in-flight db doc-id)
+                     (get-in in-flight [:transactions txid :ops doc-id :metadata :history]))))
 
 (defn ensure-history
   [in-flight {:keys [db]} txid id]
-  (update-in in-flight [:transactions txid :ops id :metadata :history]
-             #(or %1 (history-in-db db id) (v/new))))
+  (assoc-in in-flight [:transactions txid :ops id :metadata :history] 
+            (or (get-in in-flight [:transactions txid :ops id :metadata :history])
+                (history-in-db db id)
+                (v/new))))
 
 (defn update-written-metadata 
   [in-flight {:keys [server-id db]} txid id]
@@ -67,14 +58,24 @@
               #(v/next (str server-id txid) %1))
     (assoc-in [:transactions txid :ops id :metadata :synctag] (s/next-synctag db))))
 
+(defn update-log
+  [in-flight handle txid id]
+  (-> 
+    (if (and (not (get-in in-flight [:documents id]))
+          (= :write (get-in in-flight [:transactions txid :ops id :status])))
+      (assoc-in in-flight [:documents id :current-history]
+        (get-in in-flight [:transactions txid :ops id :metadata :history]))
+    in-flight)
+    (update-in [:documents id :refs] conj txid)))
+
 (defn write-request [handle txid {:keys [metadata id] :as item}]
   (fn [in-flight]
     (-> in-flight
       (assoc-in [:transactions txid :ops id] item)
-      (update-in [:documents id :refs] conj txid)
       (ensure-history handle txid id)
-      (post-write-checks txid id)
-      (update-written-metadata handle txid id))))
+      (check-against-existing handle txid id)
+      (update-written-metadata handle txid id)
+      (update-log handle txid id))))
 
 (defn finish-with-document [txid]
   (fn [in-flight doc-id] (dissoc-in in-flight [:documents doc-id])))
@@ -100,7 +101,6 @@
                                            :id id 
                                            :document document 
                                            :metadata metadata })))
-
 (defn delete-document 
   [{:keys [in-flight db] :as handle} txid id metadata]
   (swap! in-flight (write-request handle txid {:request :doc-delete
@@ -109,8 +109,8 @@
  
 (defn write-operation [tx {:keys [status request id document metadata]}] 
   (case [status request]
-    [nil :doc-add] (docs/store-document tx id document metadata)
-    [nil :doc-delete] (docs/delete-document tx id metadata)
+    [:write :doc-add] (docs/store-document tx id document metadata)
+    [:write :doc-delete] (docs/delete-document tx id metadata)
     [:conflict :doc-add] (docs/store-conflict tx id document metadata)
     [:conflict :doc-delete] (docs/store-conflict tx id :deleted metadata)))
 

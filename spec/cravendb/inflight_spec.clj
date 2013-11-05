@@ -114,10 +114,25 @@
       (it "will write the conflict as a descendent of the original"
         (should (v/descends? 
                 (first (map (comp :history :metadata) (docs/conflicts @db)))
-                @old-history)))
+                @old-history))))
 
-  (describe "A client providing an out of date history when writing"   )))  
+  (describe "A client providing an out of date history when writing"
+    (with txid (inflight/open @te))
+    (with old-history (v/next "boo" (v/new)))
+    (with supplied-history (v/next "fred" (v/new)))
 
+    (before
+       (with-open [tx (s/ensure-transaction @db)] 
+        (s/commit! (docs/store-document tx "doc-1" {:name "old-doc"} { :history @old-history})))
+      (inflight/add-document @te @txid "doc-1" { :name "1"} { :history @supplied-history })
+      (inflight/complete! @te @txid))
+    (it "will generate a conflict for that document" 
+        (should== { :name "1"} (first (map :data (docs/conflicts @db)))))
+    (it "will write the conflict as a descendent of the specified history"
+        (should (v/descends? 
+                (first (map (comp :history :metadata) (docs/conflicts @db)))
+                @supplied-history)))) 
+)
 
 
 
