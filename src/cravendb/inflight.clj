@@ -2,7 +2,6 @@
   (:require [cravendb.vclock :as v]
             [cravendb.documents :as docs]
             [clojure.core.incubator :refer [dissoc-in]]
-            [cravendb.database :as db]
             [cravendb.storage :as s]))
 
 ;; This needs to work for
