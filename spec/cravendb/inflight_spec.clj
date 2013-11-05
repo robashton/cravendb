@@ -132,7 +132,23 @@
         (should (v/descends? 
                 (first (map (comp :history :metadata) (docs/conflicts @db)))
                 @supplied-history)))) 
-)
+
+(describe "A client writing a valid document when a previous client has conflicted"
+    (with tx1 (inflight/open @te))
+    (with tx2 (inflight/open @te))
+    (with old-history (v/next "boo" (v/new)))
+    (with supplied-history (v/next "fred" (v/new)))
+    (before
+       (with-open [tx (s/ensure-transaction @db)] 
+        (s/commit! (docs/store-document tx "doc-1" {:name "old-doc"} { :history @old-history})))
+      (inflight/add-document @te @tx1 "doc-1" { :name "conflict"} { :history @supplied-history })
+      (inflight/add-document @te @tx2 "doc-1" { :name "fine"} {})
+      (inflight/complete! @te @tx1)
+      (inflight/complete! @te @tx2))
+    (it "will still write the original conflicted document as conflicted" 
+      (should== { :name "conflict"} (first (map :data (docs/conflicts @db)))))
+    (it "will write the second document to the underlying store"
+      (should== {:name "fine"} (docs/load-document @db "doc-1")) )))
 
 
 
