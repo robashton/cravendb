@@ -48,7 +48,6 @@
 - Look at threading indexing
 - Try to use the Clojure string library rather than all the .startsWith etc
 - Look at using reducers to queue up the indexing operation (currently creating new sequences per transformation)
-- Something is wrong with my usage of leveldb, tests crash with pthread error occasionally
 
 ### To look at 
 
