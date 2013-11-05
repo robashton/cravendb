@@ -219,9 +219,8 @@
 (defn stop-indexing [engine]
   (future-cancel (:worker-future engine))
   (wait-for (:worker-future engine))
-   (doseq [i (:chasers engine)]
-     (future-cancel (:future i))
-     (wait-for (:future i)))
+  (doseq [i (:chasers engine)]
+    (wait-for (:future i)))
   (assoc engine :worker-future nil))
 
 (defrecord EngineHandle [ea]
