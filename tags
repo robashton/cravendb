@@ -12,7 +12,7 @@
 >?	src/cravendb/querylanguage.clj	/^(defn >? [k v] (binary-condition ">" k v))$/;"	f
 AND	src/cravendb/querylanguage.clj	/^(defn AND [& v] (list-condition "and" v))$/;"	f
 Closeable	src/cravendb/lucene.clj	/^(defprotocol Closeable$/;"	f
-Database	src/cravendb/database.clj	/^(defrecord Database [storage index-engine]$/;"	f
+Database	src/cravendb/database.clj	/^(defrecord Database [storage index-engine ifh]$/;"	f
 EngineHandle	src/cravendb/indexengine.clj	/^(defrecord EngineHandle [ea]$/;"	f
 LevelStorage	src/cravendb/storage.clj	/^(defrecord LevelStorage [path db]$/;"	f
 LevelTransaction	src/cravendb/storage.clj	/^(defrecord LevelTransaction [db options path last-synctag]$/;"	f
@@ -39,7 +39,6 @@ add-by-whatever-index	spec/cravendb/regressions_spec.clj	/^(defn add-by-whatever
 add-document	src/cravendb/inflight.clj	/^(defn add-document $/;"	f
 add-sequential-doc-to-transaction	src/cravendb/load.clj	/^(defn add-sequential-doc-to-transaction [{:keys [tx prefix id total] :as state} item]$/;"	f
 add-standard-data-set	spec/cravendb/defaultindex_spec.clj	/^(defn add-standard-data-set [instance]$/;"	f
-adjust-metadata	src/cravendb/inflight.clj	/^(defn adjust-metadata $/;"	f
 adjust-metadata	src/cravendb/replication.clj	/^(defn adjust-metadata $/;"	f
 all	src/cravendb/defaultindexes.clj	/^(defn all [] [$/;"	f
 all-indexes	src/cravendb/indexengine.clj	/^(defn all-indexes [db]$/;"	f
@@ -57,8 +56,7 @@ by-name-animal-filter	spec/cravendb/updatingindexes_spec.clj	/^(def by-name-anim
 by-name-map	spec/cravendb/indexengine_spec.clj	/^(def by-name-map "(fn [doc] { \\"name\\" (:name doc) })")$/;"	f
 by-name-map	spec/cravendb/indexing_spec.clj	/^(def by-name-map $/;"	f
 by-name-map	spec/cravendb/updatingindexes_spec.clj	/^(def by-name-map $/;"	f
-check-document-write	src/cravendb/database.clj	/^(defn check-document-write [tx id metadata success conflict]$/;"	f
-checked-history	src/cravendb/database.clj	/^(defn checked-history [tx supplied-history existing-history]$/;"	f
+check-against-existing	src/cravendb/inflight.clj	/^(defn check-against-existing [in-flight {:keys [db]} txid doc-id]$/;"	f
 clean-up	src/cravendb/inflight.clj	/^(defn clean-up [txid]$/;"	f
 clear-conflicts	src/cravendb/database.clj	/^(defn clear-conflicts [{:keys [storage]} id]$/;"	f
 clear-test-data	src/cravendb/testing.clj	/^(defn clear-test-data []$/;"	f
@@ -172,7 +170,6 @@ has-word?	src/cravendb/querylanguage.clj	/^(defn has-word? [k v] (binary-conditi
 history-in-db	src/cravendb/inflight.clj	/^(defn history-in-db [db id]$/;"	f
 history-in-flight	src/cravendb/inflight.clj	/^(defn history-in-flight [in-flight id]$/;"	f
 import-prescriptions	src/cravendb/load.clj	/^(defn import-prescriptions []$/;"	f
-in-tx	src/cravendb/database.clj	/^(defn in-tx $/;"	f
 index-catchup!	src/cravendb/indexing.clj	/^(defn index-catchup! [db index]$/;"	f
 index-doc-id	src/cravendb/indexstore.clj	/^(defn index-doc-id [id]$/;"	f
 index-docs	src/cravendb/indexing.clj	/^(defn index-docs [tx indexes ids]$/;"	f
@@ -192,7 +189,6 @@ insert-200-documents	spec/cravendb/masterslavereplication_spec.clj	/^(defn inser
 insertindex	src/cravendb/load.clj	/^(defn insertindex []$/;"	f
 inside-tx	src/cravendb/testing.clj	/^(defn inside-tx [testfn]$/;"	f
 integer-to-synctag	src/cravendb/core.clj	/^(defn integer-to-synctag [integer]$/;"	f
-interpret-bulk-operation	src/cravendb/database.clj	/^(defn interpret-bulk-operation $/;"	f
 is-conflict-entry	src/cravendb/documents.clj	/^(defn is-conflict-entry [m]$/;"	f
 is-conflict-entry-for	src/cravendb/documents.clj	/^(defn is-conflict-entry-for [m doc-id]$/;"	f
 is-document-key	src/cravendb/documents.clj	/^(defn is-document-key [^String k]$/;"	f
@@ -209,6 +205,7 @@ last-index-doc-count	src/cravendb/indexing.clj	/^(defn last-index-doc-count [db]
 last-index-doc-count-key	src/cravendb/indexing.clj	/^(def last-index-doc-count-key "last-index-doc-count")$/;"	f
 last-indexed-synctag	src/cravendb/indexing.clj	/^(defn last-indexed-synctag [db]$/;"	f
 last-indexed-synctag-key	src/cravendb/indexing.clj	/^(def last-indexed-synctag-key "last-indexed-synctag")$/;"	f
+last-known-history	src/cravendb/inflight.clj	/^(defn last-known-history [in-flight db doc-id]$/;"	f
 last-replicated-synctag	src/cravendb/replication.clj	/^(defn last-replicated-synctag [storage source-url]$/;"	f
 last-synctag-in	src/cravendb/storage.clj	/^(defn last-synctag-in$/;"	f
 last-synctag-key	src/cravendb/documents.clj	/^(def last-synctag-key "last-synctag")$/;"	f
@@ -248,7 +245,6 @@ open-writer	src/cravendb/lucene.clj	/^(defn open-writer [index] (LuceneIndexWrit
 parse-element	src/cravendb/querylanguage.clj	/^(defn parse-element [k]$/;"	f
 parse-results	spec/cravendb/indexing_spec.clj	/^(defn parse-results [results]$/;"	f
 peek	src/cravendb/tasks.clj	/^(defn peek [tx queue]$/;"	f
-post-write-checks	src/cravendb/inflight.clj	/^(defn post-write-checks$/;"	f
 prepare-indexes	src/cravendb/indexengine.clj	/^(defn prepare-indexes [indexes db]$/;"	f
 prescription-row	src/cravendb/load.clj	/^(defn prescription-row [in]$/;"	f
 process-mapped-document	src/cravendb/indexing.clj	/^(defn process-mapped-document $/;"	f
@@ -338,6 +334,8 @@ to-lucene	src/cravendb/queryparsing.clj	/^(defn to-lucene [query]$/;"	f
 touch	src/cravendb/metadata.clj	/^(defn touch [metadata synctag]$/;"	f
 try-pump-indexes	src/cravendb/indexengine.clj	/^(defn try-pump-indexes [engine ea]$/;"	f
 two-at-a-time	src/cravendb/defaultindexes.clj	/^(defn two-at-a-time [remaining]$/;"	f
+update-log	src/cravendb/inflight.clj	/^(defn update-log$/;"	f
+update-written-metadata	src/cravendb/inflight.clj	/^(defn update-written-metadata $/;"	f
 url-for-bulk-ops	src/cravendb/client.clj	/^(defn url-for-bulk-ops [url]$/;"	f
 url-for-conflicts	src/cravendb/client.clj	/^(defn url-for-conflicts [url]$/;"	f
 url-for-doc-id	src/cravendb/client.clj	/^(defn url-for-doc-id [url id]$/;"	f
@@ -348,7 +346,6 @@ valid-documents	src/cravendb/query.clj	/^(defn valid-documents [tx results]$/;"	
 vclock-to-string	src/cravendb/vclock.clj	/^(defn vclock-to-string [clock]$/;"	f
 wait-for	src/cravendb/replication.clj	/^(defn wait-for  $/;"	f
 wait-for-index-catch-up	src/cravendb/indexing.clj	/^(defn wait-for-index-catch-up $/;"	f
-winner-for	src/cravendb/inflight.clj	/^(defn winner-for [newtx docid]$/;"	f
 with-db	src/cravendb/testing.clj	/^(defn with-db [testfn]$/;"	f
 with-full-setup	src/cravendb/testing.clj	/^(defn with-full-setup [testfn]$/;"	f
 with-test-server	src/cravendb/testing.clj	/^(defn with-test-server [testfn]$/;"	f

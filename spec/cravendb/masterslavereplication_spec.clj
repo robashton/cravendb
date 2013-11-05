@@ -33,15 +33,16 @@
       (should= second-synctag
         (get-in (first (c/stream-seq (:url @master) first-synctag)) [:metadata :synctag])) ))) 
 
-
-
 (describe 
   "Various master/slave scenarios"
     (with master (start-server 8080))
     (with slave (start-server 8081))
     (with replicator (replication/create (:instance @slave) (:url @master)))
     (with wait-for-replication 
-      (fn [] (replication/pump-replication (get-in @slave [:instance :storage]) (:url @master))))
+      (fn [] (replication/pump-replication 
+               (get-in @slave [:instance :ifh]) 
+               (get-in @slave [:instance :storage]) 
+               (:url @master))))
     (after
       (stop-server @master)
       (stop-server @slave))
