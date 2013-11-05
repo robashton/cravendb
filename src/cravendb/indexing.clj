@@ -163,7 +163,6 @@
 
 (defn index-catchup! [db index]
   (with-open [tx (s/ensure-transaction db)]
-    (Thread/sleep 1000)
     (let [last-synctag (indexes/get-last-indexed-synctag-for-index tx (:id index))]
       (index-documents-from-synctag! tx [index] last-synctag finish-partial-map-process!))))
 
