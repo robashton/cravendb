@@ -35,10 +35,10 @@
     :else :conflict)) ;; Who knows, conflict!
 
 (defn last-known-history [in-flight db doc-id]
-  (or (get-in in-flight [:documents doc-id :current-history]) 
-      (history-in-db db doc-id)))
+   (or (get-in in-flight [:documents doc-id :current-history]) 
+       (history-in-db db doc-id)))
 
-(defn check-against-existing [in-flight db txid doc-id]
+(defn check-against-existing [in-flight {:keys [db]} txid doc-id]
   (assoc-in in-flight
     [:transactions txid :ops doc-id :status] 
     (conflict-status (last-known-history in-flight db doc-id)
