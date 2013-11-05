@@ -30,9 +30,7 @@
 
 ### Pending tasks
 
-- I should have an in-flight transaction system for dealing with concurrency (history checks aren't threadsafe)
 - Client should be handling HTTP results properly
-- Bulk operations doesn't take into account history on put
 - Need some tests for three-way replication checking etc
 - Automatic peer discovery
 - Use long-polling for replication/streaming
@@ -44,7 +42,6 @@
 - The indexing engine isn't as robust as I'd like it to be
 - Can I use core.async to help make the index engine code better?
 - Can I use leveldb's write/read options to do my work for me?
-- Need to formalise that database thing and whether it supports transactions
 - I need to show sensible parsing errors on parsing failure
 - Consider all those small functions as inline functions
 - Allow indexes to be provided as actual functions (sfn macro) - this will make testing easier
