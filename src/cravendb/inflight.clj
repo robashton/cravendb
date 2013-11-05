@@ -19,12 +19,15 @@
 (defn create [db server-id]
   { :server-id server-id :db db :tx-count (atom 0) :in-flight (atom {})})
     
-(defn open [{:keys [in-flight db tx-count]}]
+(defn open 
+  ([handle] (open handle :client))
+  ([{:keys [in-flight db tx-count]} source]
   (let [txid (swap! tx-count inc)] 
     (swap! in-flight #(assoc-in %1 [:transactions txid] 
                       { :tx (s/ensure-transaction db)
-                        :ops {} }))
-    txid))
+                        :ops {}
+                        :source source }))
+    txid)))
 
 (defn history-in-db [db id]
   (get (docs/load-document-metadata db id) :history))
@@ -32,13 +35,23 @@
 (defn history-in-flight [in-flight id]
   (get-in in-flight [:documents id :history]))
 
-(defn conflict-status 
-  [current supplied]
+(defmulti conflict-status (fn [tx current supplied] (:source tx)))
+(defmethod conflict-status :client
+  [tx current supplied]
   (cond
     (nil? current) :write ;; First time seeing this document ever
     (v/same? supplied current) :write ;; Isn't this nice, good little client
     (v/descends? supplied current) :write ;; Client specified, knows the future 
     :else :conflict)) ;; Who knows, conflict!
+
+(defmethod conflict-status :replication
+  [tx current candidate]
+  (cond
+    (nil? current) :write
+    (v/same? candidate current) :skip
+    (v/descends? candidate current) :write
+    (v/descends? current candidate) :skip
+    :else :conflict))
 
 (defn last-known-history [in-flight db doc-id]
    (or (get-in in-flight [:documents doc-id :current-history]) 
@@ -47,7 +60,8 @@
 (defn check-against-existing [in-flight {:keys [db]} txid doc-id]
   (assoc-in in-flight
     [:transactions txid :ops doc-id :status] 
-    (conflict-status (last-known-history in-flight db doc-id)
+    (conflict-status (get-in in-flight [:transactions txid])
+                     (last-known-history in-flight db doc-id)
                      (get-in in-flight [:transactions txid :ops doc-id :metadata :history]))))
 
 (defn ensure-history
@@ -57,12 +71,22 @@
                 (history-in-db db id)
                 (v/new))))
 
-(defn update-written-metadata 
+
+
+(defmulti update-written-metadata 
+  (fn [in-flight handle txid id]
+    (get-in in-flight [:transactions txid :source])))
+
+(defmethod update-written-metadata :client
   [in-flight {:keys [server-id db]} txid id]
   (-> in-flight
     (update-in [:transactions txid :ops id :metadata :history]
               #(v/next (str server-id txid) %1))
     (assoc-in [:transactions txid :ops id :metadata :synctag] (s/next-synctag db))))
+
+(defmethod update-written-metadata :replication
+  [in-flight {:keys [server-id db]} txid id]
+  (assoc-in in-flight [:transactions txid :ops id :metadata :synctag] (s/next-synctag db)))
 
 (defn update-log
   [in-flight handle txid id]
@@ -115,6 +139,8 @@
  
 (defn write-operation [tx {:keys [status request id document metadata]}] 
   (case [status request]
+    [:skip :doc-add] tx
+    [:skip :doc-delete] tx
     [:write :doc-add] (docs/store-document tx id document metadata)
     [:write :doc-delete] (docs/delete-document tx id metadata)
     [:conflict :doc-add] (docs/store-conflict tx id document metadata)

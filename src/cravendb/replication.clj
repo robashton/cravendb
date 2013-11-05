@@ -61,7 +61,7 @@
      :total (replication-total storage source-url) })
 
 (defn replicate-into [ifh items] 
-  (let [txid (inflight/open ifh)
+  (let [txid (inflight/open ifh :replication)
         result (reduce 
           (fn [{:keys [total last-synctag] :as state} 
               {:keys [id doc metadata] :as item}]
