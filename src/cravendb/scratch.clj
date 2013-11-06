@@ -6,33 +6,66 @@
         [clojure.data.codec.base64]
         [clojure.core.async]))
 
-(defn create-engine [] (atom {}))
+(defn create-engine [] 
+  {
+   :command-channel (chan)
+   :event-loop (atom nil)
+  })
 
-(defn be-prepared [handle]
-  (go (loop []
-    (if-let [{:keys [cmd data]} (<! (:channel @handle))]
+(defn chaser [state index]
+  
+  )
+
+(defn schedule-removal [state index]
+  
+  )
+
+(defn go-index-some-stuff [state]
+  (go 
+    (info "indexing stuff")
+    (Thread/sleep 2000)
+    (info "done indexing stuff")
+    (>! (:command-channel state) { :cmd :notify-finished-indexing})))
+
+(defn main-indexing-process [state]
+  (if (:indexing-channel state)
+    (do (info "ignoring this request yo") state)
+    (assoc state :indexing-channel (go-index-some-stuff state))))
+
+(defn main-indexing-process-ended [state]
+  (dissoc state :indexing-channel))
+
+(defn be-prepared [_ {:keys [command-channel] :as engine}]
+  (go (loop [state engine]
+    (if-let [{:keys [cmd data]} (<! command-channel)]
      (do
-       (case cmd
-         :schedule-indexing ;; This is going to be called quite a lot
-         :new-index ;; Get this running as a chaser *immediately*
-         :removed-index ;; Schedule removal once the main worker pumps)
-       (recur))  
+       (recur (case cmd
+         :schedule-indexing (main-indexing-process state)
+         :notify-finished-indexing (main-indexing-process-ended state)
+         :new-index (chaser engine state)
+         :removed-index (schedule-removal state data))))
       (do
-        ;; Close stuff and wait
+        (if-let [main-indexing (:indexing-channel state)]
+          (<!! (:indexing-channel state)))
+        (info "I would be closing resources here"))))))
 
-        (Thread/sleep 1000)
-        (info "closing"))))))
+(defn start [{:keys [event-loop] :as engine}]
+  (swap! event-loop #(be-prepared %1 engine))) 
 
-(defn start [handle]
-  (swap! handle #(assoc %1 
-    :channel (chan)
-    :main (be-prepared handle))))
+(defn stop 
+  [{:keys [command-channel event-loop]}]
+  (close! command-channel)
+  (<!! @event-loop)
+  (info "finished doing everything"))
 
-(defn stop [handle]
-  (close! (:channel @handle))
-  (<!! (:main @handle))
-  (info "finished"))
-
-(def engine (create-engine))
+#_ (def engine (create-engine))
 #_ (start engine)
 #_ (stop engine)
+
+#_ (do
+     (go (>! (:command-channel engine) {:cmd :schedule-indexing}))
+     (println "sent")
+     )
+
+
+
