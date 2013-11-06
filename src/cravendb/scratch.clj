@@ -13,16 +13,15 @@
     (if-let [{:keys [cmd data]} (<! (:channel @handle))]
      (do
        (case cmd
-         :new-index nil
-         :removed-index nil
-         )
+         :schedule-indexing ;; This is going to be called quite a lot
+         :new-index ;; Get this running as a chaser *immediately*
+         :removed-index ;; Schedule removal once the main worker pumps)
        (recur))  
       (do
         ;; Close stuff and wait
+
         (Thread/sleep 1000)
-        (info "closing")
-        )
-      ))))
+        (info "closing"))))))
 
 (defn start [handle]
   (swap! handle #(assoc %1 
