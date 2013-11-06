@@ -68,73 +68,23 @@
 (defn compiled-indexes [handle] 
   (map val (:compiled-indexes @(:ea handle))))
 
-(defn prepare-indexes [indexes db]
-  (map (comp (partial open-storage-for-index (:path db)) compile-index) indexes))
+(defn prepare-index [id db]
+  (open-storage-for-index 
+    (:path db) 
+    (compile-index (indexes/load-index db id)) ))
 
-(defn index-is-equal [index-one index-two]
-  (and (= (:id index-one) (:id index-two))
-       (= (:synctag index-one) (:synctag index-two))))
+(defn remove-index-from-engine [engine id ea]
+  (if-let [i (get-in engine [:compiled-indexes id])]
+    (do
+      (.close (i :writer)) 
+      (.close (i :storage))
+      (dissoc-in engine [:compiled-indexes id]))
+    engine))
 
-(defn new-indexes [db current all]
-  (map-indexes-by-id
-    (prepare-indexes 
-      (filter #(not-any? (partial index-is-equal %1) 
-        (map val current)) all) db)))
-
-(defn deleted-indexes [current all]
-  (into {} 
-    (for [i (filter #(not-any? (partial = %1) (map :id all))
-      (map :id (filter :synctag (map val current))))] [i nil])))
-
-(defn close-obsolete-indexes! [existing new deleted]
-  (doseq [[id index] deleted]
-    (if-let [current (existing id)]
-      (do 
-          (debug "index deletion detected, closing writers for" id)
-          (.close (:writer current))
-          (.close (:storage current)))))
-  (doseq [[id index] new]
-     (if-let [current (existing id)]
-      (do 
-          (debug "index overwrite detected, closing writers for" id)
-          (.close (:writer current))
-          (.close (:storage current))))))
-
-(defn refresh-indexes! [{:keys [db compiled-indexes] :as engine}]
-  (debug "refreshing indexes with " db)
-  (let [all (all-indexes db)
-        newly-opened (new-indexes db compiled-indexes all)
-        newly-deleted (deleted-indexes compiled-indexes all)] 
-
-    (debug "Closing any obsolete indexes" newly-opened newly-deleted)
-    (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
-
-    (if (not-empty newly-deleted) 
-      (with-open [tx (s/ensure-transaction db)]
-        (s/commit!
-          (reduce #(tasks/queue %1 index-queue :delete-index-data %2) tx newly-deleted))))
-
-    (debug "Updating engine's list of indexes")
-    (assoc engine :compiled-indexes
-      (-> (apply dissoc compiled-indexes (map key newly-deleted))
-          (merge newly-opened)))))
-
-(defn remove-any-finished-chasers [engine]
-  (debug "Removing chasers that aren't needed")
-  (assoc engine :chasers
-        (filter #(not (realized? (:future %1))) (:chasers engine))))
-
-(defn needs-a-new-chaser [engine index]
-  (debug "Checking if we need a new chaser for" (:id index))
-  (and
-    (not= 
-      (indexing/last-indexed-synctag (:db engine)) 
-      (indexes/get-last-indexed-synctag-for-index 
-        (:db engine) 
-        (:id index)))
-    (not-any? 
-      (partial = (:id index))
-      (map :id (:chasers engine)))))
+(defn add-index-to-engine [engine id ea]
+  (-> engine
+    (remove-index-from-engine id ea)
+    (assoc-in [:compiled-indexes id (prepare-index id (:db engine))
 
 (defn create-chaser [engine index]
   (debug "Starting a freaking chaser for " (:id index))
@@ -143,27 +93,6 @@
    :future 
     (future
       (indexing/index-catchup! (:db engine) index)) })
-
-(defn indexes-which-require-a-chaser [engine]
-  (filter 
-    #(needs-a-new-chaser engine %1) 
-    (map val (:compiled-indexes engine))))
-
-(defn start-new-chasers [engine]
-  (debug "Starting new chasers")
-  (assoc engine :chasers
-    (doall
-      (concat 
-      (:chasers engine)
-      (doall 
-        (map #(create-chaser engine %1) 
-          (indexes-which-require-a-chaser engine)))))))
-
-(defn indexes-which-are-up-to-date [engine]
-  (filter #(not-any? 
-             (partial = (:id %1)) 
-             (map :id (:chasers engine))) 
-          (map val (:compiled-indexes engine))))
 
 (defn pump-indexes-at-head! [engine]
   (indexing/index-documents! 
@@ -178,8 +107,6 @@
 (defn pump-indexes! [engine]
   (-> engine 
     refresh-indexes!
-    remove-any-finished-chasers 
-    start-new-chasers
     pump-indexes-at-head!
     mark-pump-as-complete))
 
@@ -233,6 +160,12 @@
 (defn start [ops]
   (send (:ea ops) start-indexing (:ea ops))
   (send (:ea ops) start-background-tasks))
+
+(defn add-index [id]
+  (send (:ea ops) add-index-to-engine (:ea ops)))
+
+(defn remove-index [id]
+  (send (:ea ops) remove-index-from-engine (:ea ops)))
 
 (defn get-index-storage [ops index-id]
   (get-in @(:ea ops) [:compiled-indexes index-id :storage]))
