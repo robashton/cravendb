@@ -8,26 +8,32 @@
 
 (defn create-engine [] (atom {}))
 
-(defn main-loop [engine]
-  (while (:running @engine)
-    (info "main loop running")
-    (Thread/sleep 100)))
+(defn be-prepared [handle]
+  (go (loop []
+    (if-let [{:keys [cmd data]} (<! (:channel @handle))]
+     (do
+       (case cmd
+         :new-index nil
+         :removed-index nil
+         )
+       (recur))  
+      (do
+        ;; Close stuff and wait
+        (Thread/sleep 1000)
+        (info "closing")
+        )
+      ))))
 
-(defn start [engine]
-  (swap! engine #(assoc %1 
-    :running true
-    :main (go (main-loop engine)))))
+(defn start [handle]
+  (swap! handle #(assoc %1 
+    :channel (chan)
+    :main (be-prepared handle))))
 
-(defn stop [engine]
-  (swap! engine #(assoc %1 :running false))
-  (<!! (:main @engine))
+(defn stop [handle]
+  (close! (:channel @handle))
+  (<!! (:main @handle))
   (info "finished"))
-
-
 
 (def engine (create-engine))
 #_ (start engine)
 #_ (stop engine)
-
-(def pending-catch-ups (chan 100))
-(def finished-catch-ups (chan 100))
