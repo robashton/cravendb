@@ -82,10 +82,11 @@
      (inflight/complete! ifh txid)))
 
 (defn put-index 
-  [{:keys [storage]} index]
+  [{:keys [storage index-engine]} index]
   (debug "putting an in index:" index)
   (with-open [tx (s/ensure-transaction storage)] 
-    (s/commit! (indexes/put-index tx index {:synctag (s/next-synctag tx)}))))
+    (s/commit! (indexes/put-index tx index {:synctag (s/next-synctag tx)})))
+  (indexengine/add-index index-engine index))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -93,10 +94,11 @@
   {:synctag (indexes/synctag-for-index storage id)})
 
 (defn delete-index 
-  [{:keys [storage]} id]
+  [{:keys [storage index-engine]} id]
   (debug "deleting an index" id)
   (with-open [tx (s/ensure-transaction storage)] 
-    (s/commit! (indexes/delete-index tx id {:synctag (s/next-synctag tx)}))))
+    (s/commit! (indexes/delete-index tx id {:synctag (s/next-synctag tx)})))
+  (indexengine/remove-index index-engine id))
 
 (defn load-index 
   [{:keys [storage]} id]

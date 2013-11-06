@@ -24,61 +24,6 @@
       (s/store (str indexing/last-indexed-synctag-key) (integer-to-synctag head-synctag-int))
       (s/commit!))))
 
-(describe "Deciding which indexes to execute as a chaser"
-  (it "will return indexes which are behind the head"
-    (with-db (fn [db]
-       (set-synctags-of-index-and-head db 0 10)
-       (with-open [tx (s/ensure-transaction db)] 
-        (should (indexengine/needs-a-new-chaser 
-            {
-              :db tx
-              :chasers () 
-            }
-            {
-              :id index-id 
-            }
-            ))))))
-
-  (it "will not return indexes that are up to head"
-    (with-db (fn [db]
-      (set-synctags-of-index-and-head db 10 10)
-      (with-open [tx (s/ensure-transaction db)] 
-        (should-not (indexengine/needs-a-new-chaser 
-            {
-              :db tx
-              :chasers () 
-            }
-            {
-              :id index-id 
-            }
-            ))))))
-
-  (it "will not return indexes which are already running as chasers"
-    (with-db (fn [db]
-      (set-synctags-of-index-and-head db 0 10)
-      (with-open [tx (s/ensure-transaction db)] 
-        (should-not (indexengine/needs-a-new-chaser 
-            {
-              :db tx
-              :chasers [ {:id index-id }] 
-            }
-            {
-              :id index-id 
-            }
-            )))))))
-
-(describe "Deciding which indexes can be run from head"
-  (with result (indexengine/indexes-which-are-up-to-date 
-    {
-       :chasers '({:id "one"})
-       :compiled-indexes {"one" {:id "one"} "two" {:id "two"}}
-    }))
-  (it "will return indexes that are not chasers"
-    (should-contain {:id "two"} @result))
-  (it "will not return indexes that are chasers"
-    (should-not-contain {:id "one"} @result)))
-
-
 (describe "Running index catch-ups"
   (it "will run indexes that are behind until they are caught up"
     (with-full-setup (fn [{:keys [storage] :as instance}]
@@ -91,16 +36,11 @@
       (should= (integer-to-synctag 4) 
         (indexes/get-last-indexed-synctag-for-index storage index-id))))))
 
-
 (describe "handling deleted indexes"
   (it "will remove deleted indexes from the collection"
-    (with-open [db (s/create-storage "testdir")
-              engine (indexengine/create-engine db)]
-      (with-open [tx (s/ensure-transaction db)]
-        (s/commit! (indexes/put-index tx { :id index-id :map by-name-map} {:synctag "001"})))
-      (let [state-with-index (indexengine/refresh-indexes! @(:ea engine))]
-        (with-open [tx (s/ensure-transaction db)]
-          (s/commit! (indexes/delete-index tx index-id {:synctag "002"})))
-        (let [state-without-index (indexengine/refresh-indexes! state-with-index)]
-          (should== ["default"] (map key (:compiled-indexes state-without-index)))))))) 
+    (with-full-setup (fn [{:keys [storage] :as instance}]
+      (store-test-index! instance)
+      (indexing/wait-for-index-catch-up storage index-id 1)
+      (database/delete-index instance index-id)
+      (should-be-nil (get-in instance [:index-engine :compiled-indexes index-id]))))))
 

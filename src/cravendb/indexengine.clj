@@ -5,6 +5,7 @@
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
+           [clojure.core.incubator :refer [dissoc-in]]
            [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
@@ -68,10 +69,8 @@
 (defn compiled-indexes [handle] 
   (map val (:compiled-indexes @(:ea handle))))
 
-(defn prepare-index [id db]
-  (open-storage-for-index 
-    (:path db) 
-    (compile-index (indexes/load-index db id)) ))
+(defn prepare-index [db index]
+  (open-storage-for-index (:path db) (compile-index index) ))
 
 (defn remove-index-from-engine [engine id ea]
   (if-let [i (get-in engine [:compiled-indexes id])]
@@ -81,23 +80,26 @@
       (dissoc-in engine [:compiled-indexes id]))
     engine))
 
-(defn add-index-to-engine [engine id ea]
-  (-> engine
-    (remove-index-from-engine id ea)
-    (assoc-in [:compiled-indexes id (prepare-index id (:db engine))
-
 (defn create-chaser [engine index]
   (debug "Starting a freaking chaser for " (:id index))
-  {
-   :id (:id index)
-   :future 
-    (future
-      (indexing/index-catchup! (:db engine) index)) })
+  { :id (:id index)
+   :future (future (indexing/index-catchup! (:db engine) index))})
+
+(defn add-index-to-engine [engine {:keys [id] :as index} ea]
+  (try
+    (let [compiled-index (assoc (prepare-index (:db engine) index)
+                              :head false)]
+    (-> engine
+      (remove-index-from-engine id ea)
+      (assoc-in [:compiled-indexes id] compiled-index)
+      (update-in :chasers conj (create-chaser engine compiled-index))))
+    (catch Exception ex (ex-expand ex)
+    engine  )))
 
 (defn pump-indexes-at-head! [engine]
-  (indexing/index-documents! 
-    (:db engine) 
-    (indexes-which-are-up-to-date engine))
+  (indexing/index-documents! (:db engine) 
+    (filter (comp boolean :head) 
+            (:compiled-indexes engine)))
   engine)
 
 (defn mark-pump-as-complete [engine]
@@ -106,7 +108,6 @@
 
 (defn pump-indexes! [engine]
   (-> engine 
-    refresh-indexes!
     pump-indexes-at-head!
     mark-pump-as-complete))
 
@@ -161,11 +162,11 @@
   (send (:ea ops) start-indexing (:ea ops))
   (send (:ea ops) start-background-tasks))
 
-(defn add-index [id]
-  (send (:ea ops) add-index-to-engine (:ea ops)))
+(defn add-index [ops index]
+  (send (:ea ops) add-index-to-engine index (:ea ops)))
 
-(defn remove-index [id]
-  (send (:ea ops) remove-index-from-engine (:ea ops)))
+(defn remove-index [ops id]
+  (send (:ea ops) remove-index-from-engine id (:ea ops)))
 
 (defn get-index-storage [ops index-id]
   (get-in @(:ea ops) [:compiled-indexes index-id :storage]))
