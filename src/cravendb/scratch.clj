@@ -62,70 +62,43 @@
 
 (defn go-index-some-stuff [{:keys [db indexes command-channel]}]
   (go 
-    (info "indexing stuff for indexes" (map (comp val) indexes))
+    (info "indexing stuff for indexes" (map (comp :id val) indexes))
     (indexing/index-documents! db (map val indexes))
     (info "done indexing stuff")
     (>! command-channel { :cmd :notify-finished-indexing})))
-
-(defn go-catch-up [index state]
-  (go
-    (info "running an index catch-up operation")
-    (Thread/sleep 5000)
-    (info "index is caught up")))
 
 (defn main-indexing-process [state]
   (if (:indexing-channel state)
     (do (info "ignoring this request yo") state)
     (assoc state :indexing-channel (go-index-some-stuff state))))
 
-(defn remove-dead-indexes [state]
-    ;; Close the writers for these indexes
-    ;; Dissoc them from the state
-    ;; Great Success
-  state
-  )
-
-(defn add-caught-up-indexes [state]
-  ;; Not sure how I'm going to synchronise this)
-  ;; Maybe a "close enough" approach
-  ;; Start indexing from the smallest synctag we have
-  state)
-
-(defn create-chaser [state index]
-  (update-in state [:chasers] conj (go-catch-up state index)))
-
 (defn main-indexing-process-ended [state]
   (-> state
     (dissoc :indexing-channel)
-    (remove-dead-indexes)
-    (add-caught-up-indexes)))
+    (remove-dead-indexes)))
 
-(defn be-prepared [_ {:keys [command-channel] :as engine}]
+(defn go-index-head [_ {:keys [command-channel] :as engine}]
   (go (loop [state (initial-state engine)]
     (if-let [{:keys [cmd data]} (<! command-channel)]
      (do
        (recur (case cmd
          :schedule-indexing (main-indexing-process state)
          :notify-finished-indexing (main-indexing-process-ended state)
-         :new-index (create-chaser engine state)
+         :new-index (create-chaser state data)
          :removed-index (schedule-removal state data))))
       (do
         (info "waiting for main index process")
         (if-let [main-indexing (:indexing-channel state)]
           (<!! (:indexing-channel state)))
-        ;; Definitely need a way to cancel these, even if it's a global atom
-        (info "waiting for chasers")
-        (if-let [chasers (:chasers state)]
-          (doseq [c chasers] (<!! c)))
         (info "I would be closing resources here"))))))
 
 (defn start [{:keys [event-loop] :as engine}]
   (swap! event-loop #(be-prepared %1 engine))) 
 
 (defn stop 
-  [{:keys [command-channel event-loop]}]
+  [{:keys [command-channel head-loop chaser-loop]}]
   (close! command-channel)
-  (<!! @event-loop)
+  (<!! @head-loop)
   (info "finished doing everything"))
 
 (def current (atom nil))
@@ -153,7 +126,6 @@
   (if e (test-stop e))
   (test-start e))
 
-
 #_ (swap! current test-start)
 #_ (swap! current test-stop)
 #_ (swap! current test-restart)
@@ -163,7 +135,7 @@
        (docs/store-document "doc-1" { :foo "bar" } { :synctag (s/next-synctag tx)})
        (s/commit!)))
 
+#_ (go (>! (:command-channel (:engine @current)) {:cmd :schedule-indexing})) 
+#_ (go (>! (:command-channel (:engine @current)) {:cmd :new-index :data :1})) 
 
-xjkc
 #_ (indexes/get-last-indexed-synctag-for-index (:db @current) (:id test-index))
-
