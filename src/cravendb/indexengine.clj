@@ -63,7 +63,7 @@
 (defn prepare-index [db index]
   (open-storage-for-index (:path db) (read-index-data db (compile-index index))))
 
-(defn initial-state [{:keys [db] :as engine}]
+(defn initial-state [{db :db :as engine}]
   (assoc engine
     :indexes (initial-indexes db)))
 
@@ -81,12 +81,9 @@
     (assoc state :work-peding true)
     (assoc state :indexing-channel (go-index-some-stuff state))))
 
-(defn main-indexing-process-ended [{:keys [command-channel] :as state}]
+(defn main-indexing-process-ended [{:keys [command-channel deleted-indexes] :as state}]
   (debug "main indexing loop idle")
-  (if-let [deleted (:deleted-indexes state)]
-    (do
-      (debug "closing obsolete indexes")
-      (doseq [i deleted] (close-storage-for-index i))))
+  (doseq [i deleted-indexes] (close-storage-for-index i))
   (if (:work-pending state) 
     (do
       (info "received indexing request, queuing")
@@ -105,14 +102,15 @@
       (update-in [:deleted-indexes] conj index))
     state))
 
-(defn add-new-index [{:keys [db] :as state} {:keys [id] :as index}]
+(defn add-new-index 
+  [{db :db :as state} {id :id :as index}]
   (info "adding new index to engine" id)
   (let [prepared-index (prepare-index db index)]
    (-> state
     (assoc-in [:indexes id] prepared-index)
     (main-indexing-process))))
 
-(defn storage-request [state {:keys [id cb]}]
+(defn storage-request [state {id :id cb :cb}]
   (put! cb (or (get-in state [:indexes id :storage])
              (get-in state [:chaser-indexes id :storage]))) 
   state)
@@ -127,7 +125,7 @@
       (>! command-channel { :cmd :chaser-finished :data index})))
 
 (defn add-chaser 
-  [{:keys [db] :as state} {:keys [id] :as index}]
+  [{db :db :as state} {id :id :as index}]
   (debug "opening chaser for" (index-uid index))
   (let [prepared-index (prepare-index db index)]
     (-> state
@@ -136,7 +134,7 @@
       (assoc-in [:chasers (:id prepared-index)] (go-catch-up state prepared-index)))))
 
 (defn finish-chaser 
-  [{:keys [command-channel] :as state} {:keys [id] :as index}]
+  [{:keys [command-channel] :as state} {id :id :as index}]
   (debug "promoting chaser to the big league")
   (put! command-channel {:cmd :schedule-indexing}) 
   (-> state
@@ -144,11 +142,9 @@
     (dissoc-in [:chaser-indexes id])
     (assoc-in [:indexes id] index)))
 
-(defn wait-for-chasers [state]
+(defn wait-for-chasers [{chasers :chasers :as state}]
   (debug "waiting for chasers to catch up")
-  (if-let [chasers (:chasers state)]
-    (doseq [[i c] chasers] (<!! c))))
-
+  (doseq [[_ c] chasers] (<!! c))) 
 (defn wait-for-main-indexing [state]
   (debug "waiting for main indexing to catch up")
   (if-let [main-indexing (:indexing-channel state)]
