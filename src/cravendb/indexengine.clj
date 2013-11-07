@@ -1,10 +1,12 @@
 (ns cravendb.indexengine
   (:use [cravendb.core]
        [clojure.pprint]
+       [clojure.core.async] 
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
+           [clojure.core.incubator :refer [dissoc-in]]
            [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
@@ -12,245 +14,195 @@
            [cravendb.tasks :as tasks]
            [clojure.edn :as edn]))
 
-(defn storage-path-for-index [index]
+(defn index-uid [index]
   (str (:id index) "-" (or (:synctag index) "")))
 
-(def index-queue "indexengine")
-(def index-queue-handlers
-  {
-   :delete-index-data 
-   (fn [{:keys [path] :as db} index]
-     (if path
-       (fs/delete-dir (File. (path (storage-path-for-index index)))))
-    )})
-
 (defn open-storage-for-index [path index]
-  (let [storage (if path (lucene/create-index (File. path (storage-path-for-index index)))
+  (debug "opening storage for" (index-uid index))
+  (let [storage (if path (lucene/create-index (File. path (index-uid index)))
                          (lucene/create-memory-index))]
     (-> index
       (assoc :storage storage)
       (assoc :writer (lucene/open-writer storage)))))
 
-(defn read-index-data [tx index]
-  (assoc index :synctag (indexes/synctag-for-index tx (:id index))))
+(defn close-storage-for-index [{:keys [writer storage] :as index}]
+  (debug "closing storage for" (index-uid index))
+  (.close writer)
+  (.close storage))
+
+(defn close-open-indexes [{:keys [indexes chaser-indexes deleted-indexes]}]
+  (doseq [i deleted-indexes]
+    (do (info "closing" (:id i)) (close-storage-for-index i)))
+  (doseq [[k i] indexes] 
+    (do (info "closing" k) (close-storage-for-index i)))
+  (doseq [[k i] chaser-indexes] 
+    (do (info "closing" k) (close-storage-for-index i)))) 
+
+(defn read-index-data [db index]
+  (assoc index :synctag (indexes/synctag-for-index db (:id index))))
 
 (defn all-indexes [db]
-  (try
-    (with-open [tx (s/ensure-transaction db)
-              iter (s/get-iterator tx)]
-    (doall (map (partial read-index-data tx) (indexes/iterate-indexes iter))))
-    (catch Exception ex
-      (debug "WTF" ex))))
-
-(defn ex-error [prefix ex]
-  (error prefix (ex-expand ex)))
+  (with-open 
+    [tx (s/ensure-transaction db)
+     iter (s/get-iterator tx)]
+    (doall (map (partial read-index-data tx) (indexes/iterate-indexes iter)))))
 
 (defn compile-index [index]
   (assoc index 
          :map (load-string (index :map))
          :filter (if (:filter index) (load-string (:filter index)) nil)))
 
-(defn map-indexes-by-id [indexes]
- (into {} (for [i indexes] [(:id i) i])))
-
-(defn load-initial-indexes [db]
-  (map-indexes-by-id 
+(defn into-id-map [indexes]
+  (into {} (for [i indexes] [(:id i) i])))
+  
+(defn initial-indexes [db]
+  (into-id-map
     (map (partial open-storage-for-index (:path db))  
        (concat (di/all) (map compile-index (all-indexes db))))))
 
-(defn close-engine [engine]
-  (debug "Closing the engine")
-  (doseq [[id i] (:compiled-indexes engine)] 
+(defn prepare-index [db index]
+  (open-storage-for-index (:path db) (read-index-data db (compile-index index))))
+
+(defn initial-state [{:keys [db] :as engine}]
+  (assoc engine
+    :indexes (initial-indexes db)))
+
+(defn go-index-some-stuff [{:keys [db indexes command-channel]}]
+  (go 
+    (info "indexing stuff for indexes" (map (comp :id val) indexes))
+    (loop [num-indexed 1] 
+      (if (> num-indexed 0) 
+        (recur (indexing/index-documents! db (map val indexes)))))
+    (info "done indexing stuff")
+    (>! command-channel { :cmd :notify-finished-indexing})))
+
+(defn main-indexing-process [state]
+  (if (:indexing-channel state)
+    (assoc state :work-peding true)
+    (assoc state :indexing-channel (go-index-some-stuff state))))
+
+(defn main-indexing-process-ended [{:keys [command-channel] :as state}]
+  (debug "main indexing loop idle")
+  (if-let [deleted (:deleted-indexes state)]
     (do
-      (.close (i :writer)) 
-      (.close (i :storage)))))
+      (debug "closing obsolete indexes")
+      (doseq [i deleted] (close-storage-for-index i))))
+  (if (:work-pending state) 
+    (do
+      (info "received indexing request, queuing")
+      (put! command-channel { :cmd :schedule-indexing })))
+  (-> state
+    (dissoc :work-pending)
+    (dissoc :indexing-channel)
+    (dissoc :deleted-indexes)))
 
-(defn compiled-indexes [handle] 
-  (map val (:compiled-indexes @(:ea handle))))
+(defn remove-existing-index [state id]
+  (debug "staging index for removal" id)
+  (if-let [index (or (get-in state [:indexes id]) (get-in state [:chaser-indexes id]))]
+    (-> state
+      (dissoc-in [:indexes id])
+      (dissoc-in [:chaser-indexes id])
+      (update-in [:deleted-indexes] conj index))
+    state))
 
-(defn prepare-indexes [indexes db]
-  (map (comp (partial open-storage-for-index (:path db)) compile-index) indexes))
+(defn add-new-index [{:keys [db] :as state} {:keys [id] :as index}]
+  (info "adding new index to engine" id)
+  (let [prepared-index (prepare-index db index)]
+   (-> state
+    (assoc-in [:indexes id] prepared-index)
+    (main-indexing-process))))
 
-(defn index-is-equal [index-one index-two]
-  (and (= (:id index-one) (:id index-two))
-       (= (:synctag index-one) (:synctag index-two))))
+(defn storage-request [state {:keys [id cb]}]
+  (put! cb (or (get-in state [:indexes id :storage])
+             (get-in state [:chaser-indexes id :storage]))) 
+  state)
 
-(defn new-indexes [db current all]
-  (map-indexes-by-id
-    (prepare-indexes 
-      (filter #(not-any? (partial index-is-equal %1) 
-        (map val current)) all) db)))
+(defn go-catch-up [{:keys [db command-channel]} index]
+  (debug "running chaser for" (index-uid index))
+  (go 
+    (loop [amount 1] 
+      (debug "executing chaser for" (index-uid index))
+      (if (> amount 0)
+       (recur (indexing/index-catchup! db index)) ))
+      (>! command-channel { :cmd :chaser-finished :data index})))
 
-(defn deleted-indexes [current all]
-  (into {} 
-    (for [i (filter #(not-any? (partial = %1) (map :id all))
-      (map :id (filter :synctag (map val current))))] [i nil])))
+(defn add-chaser 
+  [{:keys [db] :as state} {:keys [id] :as index}]
+  (debug "opening chaser for" (index-uid index))
+  (let [prepared-index (prepare-index db index)]
+    (-> state
+      (remove-existing-index id)
+      (assoc-in [:chaser-indexes (:id prepared-index)] prepared-index)
+      (assoc-in [:chasers (:id prepared-index)] (go-catch-up state prepared-index)))))
 
-(defn close-obsolete-indexes! [existing new deleted]
-  (doseq [[id index] deleted]
-    (if-let [current (existing id)]
-      (do 
-          (debug "index deletion detected, closing writers for" id)
-          (.close (:writer current))
-          (.close (:storage current)))))
-  (doseq [[id index] new]
-     (if-let [current (existing id)]
-      (do 
-          (debug "index overwrite detected, closing writers for" id)
-          (.close (:writer current))
-          (.close (:storage current))))))
+(defn finish-chaser 
+  [{:keys [command-channel] :as state} {:keys [id] :as index}]
+  (debug "promoting chaser to the big league")
+  (put! command-channel {:cmd :schedule-indexing}) 
+  (-> state
+    (dissoc-in [:chasers id])
+    (dissoc-in [:chaser-indexes id])
+    (assoc-in [:indexes id] index)))
 
-(defn refresh-indexes! [{:keys [db compiled-indexes] :as engine}]
-  (debug "refreshing indexes with " db)
-  (let [all (all-indexes db)
-        newly-opened (new-indexes db compiled-indexes all)
-        newly-deleted (deleted-indexes compiled-indexes all)] 
+(defn wait-for-chasers [state]
+  (debug "waiting for chasers to catch up")
+  (if-let [chasers (:chasers state)]
+    (doseq [[i c] chasers] (<!! c))))
 
-    (debug "Closing any obsolete indexes" newly-opened newly-deleted)
-    (close-obsolete-indexes! compiled-indexes newly-opened newly-deleted)
+(defn wait-for-main-indexing [state]
+  (debug "waiting for main indexing to catch up")
+  (if-let [main-indexing (:indexing-channel state)]
+    (<!! (:indexing-channel state))))
 
-    (if (not-empty newly-deleted) 
-      (with-open [tx (s/ensure-transaction db)]
-        (s/commit!
-          (reduce #(tasks/queue %1 index-queue :delete-index-data %2) tx newly-deleted))))
+(defn go-index-head [_ {:keys [command-channel] :as engine}]
+  (debug "being asked to start")
+  (go 
+    (loop [state (initial-state engine)]
+    (if-let [{:keys [cmd data]} (<! command-channel)]
+     (do
+      (debug "handling index loop command" cmd)
+       (recur (case cmd
+         :schedule-indexing (main-indexing-process state)
+         :notify-finished-indexing (main-indexing-process-ended state)
+         :removed-index state ;; WUH OH
+         :new-index (add-chaser state data)
+         :chaser-finished (finish-chaser state data)
+         :storage-request (storage-request state data))))
+      (do
+        (debug "being asked to shut down")
+        (wait-for-main-indexing state)
+        (wait-for-chasers state)
+        (close-open-indexes state))))))
 
-    (debug "Updating engine's list of indexes")
-    (assoc engine :compiled-indexes
-      (-> (apply dissoc compiled-indexes (map key newly-deleted))
-          (merge newly-opened)))))
+(defn start [{:keys [event-loop] :as engine}]
+  (swap! event-loop #(go-index-head %1 engine))) 
 
-(defn remove-any-finished-chasers [engine]
-  (debug "Removing chasers that aren't needed")
-  (assoc engine :chasers
-        (filter #(not (realized? (:future %1))) (:chasers engine))))
+(defn stop 
+  [{:keys [command-channel event-loop]}]
+  (close! command-channel)
+  (<!! @event-loop)
+  (info "finished doing everything"))
 
-(defn needs-a-new-chaser [engine index]
-  (debug "Checking if we need a new chaser for" (:id index))
-  (and
-    (not= 
-      (indexing/last-indexed-synctag (:db engine)) 
-      (indexes/get-last-indexed-synctag-for-index 
-        (:db engine) 
-        (:id index)))
-    (not-any? 
-      (partial = (:id index))
-      (map :id (:chasers engine)))))
-
-(defn create-chaser [engine index]
-  (debug "Starting a freaking chaser for " (:id index))
-  {
-   :id (:id index)
-   :future 
-    (future
-      (indexing/index-catchup! (:db engine) index)) })
-
-(defn indexes-which-require-a-chaser [engine]
-  (filter 
-    #(needs-a-new-chaser engine %1) 
-    (map val (:compiled-indexes engine))))
-
-(defn start-new-chasers [engine]
-  (debug "Starting new chasers")
-  (assoc engine :chasers
-    (doall
-      (concat 
-      (:chasers engine)
-      (doall 
-        (map #(create-chaser engine %1) 
-          (indexes-which-require-a-chaser engine)))))))
-
-(defn indexes-which-are-up-to-date [engine]
-  (filter #(not-any? 
-             (partial = (:id %1)) 
-             (map :id (:chasers engine))) 
-          (map val (:compiled-indexes engine))))
-
-(defn pump-indexes-at-head! [engine]
-  (indexing/index-documents! 
-    (:db engine) 
-    (indexes-which-are-up-to-date engine))
-  engine)
-
-(defn mark-pump-as-complete [engine]
-  (debug "Index chaser complete")
-  (assoc engine :running-pump false))
-
-(defn pump-indexes! [engine]
-  (-> engine 
-    refresh-indexes!
-    remove-any-finished-chasers 
-    start-new-chasers
-    pump-indexes-at-head!
-    mark-pump-as-complete))
-
-(defn try-pump-indexes [engine ea]
- (if (:running-pump engine) 
-   engine
-   (do
-     (send ea pump-indexes!)
-     (assoc engine :running-pump true))))
-
-(defn start-background-tasks [{:keys [db] :as engine}]
-  (let [task (future 
-    (loop []
-      (tasks/pump db index-queue index-queue-handlers)
-      (Thread/sleep 1000) ; teehee
-      (recur)))]
-   (assoc engine :background-future task)))
-
-(defn wait-for [f]
-  (loop []
-    (while (not (future-done? f))
-      (Thread/sleep 10))))
-
-(defn stop-background-tasks [engine]
-   (future-cancel (:background-future engine))
-   (wait-for (:background-future engine))
-   (dissoc engine :background-future))
-
-(defn start-indexing [engine ea]
-  (let [task (future 
-    (loop []
-      (send ea try-pump-indexes ea)
-      (Thread/sleep 50)
-      (recur)))]
-   (assoc engine :worker-future task)))
-
-(defn stop-indexing [engine]
-  (future-cancel (:worker-future engine))
-  (wait-for (:worker-future engine))
-  (doseq [i (:chasers engine)]
-    (wait-for (:future i)))
-  (assoc engine :worker-future nil))
-
-(defrecord EngineHandle [ea]
+(defrecord EngineHandle [db command-channel event-loop]
   java.io.Closeable
   (close [this]
-    (debug "Closing engine handle")
-    (send ea close-engine)
-    (await ea)))
+    (stop this)))
 
-(defn start [ops]
-  (send (:ea ops) start-indexing (:ea ops))
-  (send (:ea ops) start-background-tasks))
+(defn create [db] 
+  (EngineHandle. db (chan) (atom nil)))
 
-(defn get-index-storage [ops index-id]
-  (get-in @(:ea ops) [:compiled-indexes index-id :storage]))
+(defn notify-of-work [engine]
+  (put! (:command-channel engine) {:cmd :schedule-indexing}))
 
-(defn stop [ops]
- (debug "Stopping indexing agents")
- (send (:ea ops) stop-indexing)
- (send (:ea ops) stop-background-tasks)
- (await (:ea ops)))
+(defn notify-of-new-index [engine index]
+  (put! (:command-channel engine) {:cmd :new-index :data index}))
 
-(defn handle-agent-error [engine e]
-  (ex-error "Indexing engine fell over" e))
+(defn notify-of-removed-index [engine index]
+  (put! (:command-channel engine)))
 
-(defn create-engine [db]
-  (let [engine 
-        (agent {
-          :chasers ()
-          :db db
-          :compiled-indexes (load-initial-indexes db) })]
-    (set-error-handler! engine handle-agent-error)
-    (EngineHandle. engine))) 
+;; Don't bleed async details to rest of app (yet)
+;; There is hopefully a better way
+(defn get-index-storage [{:keys [command-channel]} id]
+  (let [result-channel (chan)] 
+    (put! command-channel {:cmd :storage-request :data {:id id :cb result-channel}}) 
+    (<!! result-channel))) 

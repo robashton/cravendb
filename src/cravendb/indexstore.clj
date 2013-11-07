@@ -3,7 +3,9 @@
             [cravendb.storage :as s]
             [cravendb.documents :as docs])
   (:import (java.io File File))
-  (:use [cravendb.core]))
+  (:use [cravendb.core]
+        [clojure.tools.logging :only (info debug error)]
+        ))
 
 (def index-prefix "index-")
 (def index-error-prefix "indexerror-")

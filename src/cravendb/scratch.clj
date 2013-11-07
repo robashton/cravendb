@@ -2,97 +2,67 @@
   "The sole purpose of this file is to act as a place to play with stuff in repl"
   (:use [cravendb.testing]
         [cravendb.core]
-        [clojure.data.codec.base64])
-  (:require [cravendb.vclock :as v]
-            [cravendb.documents :as docs]
-            [cravendb.tasks :as tasks]
-            [cravendb.indexing :as indexing]
-            [cravendb.indexstore :as indexes]
-            [cravendb.http :as http]
-            [clojurewerkz.vclock.core :as vclock]            
-            [org.httpkit.server :refer [run-server]]
-            [clojure.edn :as edn]
-            [cravendb.database :as db]
-            [cravendb.storage :as s]
-            [me.raynes.fs :as fs]
-            [cravendb.client :as client]
-            [cravendb.replication :as r]
-            [clojure.pprint :refer [pprint]]))
+        [clojure.tools.logging :only (info debug error)]
+        [clojure.data.codec.base64]
+        [clojure.core.async])
+  (:import (java.io File File PushbackReader IOException FileNotFoundException ))
+  (:require [cravendb.lucene :as lucene]
+           [cravendb.storage :as s]
+           [cravendb.documents :as docs]
+           [clojure.core.incubator :refer [dissoc-in]]
+           [me.raynes.fs :as fs]
+           [cravendb.indexstore :as indexes]
+           [cravendb.database :as db]
+           [cravendb.indexengine :as ie]
+           [cravendb.indexing :as indexing]
+           [cravendb.defaultindexes :as di]
+           [cravendb.indexing :as indexing]
+           [cravendb.tasks :as tasks]
+           [clojure.edn :as edn]))
 
+(def test-index
+  { :id "test-index" :map "(fn [doc] { \"foo\" (doc :foo) })"})
 
-(defn start []
-  (def source (db/create "testdb_source" :server-id "src")))
+(def test-new-index
+  { :id "test-new-index" :map "(fn [doc] { \"foo\" (doc :foo) })"})
 
-(defn stop []
-  (.close source) 
-  (fs/delete-dir "testdb_source"))
+(defn test-start [e]
+  (let [{:keys [storage] :as instance} (db/create)]
+    (db/put-index instance test-index)
+    instance))
 
-(defn restart []
-  (stop)
-  (start))
+(defn test-stop [instance]
+  (.close instance))
 
-#_ (start)
-#_ (stop)
-#_ (restart)
+(defn test-restart [e]
+  (if e (test-stop e))
+  (test-start e))
 
-(def write-three-documents 
-  (fn [instance]
-    (db/put-document instance "doc-1" (pr-str { :title "hello" :author "rob"}))
-    (db/put-document instance "doc-2" (pr-str { :title "morning" :author "vicky"}))
-    (db/put-document instance "doc-3" (pr-str { :title "goodbye" :author "james"}))))
+#_ (def current (atom nil))
+#_ (swap! current test-start)
+#_ (swap! current test-stop)
+#_ (swap! current test-restart)
 
-(defn create-invalid-index []  
-  {
-   :id "invalid" 
-   :map "(fn [doc] {\"hello\" ((:blah doc) :foo)})"
-   })
+#_ (ie/get-index-storage (:index-engine @current) (:id test-index))
 
-(defn create-valid-index []  
-  {
-   :id "valid" 
-   :map "(fn [doc] {\"hello\" (:author doc)})"
-})
+#_ (do 
+    (db/put-document @current "doc-1" { :foo "bar1" })
+    (db/put-document @current "doc-2" { :foo "bar2" }) 
+    (db/put-document @current "doc-3" { :foo "bar3" }) 
+    (db/put-document @current "doc-4" { :foo "bar4" }) 
+    (db/put-document @current "doc-5" { :foo "bar5" })) 
 
-(defn -main []
-  (println "Starting")
-  (loop [] 
-    (with-full-setup (fn [{:keys [storage] :as instance}]
-      (write-three-documents instance)
-      (db/put-index instance (create-invalid-index))
-      (indexing/wait-for-index-catch-up storage)
-      (indexes/is-failed storage "invalid")))
+#_ (db/put-index @current test-new-index)
+#_ (indexing/wait-for-index-catch-up (:storage @current) 1)
+#_ (indexes/get-last-indexed-synctag-for-index (:storage @current) (:id test-index))
+#_ (indexes/get-last-indexed-synctag-for-index (:storage @current) (:id test-new-index))
+#_ (s/last-synctag-in (:storage @current))
 
-    (with-full-setup (fn [{:keys [storage] :as instance}]
-      (write-three-documents instance)
-      (db/put-index instance (create-invalid-index))
-      (indexing/wait-for-index-catch-up storage)
-      (s/last-synctag-in storage) 
-      (indexing/last-indexed-synctag storage))) 
+#_ (count (db/query @current { :index (:id test-index)}))
+#_ (count (db/query @current { :index (:id test-new-index)}))
 
-    (with-full-setup (fn [{:keys [storage] :as instance}]
-      (write-three-documents instance)
-      (db/put-index instance (create-invalid-index))
-      (db/put-index instance (create-valid-index))
-      (indexing/wait-for-index-catch-up storage)
-      (write-three-documents instance)
-      (indexing/wait-for-index-catch-up storage)
-      (s/last-synctag-in storage) 
-      (indexing/last-indexed-synctag storage))) 
+;; If we start up a database with an index, and add documents then it should be caught up
+;; If we start up a database, add documents, then a new index, it should be caught up
+;; If we start up a database, add documents, new index, new documents, all queries = valid
+;; That it is all we expect. Everything else is an optimisation
 
-    (with-full-setup (fn [{:keys [storage] :as instance}]
-      (write-three-documents instance)
-      (db/put-index instance (create-invalid-index))
-      (indexing/wait-for-index-catch-up storage)
-      (with-open [tx (s/ensure-transaction storage)]
-        (s/commit! (indexes/reset-index tx "invalid")))
-      (zero-synctag) (indexes/get-last-indexed-synctag-for-index storage "invalid"))) 
-
-    (with-full-setup (fn [{:keys [storage] :as instance}]
-      (write-three-documents instance)
-      (db/put-index instance (create-invalid-index))
-      (indexing/wait-for-index-catch-up storage)
-      (with-open [tx (s/ensure-transaction storage)]
-        (s/commit! (indexes/reset-index tx "invalid")))
-      (indexes/is-failed storage "invalid"))) 
-
-    (recur)))

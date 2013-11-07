@@ -3,7 +3,7 @@
             [cravendb.indexing :as indexing] 
             [cravendb.query :as query] 
             [cravendb.indexstore :as indexes] 
-            [cravendb.indexengine :as indexengine] 
+            [cravendb.indexengine :as ie] 
             [cravendb.documents :as docs]
             [cravendb.inflight :as inflight]
             [cravendb.vclock :as vclock]
@@ -12,16 +12,17 @@
 (defrecord Database [storage index-engine ifh]
   java.io.Closeable
   (close [this] 
-    (indexengine/stop index-engine)
+    (ie/stop index-engine)
     (.close index-engine)
     (.close storage)))
 
 (defn create
-  [path & kvs]
-  (let [storage (s/create-storage path)
-        index-engine (indexengine/create-engine storage)
-        opts (apply hash-map kvs) ]
-    (indexengine/start index-engine)
+  [& kvs]
+  (let [opts (apply hash-map kvs)  
+        storage (if (:path opts) (s/create-storage (:path opts)) (s/create-in-memory-storage))
+        index-engine (ie/create storage)
+        ]
+    (ie/start index-engine)
     (merge (Database. storage index-engine 
                       (inflight/create storage (or (:server-id opts) "root"))))))
 
@@ -52,19 +53,21 @@
 
 (defn put-document 
   ([instance id document] (put-document instance id document {}))
-  ([{:keys [ifh]} id document metadata]
+  ([{:keys [ifh index-engine]} id document metadata]
   (debug "putting a document:" id document metadata)
    (let [txid (inflight/open ifh)]
      (inflight/add-document ifh txid id document metadata)
-     (inflight/complete! ifh txid))))
+     (inflight/complete! ifh txid)
+     (ie/notify-of-work index-engine))))
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([{:keys [ifh]} id metadata]
+  ([{:keys [ifh index-engine]} id metadata]
   (debug "deleting a document with id " id)
    (let [txid (inflight/open ifh)]
      (inflight/delete-document ifh txid id metadata)
-     (inflight/complete! ifh txid))))
+     (inflight/complete! ifh txid)
+     (ie/notify-of-work index-engine))))
 
 (defn load-document 
   [{:keys [storage]} id]
@@ -72,20 +75,22 @@
   (docs/load-document storage id))
 
 (defn bulk 
-  [{:keys [ifh]} operations]
+  [{:keys [ifh index-engine]} operations]
   (debug "Bulk operation: ")
   (let [txid (inflight/open ifh)]
     (doseq [{:keys [id operation metadata document]} operations]
       (case operation
         :docs-delete (inflight/delete-document ifh txid id metadata)
         :docs-put (inflight/add-document ifh txid id document metadata)))
-     (inflight/complete! ifh txid)))
+     (inflight/complete! ifh txid)
+    (ie/notify-of-work index-engine)))
 
 (defn put-index 
-  [{:keys [storage]} index]
+  [{:keys [storage index-engine]} index]
   (debug "putting an in index:" index)
   (with-open [tx (s/ensure-transaction storage)] 
-    (s/commit! (indexes/put-index tx index {:synctag (s/next-synctag tx)}))))
+    (s/commit! (indexes/put-index tx index {:synctag (s/next-synctag tx)})))
+  (ie/notify-of-new-index index-engine index))
 
 (defn load-index-metadata
   [{:keys [storage]} id]
@@ -93,13 +98,15 @@
   {:synctag (indexes/synctag-for-index storage id)})
 
 (defn delete-index 
-  [{:keys [storage]} id]
+  [{:keys [storage index-engine]} id]
   (debug "deleting an index" id)
   (with-open [tx (s/ensure-transaction storage)] 
-    (s/commit! (indexes/delete-index tx id {:synctag (s/next-synctag tx)}))))
+    (s/commit! (indexes/delete-index tx id {:synctag (s/next-synctag tx)})))
+  (ie/notify-of-removed-index index-engine id))
 
 (defn load-index 
   [{:keys [storage]} id]
   (debug "getting an index with id " id)
   (with-open [tx (s/ensure-transaction storage)]
     (indexes/load-index tx id)))
+

@@ -16,10 +16,15 @@
     (testfn db))
   (clear-test-data))
 
+(defn testing-path 
+  ([& v]
+  (if (get (System/getenv) "IN_MEMORY")
+    nil
+    (apply str "testdir" v))))
 
 (defn with-full-setup [testfn]
   (clear-test-data)
-  (with-open [instance (database/create "testdir")]
+  (with-open [instance (database/create :path (testing-path))]
     (testfn instance)))
 
 (defn inside-tx [testfn]
@@ -30,7 +35,7 @@
 
 (defn with-test-server [testfn]
   (clear-test-data)
-  (with-open [instance (database/create "testdir")]
+  (with-open [instance (database/create :path (testing-path))]
     (try (let [server (run-server 
                    (http/create-http-server instance) 
                     { :port 9000 :join? false} )]
@@ -44,7 +49,7 @@
   ([] (start-server 8080))
   ([port & opts]
   (fs/delete-dir (str "testdir" port))
-  (let [instance (apply database/create (str "testdir" port) opts)] 
+  (let [instance (apply database/create :path (testing-path port) opts)] 
     {
     :port port
     :url (str "http://localhost:" port)

@@ -28,6 +28,7 @@
 
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :profiles {:dev {
+                   :injections [(require 'spyscope.core) (require '[redl core complete])]
                    :dependencies [[speclj "2.7.2"]
                                   [speclj-growl "1.0.0-SNAPSHOT"]
                                   [speclj-growl "2.1.0"]

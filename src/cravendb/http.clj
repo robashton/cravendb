@@ -102,7 +102,7 @@
     (handler/api db-routes)))
 
 (defn -main []
-  (with-open [instance (db/create "testdb")]
+  (with-open [instance (db/create :path "testdb")]
     (run-server 
       (create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true}) 
