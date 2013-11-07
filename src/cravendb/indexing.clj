@@ -170,7 +170,7 @@
 (defn index-catchup! [db index]
   (with-open [tx (s/ensure-transaction db)]
     (let [last-synctag (indexes/get-last-indexed-synctag-for-index tx (:id index))]
-      (index-documents-from-synctag! tx [index] last-synctag finish-partial-map-process!))))
+      (:doc-count (index-documents-from-synctag! tx [index] last-synctag finish-partial-map-process!)))))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (s/ensure-transaction db)]
