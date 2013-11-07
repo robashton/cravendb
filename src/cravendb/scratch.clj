@@ -20,7 +20,6 @@
            [cravendb.tasks :as tasks]
            [clojure.edn :as edn]))
 
-
 (def test-index
   { :id "test-index" :map "(fn [doc] { \"foo\" (doc :foo) })"})
 
@@ -39,10 +38,12 @@
   (if e (test-stop e))
   (test-start e))
 
+#_ (def current (atom nil))
 #_ (swap! current test-start)
 #_ (swap! current test-stop)
 #_ (swap! current test-restart)
 
+#_ (ie/get-index-storage (:index-engine @current) (:id test-index))
 
 #_ (do 
     (db/put-document @current "doc-1" { :foo "bar1" })
@@ -57,9 +58,11 @@
 #_ (indexes/get-last-indexed-synctag-for-index (:storage @current) (:id test-new-index))
 #_ (s/last-synctag-in (:storage @current))
 
+#_ (count (db/query @current { :index (:id test-index)}))
+#_ (count (db/query @current { :index (:id test-new-index)}))
+
 ;; If we start up a database with an index, and add documents then it should be caught up
 ;; If we start up a database, add documents, then a new index, it should be caught up
 ;; If we start up a database, add documents, new index, new documents, all queries = valid
 ;; That it is all we expect. Everything else is an optimisation
-
 

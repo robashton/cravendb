@@ -122,7 +122,10 @@
 
 (defn mark-index-as-failed-maybe [tx index-id stats]
   (if (> (/ (:error-count stats) (:total-docs stats)) 0.8)
-    (indexes/mark-failed tx index-id stats) tx))
+    (do
+      (error "marking index as failed" index-id)
+      (indexes/mark-failed tx index-id stats)) 
+    tx))
 
 (defn finish-map-process-for-writer! [{:keys [max-synctag tx stats] :as output} writer]
   (lucene/commit! (get writer 1))
@@ -156,8 +159,11 @@
 
 (defn index-documents-from-synctag! [tx indexes synctag pulsefn]
   (with-open [iter (s/get-iterator tx)] 
-    (let [valid-indexes (filter #(not (indexes/is-failed tx (:id %1))) indexes)] 
-      (->> (take 10000 (docs/iterate-synctags-after iter synctag)) 
+    (let [valid-indexes (filter #(not (indexes/is-failed tx (:id %1))) indexes)
+          last-synctag (oldest-synctag 
+            (conj (map #(indexes/get-last-indexed-synctag-for-index tx (:id %1)) valid-indexes) 
+                  synctag))] 
+      (->> (take 10000 (docs/iterate-synctags-after iter last-synctag)) 
         (index-docs tx valid-indexes)
         (process-mapped-documents tx valid-indexes pulsefn)))) )
 
@@ -168,5 +174,6 @@
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (s/ensure-transaction db)]
-    (let [last-synctag (last-indexed-synctag tx)]
-      (index-documents-from-synctag! tx compiled-indexes last-synctag finish-map-process!))))
+    (:doc-count
+      (index-documents-from-synctag! tx compiled-indexes (last-indexed-synctag tx) 
+                                     finish-map-process!))))

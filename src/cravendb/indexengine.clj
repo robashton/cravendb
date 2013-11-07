@@ -29,7 +29,9 @@
   (.close storage))
 
 (defn close-open-indexes [{:keys [indexes]}]
-  (doseq [[k i] indexes] (close-storage-for-index i)))
+  (doseq [[k i] indexes] (do
+                           (info "closing" k)
+                           (close-storage-for-index i))))
 
 (defn read-index-data [db index]
   (assoc index :synctag (indexes/synctag-for-index db (:id index))))
@@ -45,11 +47,11 @@
          :map (load-string (index :map))
          :filter (if (:filter index) (load-string (:filter index)) nil)))
 
-(defn into-uid-map [indexes]
-  (into {} (for [i indexes] [(index-uid i) i])))
+(defn into-id-map [indexes]
+  (into {} (for [i indexes] [(:id i) i])))
   
 (defn initial-indexes [db]
-  (into-uid-map
+  (into-id-map
     (map (partial open-storage-for-index (:path db))  
        (concat (di/all) (map compile-index (all-indexes db))))))
 
@@ -63,9 +65,11 @@
 (defn go-index-some-stuff [{:keys [db indexes command-channel]}]
   (go 
     (info "indexing stuff for indexes" (map (comp :id val) indexes))
-    (while (not= (s/last-synctag-in db) 
-                 (indexing/last-indexed-synctag db)) 
-      (indexing/index-documents! db (map val indexes)))
+    (loop [times 0] 
+      (let [amount (indexing/index-documents! db (map val indexes))]
+        (info "Indexed a pile of stuff" amount)
+        (if (> amount 0)
+        (recur (inc times)))))
     (info "done indexing stuff")
     (>! command-channel { :cmd :notify-finished-indexing})))
 
@@ -79,27 +83,33 @@
     (dissoc :indexing-channel)))
 
 (defn add-new-index [{:keys [db] :as state} index]
-  (info "adding new index to engine" (index-uid index))
+  (info "adding new index to engine" (:id index))
   (let [prepared-index (prepare-index db index)]
    (-> state
-    (assoc-in [:indexes (index-uid prepared-index)] prepared-index)
+    (assoc-in [:indexes (:id prepared-index)] prepared-index)
     (main-indexing-process))))
 
+(defn storage-request [state {:keys [id cb]}]
+  (go
+    (>! cb (get-in state [:indexes id :storage])))
+  state)
+
 (defn go-index-head [_ {:keys [command-channel] :as engine}]
-  (go (loop [state (initial-state engine)]
+  (go 
+    (loop [state (initial-state engine)]
     (if-let [{:keys [cmd data]} (<! command-channel)]
      (do
        (recur (case cmd
          :schedule-indexing (main-indexing-process state)
          :notify-finished-indexing (main-indexing-process-ended state)
          :removed-index state ;; WUH OH
-         :new-index (add-new-index state data))))
+         :new-index (add-new-index state data)
+         :storage-request (storage-request state data))))
       (do
         (info "waiting for main index process")
         (if-let [main-indexing (:indexing-channel state)]
           (<!! (:indexing-channel state)))
-        (close-open-indexes state)
-        )))))
+        (close-open-indexes state))))))
 
 (defn start [{:keys [event-loop] :as engine}]
   (swap! event-loop #(go-index-head %1 engine))) 
@@ -126,3 +136,10 @@
 
 (defn notify-of-removed-index [engine index]
   (go (>! (:command-channel engine) {:cmd :removed-index :data index})))
+
+;; Don't bleed async details to rest of app (yet)
+;; There is hopefully a better way
+(defn get-index-storage [{:keys [command-channel]} id]
+  (let [result-channel (chan)] 
+    (go (>! command-channel {:cmd :storage-request :data {:id id :cb result-channel}}))
+    (<!! result-channel))) 

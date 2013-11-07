@@ -55,4 +55,4 @@
   (let [storage (indexengine/get-index-storage index-engine index)]
     (if storage 
       (query-with-storage db storage opts)
-      (execute db index-engine (assoc opts :wait true :wait-duration 5)))))
+      (execute db index-engine (assoc opts :wait true :wait-duration 1)))))

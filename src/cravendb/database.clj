@@ -62,11 +62,12 @@
 
 (defn delete-document 
   ([instance id] (delete-document instance id nil))
-  ([{:keys [ifh]} id metadata]
+  ([{:keys [ifh index-engine]} id metadata]
   (debug "deleting a document with id " id)
    (let [txid (inflight/open ifh)]
      (inflight/delete-document ifh txid id metadata)
-     (inflight/complete! ifh txid))))
+     (inflight/complete! ifh txid)
+     (ie/notify-of-work index-engine))))
 
 (defn load-document 
   [{:keys [storage]} id]
