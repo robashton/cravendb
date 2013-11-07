@@ -28,10 +28,11 @@
   (.close writer)
   (.close storage))
 
-(defn close-open-indexes [{:keys [indexes]}]
-  (doseq [[k i] indexes] (do
-                           (info "closing" k)
-                           (close-storage-for-index i))))
+(defn close-open-indexes [{:keys [indexes chaser-indexes]}]
+  (doseq [[k i] indexes] 
+    (do (info "closing" k) (close-storage-for-index i)))
+  (doseq [[k i] chaser-indexes] 
+    (do (info "closing" k) (close-storage-for-index i)))) 
 
 (defn read-index-data [db index]
   (assoc index :synctag (indexes/synctag-for-index db (:id index))))
@@ -90,9 +91,33 @@
     (main-indexing-process))))
 
 (defn storage-request [state {:keys [id cb]}]
-  (go
-    (>! cb (get-in state [:indexes id :storage])))
+  (go (>! cb (or (get-in state [:indexes id :storage])
+                 (get-in state [:chaser-indexes id :storage]))))
   state)
+
+(defn go-catch-up [{:keys [db command-channel]} index]
+  (go (indexing/index-catchup! db index)
+    (>! command-channel { :cmd :chaser-finished :data index})))
+
+(defn add-chaser [{:keys [db] :as state} index]
+  (let [prepared-index (prepare-index db index)]
+    (-> state
+      (assoc-in [:chaser-indexes (:id prepared-index)] prepared-index)
+      (assoc-in [:chasers (:id prepared-index)] (go-catch-up state prepared-index)))))
+
+(defn finish-chaser [state {:keys [id] :as index}]
+  (-> state
+    (dissoc-in [:chasers id])
+    (dissoc-in [:chaser-indexes id])
+    (assoc-in [:indexes id] index)))
+
+(defn wait-for-chasers [state]
+   (if-let [chasers (:chasers state)]
+     (doseq [[i c] chasers] (<!! c))))
+
+(defn wait-for-main-indexing [state]
+  (if-let [main-indexing (:indexing-channel state)]
+    (<!! (:indexing-channel state))))
 
 (defn go-index-head [_ {:keys [command-channel] :as engine}]
   (go 
@@ -103,12 +128,13 @@
          :schedule-indexing (main-indexing-process state)
          :notify-finished-indexing (main-indexing-process-ended state)
          :removed-index state ;; WUH OH
-         :new-index (add-new-index state data)
+         :new-index (add-chaser state data)
+         :chaser-finished (finish-chaser state data)
          :storage-request (storage-request state data))))
       (do
         (info "waiting for main index process")
-        (if-let [main-indexing (:indexing-channel state)]
-          (<!! (:indexing-channel state)))
+        (wait-for-main-indexing state)
+        (wait-for-chasers state)
         (close-open-indexes state))))))
 
 (defn start [{:keys [event-loop] :as engine}]

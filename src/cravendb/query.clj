@@ -54,5 +54,6 @@
     (indexing/wait-for-index-catch-up db index wait-duration))
   (let [storage (indexengine/get-index-storage index-engine index)]
     (if storage 
-      (query-with-storage db storage opts)
+      (do (try (query-with-storage db storage opts)
+        (catch org.apache.lucene.index.IndexNotFoundException e nil)))
       (execute db index-engine (assoc opts :wait true :wait-duration 1)))))

@@ -43,22 +43,20 @@
     (fn [{:keys [storage index-engine] :as instance}]
       (add-by-whatever-index instance) 
       (add-100-documents instance)
-      (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 0 10)) 
                 (map :whatever 
                      (database/query instance
-                      { :query "*" :amount 10 :offset 0 :index "by_whatever"}))))))
+                      { :wait true :query "*" :amount 10 :offset 0 :index "by_whatever"}))))))
 
    (it "will return the last 5 docs"
     (with-full-setup
     (fn [{:keys [storage index-engine] :as instance}]
       (add-by-whatever-index instance) 
       (add-100-documents instance)
-      (indexing/wait-for-index-catch-up storage 50)
       (should== (map str (range 95 100)) 
                 (map :whatever 
                      (database/query instance 
-                      { :query "*" :amount 10 :offset 95 :index "by_whatever"})))))))
+                      { :wait true :query "*" :amount 10 :offset 95 :index "by_whatever"})))))))
 
 (describe "sorting"
   (it "will default to ascending order on a string"
@@ -66,19 +64,17 @@
       (fn [{:keys [storage index-engine] :as instance}]
         (add-by-whatever-index instance) 
         (add-alpha-whatevers instance)
-        (indexing/wait-for-index-catch-up storage 50)
         (should== ["aardvark" "anteater" "giraffe" "zebra"]
           (map :whatever 
             (database/query instance
-              { :query "*" :sort-by "whatever" :index "by_whatever"}))))))
+              { :wait true :query "*" :sort-by "whatever" :index "by_whatever"}))))))
 
   (it "will accept descending order on a string"
     (with-full-setup
       (fn [{:keys [storage index-engine] :as instance}]
         (add-by-whatever-index instance) 
         (add-alpha-whatevers instance)
-        (indexing/wait-for-index-catch-up storage 50)
         (should== [ "zebra" "giraffe" "anteater" "aardvark"]
           (map :whatever 
             (database/query instance
-              { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"})))))))
+              { :wait true :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"})))))))

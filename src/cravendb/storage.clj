@@ -42,15 +42,13 @@
 (defrecord LevelStorage [path db]
   java.io.Closeable
   (close [this] 
-    (error "Closing the actual storage engine")
+    (debug "Closing the actual storage engine")
     (.close db) 
     nil))
 
 (defrecord MemoryStorage [memory]
   java.io.Closeable
-  (close [this]
-    (error "closing in-memory")
-    ))
+  (close [this]))
 (defrecord MemoryTransaction [path snapshot memory last-synctag]
   java.io.Closeable
   (close [this]))
