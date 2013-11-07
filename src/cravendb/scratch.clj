@@ -8,6 +8,7 @@
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
+           [cravendb.documents :as docs]
            [clojure.core.incubator :refer [dissoc-in]]
            [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
@@ -61,8 +62,8 @@
 
 (defn go-index-some-stuff [{:keys [db indexes command-channel]}]
   (go 
-    (info "indexing stuff")
-    (indexing/index-documents! db indexes)
+    (info "indexing stuff for indexes" (map (comp val) indexes))
+    (indexing/index-documents! db (map val indexes))
     (info "done indexing stuff")
     (>! command-channel { :cmd :notify-finished-indexing})))
 
@@ -129,9 +130,16 @@
 
 (def current (atom nil))
 
+(def test-index
+  { :id "test-index" :map "(fn [doc] { \"title\" (doc :foo) })"})
+
 (defn test-start [e]
   (let [db (s/create-in-memory-storage)
         engine (create-engine db)]
+    (with-open [tx (s/ensure-transaction db)]
+      (-> tx
+        (indexes/put-index test-index (s/next-synctag tx))
+        (s/commit!)))
     (start engine)
     { :db db
       :engine engine}))
@@ -145,9 +153,17 @@
   (if e (test-stop e))
   (test-start e))
 
+
 #_ (swap! current test-start)
 #_ (swap! current test-stop)
 #_ (swap! current test-restart)
 
-#_ (go (>! (:command-channel (:engine @current)) {:cmd :schedule-indexing})) 
-#_ (go (>! (:command-channel (:engine @current)) {:cmd :new-index :data :1})) 
+#_ (with-open [tx (s/ensure-transaction (:db @current))]
+     (-> tx
+       (docs/store-document "doc-1" { :foo "bar" } { :synctag (s/next-synctag tx)})
+       (s/commit!)))
+
+
+xjkc
+#_ (indexes/get-last-indexed-synctag-for-index (:db @current) (:id test-index))
+
