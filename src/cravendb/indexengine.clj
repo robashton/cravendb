@@ -28,8 +28,9 @@
   (assoc index :synctag (indexes/synctag-for-index tx (:id index))))
 
 (defn all-indexes [db]
-  (with-open [tx (s/ensure-transaction db)
-              iter (s/get-iterator tx)]
+  (with-open 
+    [tx (s/ensure-transaction db)
+     iter (s/get-iterator tx)]
     (doall (map (partial read-index-data tx) (indexes/iterate-indexes iter)))))
 
 (defn compile-index [index]
@@ -56,7 +57,9 @@
 (defn go-index-some-stuff [{:keys [db indexes command-channel]}]
   (go 
     (info "indexing stuff for indexes" (map (comp :id val) indexes))
-    (indexing/index-documents! db (map val indexes))
+    (while (not= (s/last-synctag-in db) 
+                 (indexing/last-indexed-synctag db)) 
+      (indexing/index-documents! db (map val indexes)))
     (info "done indexing stuff")
     (>! command-channel { :cmd :notify-finished-indexing})))
 
