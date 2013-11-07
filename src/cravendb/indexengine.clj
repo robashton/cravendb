@@ -24,8 +24,15 @@
       (assoc :storage storage)
       (assoc :writer (lucene/open-writer storage)))))
 
-(defn read-index-data [tx index]
-  (assoc index :synctag (indexes/synctag-for-index tx (:id index))))
+(defn close-storage-for-index [{:keys [writer storage]}]
+  (.close writer)
+  (.close storage))
+
+(defn close-open-indexes [{:keys [indexes]}]
+  (doseq [[k i] indexes] (close-storage-for-index i)))
+
+(defn read-index-data [db index]
+  (assoc index :synctag (indexes/synctag-for-index db (:id index))))
 
 (defn all-indexes [db]
   (with-open 
@@ -46,13 +53,12 @@
     (map (partial open-storage-for-index (:path db))  
        (concat (di/all) (map compile-index (all-indexes db))))))
 
+(defn prepare-index [db index]
+  (open-storage-for-index (:path db) (read-index-data db (compile-index index))))
+
 (defn initial-state [{:keys [db] :as engine}]
   (assoc engine
     :indexes (initial-indexes db)))
-
-
-(defn schedule-removal [state index]
-  (update-in state [:pending-removal] conj index))
 
 (defn go-index-some-stuff [{:keys [db indexes command-channel]}]
   (go 
@@ -74,8 +80,10 @@
 
 (defn add-new-index [{:keys [db] :as state} index]
   (info "adding new index to engine" (index-uid index))
-  (assoc-in state [:indexes (index-uid index)]
-            (open-storage-for-index (:path db) (compile-index index))))
+  (let [prepared-index (prepare-index db index)]
+   (-> state
+    (assoc-in [:indexes (index-uid prepared-index)] prepared-index)
+    (main-indexing-process))))
 
 (defn go-index-head [_ {:keys [command-channel] :as engine}]
   (go (loop [state (initial-state engine)]
@@ -90,7 +98,8 @@
         (info "waiting for main index process")
         (if-let [main-indexing (:indexing-channel state)]
           (<!! (:indexing-channel state)))
-        (info "I would be closing resources here"))))))
+        (close-open-indexes state)
+        )))))
 
 (defn start [{:keys [event-loop] :as engine}]
   (swap! event-loop #(go-index-head %1 engine))) 

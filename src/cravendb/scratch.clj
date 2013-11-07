@@ -43,10 +43,6 @@
 #_ (swap! current test-stop)
 #_ (swap! current test-restart)
 
-#_ (with-open [tx (s/ensure-transaction db)]
-      (-> tx
-        (indexes/put-index test-new-index (s/next-synctag tx))
-        (s/commit!)))
 
 #_ (do 
     (db/put-document @current "doc-1" { :foo "bar1" })
@@ -55,11 +51,15 @@
     (db/put-document @current "doc-4" { :foo "bar4" }) 
     (db/put-document @current "doc-5" { :foo "bar5" })) 
 
+#_ (db/put-index @current test-new-index)
 #_ (indexing/wait-for-index-catch-up (:storage @current) 1)
 #_ (indexes/get-last-indexed-synctag-for-index (:storage @current) (:id test-index))
+#_ (indexes/get-last-indexed-synctag-for-index (:storage @current) (:id test-new-index))
 #_ (s/last-synctag-in (:storage @current))
 
-
-;; If we start up a database with an index, and add documents we should be able to query them
-;; If we start up a database, add documents, then a new index, we should be able to query it
+;; If we start up a database with an index, and add documents then it should be caught up
+;; If we start up a database, add documents, then a new index, it should be caught up
+;; If we start up a database, add documents, new index, new documents, all queries = valid
 ;; That it is all we expect. Everything else is an optimisation
+
+
