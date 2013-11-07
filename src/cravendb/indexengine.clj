@@ -70,6 +70,7 @@
     (dissoc :indexing-channel)))
 
 (defn add-new-index [{:keys [db] :as state} index]
+  (info "adding new index to engine" (index-uid index))
   (assoc-in state [:indexes (index-uid index)]
             (open-storage-for-index (:path db) (compile-index index))))
 

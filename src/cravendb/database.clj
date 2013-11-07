@@ -17,10 +17,11 @@
     (.close storage)))
 
 (defn create
-  [path & kvs]
-  (let [storage (s/create-storage path)
+  [& kvs]
+  (let [opts (apply hash-map kvs)  
+        storage (if (:path opts) (s/create-storage (:path opts)) (s/create-in-memory-storage))
         index-engine (ie/create storage)
-        opts (apply hash-map kvs) ]
+        ]
     (ie/start index-engine)
     (merge (Database. storage index-engine 
                       (inflight/create storage (or (:server-id opts) "root"))))))

@@ -12,13 +12,14 @@
            [clojure.core.incubator :refer [dissoc-in]]
            [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
+           [cravendb.database :as db]
            [cravendb.indexengine :as ie]
+           [cravendb.indexing :as indexing]
            [cravendb.defaultindexes :as di]
            [cravendb.indexing :as indexing]
            [cravendb.tasks :as tasks]
            [clojure.edn :as edn]))
 
-(def current (atom nil))
 
 (def test-index
   { :id "test-index" :map "(fn [doc] { \"foo\" (doc :foo) })"})
@@ -27,20 +28,12 @@
   { :id "test-new-index" :map "(fn [doc] { \"foo\" (doc :foo) })"})
 
 (defn test-start [e]
-  (let [db (s/create-in-memory-storage)
-        engine (ie/create db)]
-    (with-open [tx (s/ensure-transaction db)]
-      (-> tx
-        (indexes/put-index test-index (s/next-synctag tx))
-        (s/commit!)))
-    (ie/start engine)
-    { :db db
-      :engine engine}))
+  (let [{:keys [storage] :as instance} (db/create)]
+    (db/put-index instance test-index)
+    instance))
 
-(defn test-stop [{:keys [db engine]}]
-  (ie/stop engine)
-  (.close db)
-  nil)
+(defn test-stop [instance]
+  (.close instance))
 
 (defn test-restart [e]
   (if e (test-stop e))
@@ -55,24 +48,17 @@
         (indexes/put-index test-new-index (s/next-synctag tx))
         (s/commit!)))
 
-#_ (with-open [tx (s/ensure-transaction (:db @current))]
-     (-> tx
-       (docs/store-document "doc-1" { :foo "bar1" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-2" { :foo "bar2" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-3" { :foo "bar3" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-4" { :foo "bar4" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-5" { :foo "bar5" } { :synctag (s/next-synctag tx)})
-       (s/commit!)))
-#_ (with-open [tx (s/ensure-transaction (:db @current))]
-     (-> tx
-       (docs/store-document "doc-6" { :foo "bar6" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-7" { :foo "bar7" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-8" { :foo "bar8" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-9" { :foo "bar9" } { :synctag (s/next-synctag tx)})
-       (docs/store-document "doc-10" { :foo "bar10" } { :synctag (s/next-synctag tx)})
-       (s/commit!)))
+#_ (do 
+    (db/put-document @current "doc-1" { :foo "bar1" })
+    (db/put-document @current "doc-2" { :foo "bar2" }) 
+    (db/put-document @current "doc-3" { :foo "bar3" }) 
+    (db/put-document @current "doc-4" { :foo "bar4" }) 
+    (db/put-document @current "doc-5" { :foo "bar5" })) 
 
-#_ (indexes/get-last-indexed-synctag-for-index (:db @current) (:id test-index))
+#_ (indexing/wait-for-index-catch-up (:storage @current) 1)
+#_ (indexes/get-last-indexed-synctag-for-index (:storage @current) (:id test-index))
+#_ (s/last-synctag-in (:storage @current))
+
 
 ;; If we start up a database with an index, and add documents we should be able to query them
 ;; If we start up a database, add documents, then a new index, we should be able to query it
