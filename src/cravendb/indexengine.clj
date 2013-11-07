@@ -80,6 +80,7 @@
        (recur (case cmd
          :schedule-indexing (main-indexing-process state)
          :notify-finished-indexing (main-indexing-process-ended state)
+         :removed-index state ;; WUH OH
          :new-index (add-new-index state data))))
       (do
         (info "waiting for main index process")
@@ -108,4 +109,7 @@
  (go (>! (:command-channel engine) {:cmd :schedule-indexing})))
 
 (defn notify-of-new-index [engine index]
-  (go (>! (:command-channel engine) {:cmd :schedule-indexing})))
+  (go (>! (:command-channel engine) {:cmd :new-index :data index})))
+
+(defn notify-of-removed-index [engine index]
+  (go (>! (:command-channel engine) {:cmd :removed-index :data index})))
