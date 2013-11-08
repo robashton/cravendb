@@ -13,10 +13,10 @@
 (def last-index-doc-count-key "last-index-doc-count")
 
 (defn last-indexed-synctag [db]
-  (or (s/get-string db last-indexed-synctag-key) (zero-synctag)))
+  (or (s/get-obj db last-indexed-synctag-key) (zero-synctag)))
 
 (defn last-index-doc-count [db]
-    (s/get-integer db last-index-doc-count-key))
+    (s/get-obj db last-index-doc-count-key))
 
 (defn load-document-for-indexing [tx id] 
   (debug "Loading " id "for indexing") 

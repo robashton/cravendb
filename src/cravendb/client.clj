@@ -16,6 +16,7 @@
   (str url "/conflicts"))
 (defn url-for-stream [url synctag]
   (str url "/stream?synctag=" (or synctag "")))
+
 (defn url-for-query [url opts]
   (str 
     url "/query/"

@@ -32,10 +32,11 @@
 
 (defn store-conflict [db id document metadata]
   (s/store db (str conflict-prefix id (:synctag metadata))
-           (pr-str {
-                    :id id
-                    :data document
-                    :metadata metadata })))
+           {
+            :id id
+            :data document
+            :metadata metadata }))
+
 (defn conflicts 
   ([db] (conflicts db ""))
   ([db prefix]
@@ -44,7 +45,7 @@
         (s/seek iter (str conflict-prefix prefix))
         (doall (->> (s/as-seq iter) 
             (take-while #(is-conflict-entry-for %1 prefix))
-            (map (comp edn/read-string :v)))))))
+            (map :v))))))
 
 (defn without-conflict [tx doc-id synctag]
    (s/delete tx (str conflict-prefix doc-id synctag)))
@@ -55,17 +56,15 @@
 (defn store-document 
   [db id document metadata] 
   (-> db
-    (s/store (str document-prefix id) (pr-str document))
+    (s/store (str document-prefix id) document)
     (s/store (str synctags-to-docs-prefix (:synctag metadata)) id)
-    (s/store (str docs-to-metadata-prefix id) (pr-str metadata))))
+    (s/store (str docs-to-metadata-prefix id) metadata)))
 
 (defn load-document [session id] 
-  (if-let [raw-doc (s/get-string session (str document-prefix id))]
-    (edn/read-string raw-doc) nil))
+  (s/get-obj session (str document-prefix id)))
 
 (defn load-document-metadata [session id]
-  (if-let [raw-doc (s/get-string session (str docs-to-metadata-prefix id))]
-    (edn/read-string raw-doc) nil))
+  (s/get-obj session (str docs-to-metadata-prefix id)))
 
 (defn synctag-for-doc [db doc-id]
   (:synctag (load-document-metadata db doc-id)))
@@ -75,7 +74,7 @@
   (-> session
     (s/delete (str document-prefix id))
     (s/store (str synctags-to-docs-prefix (:synctag metadata)) id)
-    (s/store (str docs-to-metadata-prefix id) (pr-str metadata))))
+    (s/store (str docs-to-metadata-prefix id) metadata)))
 
 (defn iterate-documents-prefixed-with [iter prefix]
   (s/seek iter (str document-prefix prefix))

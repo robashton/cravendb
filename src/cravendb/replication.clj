@@ -21,10 +21,10 @@
 
 (defn last-replicated-synctag [storage source-url]
   (integer-to-synctag
-    (s/get-integer storage (str "replication-last-synctag-" source-url))))
+    (s/get-obj storage (str "replication-last-synctag-" source-url))))
 
 (defn replication-total [storage source-url]
-  (s/get-integer storage (str "replication-total-documents-" source-url)))
+  (s/get-obj storage (str "replication-total-documents-" source-url)))
 
 (defn replication-status 
   [storage source-url]

@@ -1,10 +1,10 @@
 (ns cravendb.core)
 
 (defn integer-to-synctag [integer]
-  (format "%030d" integer))
+  (format "%030d" (or integer 0)))
 
 (defn synctag-to-integer [synctag]
-  (Integer/parseInt synctag))
+  (Integer/parseInt (or synctag "0")))
 
 (defn zero-synctag [] (integer-to-synctag 0))
 
