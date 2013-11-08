@@ -24,8 +24,8 @@
 
 ### Immediate issues
 
-- Handle indexes that can't be compiled for some reason
-- Indexes should ideally be defended from concurrency too
+- Tidy low level storage
+- Look at schemas to help with indexing (joins/aggregations)
 - Failed tasks
 
 ### Pending tasks
@@ -34,7 +34,8 @@
 - Need some tests for three-way replication checking etc
 - Automatic peer discovery
 - Use long-polling for replication/streaming
-- Formalise in-memory/leveldb split
+ - can probably do this with events from database
+ - can then use this for pushing indexing tasks too
 
 ### Pending debt/questions/bugs
 
@@ -46,6 +47,8 @@
 - Look at threading indexing
 - Try to use the Clojure string library rather than all the .startsWith etc
 - Look at using reducers to queue up the indexing operation (currently creating new sequences per transformation)
+- Handle indexes that can't be compiled for some reason
+- Indexes should ideally be defended from concurrency too
 
 ### To look at 
 
