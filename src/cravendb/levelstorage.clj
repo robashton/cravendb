@@ -9,8 +9,6 @@
            (java.io File)
            (java.nio ByteBuffer)))
 
-(def last-synctag-key "__last-synctag")
-
 (defn safe-get [db k options]
   (try
     (if options
@@ -43,9 +41,6 @@
         (if (= value :deleted)
           (.delete batch (to-db id))
           (.put batch (to-db id) (to-db value))))
-      (.put batch 
-        (to-db last-synctag-key) 
-        (to-db (integer-to-synctag @(:last-synctag tx))))
       (let [wo (WriteOptions.)]
         (.sync wo true)
         (.write db batch wo)))) 
@@ -67,7 +62,7 @@
         (.iterator (:db ops) (:options ops))  
         (.iterator (:db ops))))) 
 
-(defrecord LevelTransaction [db options path last-synctag]
+(defrecord LevelTransaction [db options path]
   java.io.Closeable
   Writer
   Reader
@@ -87,7 +82,7 @@
     (let [options (ReadOptions.)
           snapshot (.getSnapshot (:db ops))]
       (.snapshot options snapshot)
-      (LevelTransaction. (:db ops) options (:path ops) (:last-synctag ops)))) 
+      (LevelTransaction. (:db ops) options (:path ops)))) 
   (from-db [this id] (from-storage this id))
   (open-iterator [this] (get-iterator this))
   (close [this] 

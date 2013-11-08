@@ -14,7 +14,7 @@
       (drop-while #(> 0 (compare (key %1) @start)) (or snapshot @memory))))
   (close [this] nil))
 
-(defrecord MemoryTransaction [snapshot memory last-synctag]
+(defrecord MemoryTransaction [snapshot memory]
   java.io.Closeable
   Writer
   Reader
@@ -22,16 +22,14 @@
   (from-db [this id] (get snapshot id))
   (commit! [this] (swap! memory #(reduce (fn [m [k v]] 
                   (if (= :deleted v) (dissoc m k) (assoc m k v))) 
-                      %1 (assoc (:cache this) last-synctag-key
-                        (integer-to-synctag @last-synctag)))))
+                                        %1 (:cache this))))
   (close [this] nil))
 
 (defrecord MemoryStorage [memory]
   java.io.Closeable
   Reader
   Storage
-  (ensure-transaction [ops]
-   (MemoryTransaction. @(:memory ops) (:memory ops) (:last-synctag ops)))
+  (ensure-transaction [ops] (MemoryTransaction. @(:memory ops) (:memory ops)))
   (from-db [this id] (get @memory id))
   (open-iterator [this] (MemoryIterator. nil memory (atom nil)))
   (close [this] nil)) 

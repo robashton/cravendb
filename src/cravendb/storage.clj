@@ -40,13 +40,15 @@
   (.seek! iter value))
 
 (defn commit! [tx]
-  (.commit! tx))
+  (.commit! (store tx last-synctag-key 
+              (integer-to-synctag @(:last-synctag tx)))))
 
 (defn as-seq [iter]
   (.as-seq iter))
 
 (defn ensure-transaction [storage]
-  (.ensure-transaction storage))
+  (assoc (.ensure-transaction storage)
+         :last-synctag (:last-synctag storage)))
 
 (defn create-in-memory-storage []
   (bootstrap-storage (inmemory/create)))
