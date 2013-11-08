@@ -30,7 +30,7 @@
     (set-last-indexed-synctag-for-index (index :id) (zero-synctag))))
 
 (defn mark-failed [tx index-id info]
-  (s/store tx (index-error-id index-id) (pr-str info)))
+  (s/store tx (index-error-id index-id) info))
 
 (defn is-failed [tx index-id]
   (boolean (s/get-obj tx (index-error-id index-id))))

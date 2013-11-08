@@ -61,7 +61,6 @@
 (defn delete [ops id]
   (assoc-in ops [:cache id] :deleted))
 
-
 (defmulti get-blob (fn [ops id] (if (:db ops) :disk :memory)))
 (defmethod get-blob :disk [ops id]
   (let [cached (get-in ops [:cache id])]

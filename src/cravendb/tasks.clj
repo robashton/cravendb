@@ -7,17 +7,16 @@
 
 (defn queue [tx queue handle data] 
   (s/store tx (str task-prefix queue (s/next-synctag tx))
-           (pr-str { :handle handle :data data})))
+           { :handle handle :data data}))
 
 (defn delete [tx id]
   (s/delete tx id))
 
 (defn peek [tx queue]
   (first 
-     (map #(update-in %1 [:v] edn/read-string) 
-          (let [iter (s/get-iterator tx)]
-           (s/as-seq 
-             (s/seek iter (str task-prefix queue)))))))
+    (let [iter (s/get-iterator tx)]
+      (s/as-seq 
+        (s/seek iter (str task-prefix queue))))))
 
 (defn handle-task [db id task handlers]
   (if-let [handler (handlers (:handle task))]

@@ -32,10 +32,11 @@
 
 (defn store-conflict [db id document metadata]
   (s/store db (str conflict-prefix id (:synctag metadata))
-           (pr-str {
-                    :id id
-                    :data document
-                    :metadata metadata })))
+           {
+            :id id
+            :data document
+            :metadata metadata }))
+
 (defn conflicts 
   ([db] (conflicts db ""))
   ([db prefix]
@@ -44,7 +45,7 @@
         (s/seek iter (str conflict-prefix prefix))
         (doall (->> (s/as-seq iter) 
             (take-while #(is-conflict-entry-for %1 prefix))
-            (map (comp edn/read-string :v)))))))
+            (map :v))))))
 
 (defn without-conflict [tx doc-id synctag]
    (s/delete tx (str conflict-prefix doc-id synctag)))
