@@ -27,7 +27,6 @@
 - Handle indexes that can't be compiled for some reason
 - Indexes should ideally be defended from concurrency too
 - Failed tasks
-- Sort out the index engine with core.async (this might take a while)
 
 ### Pending tasks
 
@@ -40,7 +39,6 @@
 ### Pending debt/questions/bugs
 
 - How best to deal with conflicts in a multi-master scenario? At the moment we remain inconsistent across the cluster
-- The indexing engine isn't as robust as I'd like it to be
 - Can I use leveldb's write/read options to do my work for me?
 - I need to show sensible parsing errors on parsing failure
 - Consider all those small functions as inline functions
@@ -57,6 +55,4 @@
 - Use clout
 - See if slingshot is deprecated or not
 - Ribol - Have a gander, but only a gander
-- Look at lamina for async operations           
 - Might want to use Quartz for scheduling things in the future (there's a joke there somewhere)
-
