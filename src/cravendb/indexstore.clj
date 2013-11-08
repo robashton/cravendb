@@ -15,7 +15,7 @@
   (s/store tx (str index-last-synctag-prefix id) synctag))
 
 (defn get-last-indexed-synctag-for-index [tx id]
-  (or (s/get-string tx (str index-last-synctag-prefix id))
+  (or (s/get-obj tx (str index-last-synctag-prefix id))
       (zero-synctag)))
 
 (defn index-doc-id [id]
@@ -33,10 +33,10 @@
   (s/store tx (index-error-id index-id) (pr-str info)))
 
 (defn is-failed [tx index-id]
-  (boolean (s/get-string tx (index-error-id index-id))))
+  (boolean (s/get-obj tx (index-error-id index-id))))
 
 (defn errors [tx index-id]
-  (s/get-string (index-error-id index-id)))
+  (s/get-obj (index-error-id index-id)))
 
 (defn reset-index [tx index-id]
   (-> tx

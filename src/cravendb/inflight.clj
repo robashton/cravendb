@@ -4,18 +4,6 @@
             [clojure.core.incubator :refer [dissoc-in]]
             [cravendb.storage :as s]))
 
-;; This needs to work for
-  ;; Single writes via database->
-  ;; Multi writes via bulk->
-  ;; Multi writes via replication
-
-
-;; To make this work with replication we'll have to
-;;  - Change the conflict status method
-;;  - not modify history on the document we're writing
-;;  That's it. The question merely then becomes the how
-;;  I suspect multi-methods might make an appearance here
-
 (defn create [db server-id]
   { :server-id server-id :db db :tx-count (atom 0) :in-flight (atom {})})
     

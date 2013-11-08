@@ -9,13 +9,36 @@
             [clojure.pprint :refer [pprint]]
             ))
 
-#_(with-open [stream (db/stream-into "key")] 
-    (binding [*out* (clojure.java.io/writer stream)]
-      (pr 2)
-      (pr "hello")
-      (pr { :hello "world"})
-      (.flush *out*)))
 
-#_ (let [*out* ] 
-    
-    )
+(defn to-db [v]
+  (with-open [stream (java.io.ByteArrayOutputStream.)] 
+    (binding [*out* (clojure.java.io/writer stream)]
+      (pr v)
+      (.flush *out*))
+    (.toByteArray stream)))
+
+(defn from-db [v]
+  (with-open [reader (java.io.PushbackReader.
+                          (clojure.java.io/reader 
+                            (java.io.ByteArrayInputStream. v)))]
+    (edn/read reader)))
+
+
+(from-db (to-db 2))
+(from-db (to-db "2"))
+(from-db (to-db {:hello "world"}))
+
+
+#_ (with-open [stream (java.io.ByteArrayOutputStream.)] 
+    (binding [*out* (clojure.java.io/writer stream)]
+      (pr {:hello "world"})
+      (pr {:hello "world again"})
+      (.flush *out*))
+
+     (with-open [reader (java.io.PushbackReader.
+                          (clojure.java.io/reader 
+                            (java.io.ByteArrayInputStream. 
+                              (.toByteArray stream))))]
+
+       ) )
+

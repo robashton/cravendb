@@ -1,6 +1,7 @@
 (ns cravendb.storage
   (:use [clojure.tools.logging :only (info debug error)])
   (:require [clojure.core.incubator :refer [dissoc-in]]
+            [clojure.edn :as edn]
             [cravendb.core :refer [zero-synctag integer-to-synctag synctag-to-integer]])
   (:import (org.iq80.leveldb Options ReadOptions WriteOptions DBIterator)
            (org.fusesource.leveldbjni JniDBFactory)
@@ -9,21 +10,19 @@
 
 (def last-synctag-key "__last-synctag")
 
-(defn to-db [input]
-  (if (string? input)
-   (.getBytes input "UTF-8")
-   (if (integer? input)
-    (.array (.putInt (ByteBuffer/allocate 4) input)))))
+(defn to-db [v]
+  (with-open [stream (java.io.ByteArrayOutputStream.)] 
+    (binding [*out* (clojure.java.io/writer stream)]
+      (pr v)
+      (.flush *out*))
+    (.toByteArray stream)))
 
-(defn from-db-str [input]
-  (if (= input nil)
-    nil
-    (String. input "UTF-8")))
-
-(defn from-db-int [input]
-  (if (= input nil)
-    0
-    (.getInt (ByteBuffer/wrap input))))
+(defn from-db [v]
+  (if (nil? v) nil
+   (with-open [reader (java.io.PushbackReader.
+                          (clojure.java.io/reader 
+                            (java.io.ByteArrayInputStream. v)))]
+    (edn/read reader))))
 
 (defn safe-get [db k options]
   (try
@@ -62,6 +61,7 @@
 (defn delete [ops id]
   (assoc-in ops [:cache id] :deleted))
 
+
 (defmulti get-blob (fn [ops id] (if (:db ops) :disk :memory)))
 (defmethod get-blob :disk [ops id]
   (let [cached (get-in ops [:cache id])]
@@ -74,26 +74,23 @@
     (if (= cached :deleted) nil
       (or cached (get (or (:snapshot ops) @(:memory ops)) id)))))
 
-(defn get-integer [ops id]
-  (from-db-int (get-blob ops id)))
-
-(defn get-string [ops id]
-  (from-db-str (get-blob ops id)))
+(defn get-obj [ops id]
+  (from-db (get-blob ops id)))
 
 (defrecord StorageIterator [inner]
   java.io.Closeable
   (close [this] (.close inner)))
 
 (defn expand-iterator-str [i]
-  { :k (from-db-str (.getKey i))
-    :v (from-db-str (.getValue i)) })
+  { :k (from-db (.getKey i))
+    :v (from-db (.getValue i)) })
 
 (defmulti as-seq (fn [i] (if (:inner i) :disk :memory)))
 (defmethod as-seq :disk [iter]
   (->> (iterator-seq (:inner iter))
    (map expand-iterator-str))) 
 (defmethod as-seq :memory [iter]
-  (map (fn [i] {:k (key i) :v (from-db-str (val i))}) 
+  (map (fn [i] {:k (key i) :v (from-db (val i))}) 
        (drop-while #(> 0 (compare (key %1) @(:start iter))) (or (:snapshot iter) @(:memory iter)))))
 
 
@@ -117,7 +114,7 @@
 
 (defn last-synctag-in
   [storage]
-  (or (get-string storage last-synctag-key) (zero-synctag)) )
+  (or (get-obj storage last-synctag-key) (zero-synctag)) )
 
 (defn bootstrap-storage
   [storage]
