@@ -24,7 +24,6 @@
 
 ### Immediate issues
 
-- Tidy low level storage
 - Look at schemas to help with indexing (joins/aggregations)
 - Failed tasks
 

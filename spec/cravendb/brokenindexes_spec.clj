@@ -40,13 +40,6 @@
       (indexing/wait-for-index-catch-up storage "invalid" 5)
       (should (indexes/is-failed storage "invalid")))))
 
-  (it "will mark the documents as indexed regardless of failure"
-    (with-full-setup (fn [{:keys [storage] :as instance}]
-      (write-three-documents instance)
-      (db/put-index instance (create-invalid-index))
-      (indexing/wait-for-index-catch-up storage "invalid" 5)
-      (should= (s/last-synctag-in storage) (indexing/last-indexed-synctag storage))))) 
-
   (it "will not use this index in further indexing processes"
     (with-full-setup (fn [{:keys [storage] :as instance}]
       (write-three-documents instance)
