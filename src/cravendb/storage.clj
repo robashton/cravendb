@@ -56,25 +56,21 @@
   (close [this]))
 
 (defn store [ops id data]
-  (assoc-in ops [:cache id] (to-db data))) 
+  (assoc-in ops [:cache id] data)) 
 
 (defn delete [ops id]
   (assoc-in ops [:cache id] :deleted))
 
-(defmulti get-blob (fn [ops id] (if (:db ops) :disk :memory)))
-(defmethod get-blob :disk [ops id]
-  (let [cached (get-in ops [:cache id])]
-    (if (= cached :deleted) nil
-      (or cached 
-        (safe-get (:db ops) (to-db id) (:options ops))))))
-
-(defmethod get-blob :memory [ops id]
-  (let [cached (get-in ops [:cache id])]
-    (if (= cached :deleted) nil
-      (or cached (get (or (:snapshot ops) @(:memory ops)) id)))))
+(defmulti from-storage (fn [ops id] (if (:db ops) :disk :memory)))
+(defmethod from-storage :disk [ops id]
+  (from-db (safe-get (:db ops) (to-db id) (:options ops))))
+(defmethod from-storage :memory [ops id]
+  (get (or (:snapshot ops) @(:memory ops)) id))
 
 (defn get-obj [ops id]
-  (from-db (get-blob ops id)))
+  (let [cached (get-in ops [:cache id])]
+    (if (= cached :deleted) nil
+      (or cached (from-storage ops id)))))
 
 (defrecord StorageIterator [inner]
   java.io.Closeable
@@ -88,10 +84,10 @@
 (defmethod as-seq :disk [iter]
   (->> (iterator-seq (:inner iter))
    (map expand-iterator-str))) 
-(defmethod as-seq :memory [iter]
-  (map (fn [i] {:k (key i) :v (from-db (val i))}) 
-       (drop-while #(> 0 (compare (key %1) @(:start iter))) (or (:snapshot iter) @(:memory iter)))))
 
+(defmethod as-seq :memory [iter]
+  (map (fn [i] {:k (key i) :v (val i)}) 
+      (drop-while #(> 0 (compare (key %1) @(:start iter))) (or (:snapshot iter) @(:memory iter)))))
 
 (defmulti seek (fn [i v] (if (:inner i) :disk :memory)))
 (defmethod seek :disk [iter value]
@@ -130,7 +126,7 @@
     (doseq [[id value] cache]
       (if (= value :deleted)
         (.delete batch (to-db id))
-        (.put batch (to-db id) value)))
+        (.put batch (to-db id) (to-db value))))
     (.put batch 
       (to-db last-synctag-key) 
       (to-db (integer-to-synctag @(:last-synctag tx))))
@@ -146,7 +142,7 @@
                       (assoc m k v))) 
                   %1 (assoc cache
                             last-synctag-key
-                            (to-db (integer-to-synctag @(:last-synctag tx)))))))
+                            (integer-to-synctag @(:last-synctag tx))))))
 
 (defmulti ensure-transaction (fn [ops] (if (:db ops) :disk :memory)))
 (defmethod ensure-transaction :disk [ops]

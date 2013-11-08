@@ -54,9 +54,8 @@
       (indexing/wait-for-index-catch-up storage)
       (let [last-synctag (s/last-synctag-in storage)]
         (write-three-documents instance)
-        (indexing/wait-for-index-catch-up storage)
+        (indexing/wait-for-index-catch-up storage "default" 5)
         (should= last-synctag (indexes/get-last-indexed-synctag-for-index storage "invalid")))))) 
-
 
   (it "will carry on indexing non-broken indexes"
     (with-full-setup (fn [{:keys [storage] :as instance}]
@@ -65,7 +64,7 @@
       (db/put-index instance (create-valid-index))
       (indexing/wait-for-index-catch-up storage)
       (write-three-documents instance)
-      (indexing/wait-for-index-catch-up storage)
+      (indexing/wait-for-index-catch-up storage "valid" 5)
       (should= (s/last-synctag-in storage) (indexing/last-indexed-synctag storage))))))
 
 (describe "Resetting an index"
