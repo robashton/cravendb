@@ -2,8 +2,7 @@
   (:use [clojure.tools.logging :only (info error debug)] 
        [cravendb.core])
   (:require [cravendb.storage :as s]
-            [clojure.edn :as edn]
-            ))
+            [clojure.edn :as edn]))
 
 
 (def synctags-to-docs-prefix "synctags-to-docs-")
