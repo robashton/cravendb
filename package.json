@@ -9,4 +9,9 @@
   },
   "author": "Rob Ashton",
   "license": "EPL",
+  "dependencies": {
+    "mustache": "~0.7.3",
+    "marked": "~0.2.10",
+    "highlight.js": "~7.5.0"
+  }
 }

@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Cravendb by robashton</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Cravendb</h1
+        <p class="header">A document database written in Clojure</p>
+        <h1 class="header">Docs</h1>
+        <nav>
+          <ul>
+            <li><a href="/home.html">Home</a></li>
+            <li><a href="/gettingstarted.html">Getting started</a></li>
+          </ul>
+        </nav>
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/CravenDB/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/CravenDB/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/robashton/CravenDB">View On GitHub</a></li>
+        </ul>
+
+
+
+        <p><a href="https://travis-ci.org/robashton/CravenDB"><img src="https://travis-ci.org/robashton/CravenDB.png?branch=master" alt="Build Status"></a></p>
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/robashton">robashton</a></p>
+
+      </header>
+      <section>
+        <h1 id="getting-started">Getting started</h1>
+<p>There are a few ways we can use Craven, in order of increasing complexity</p>
+<ul>
+<li>As an in-process embedded database</li>
+<li>As a remote single node http server</li>
+<li>As a remote cluster of http nodes</li>
+</ul>
+<p>This little getting started guide will focus on the first one, so we can get to grips with &quot;how Craven works&quot;, the client API for the above scenarios are the same apart from the set-up.</p>
+<h3 id="getting-it-into-your-project">Getting it into your project</h3>
+<p>I&#39;ll have it in a maven thingy, honest</p>
+<h3 id="creating-a-connection-object">Creating a connection object</h3>
+<p>No matter how we use Craven, we need to create a handle to the database. This is designed to be used across the whole application for performing calls to the client (so created on application start-up, and thrown away on application tear-down).</p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">require</span> 'cravendb.client <span class="attribute">:as</span> c)</span></code></pre>
+
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
