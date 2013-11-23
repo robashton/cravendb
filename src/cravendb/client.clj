@@ -3,8 +3,7 @@
   (:require [cemerick.url :refer (url-encode)] 
             [clojure.edn :as edn]
             [cravendb.core :refer [zero-synctag]]
-            [clojure.tools.logging :refer [debug info error]]
-            ))
+            [clojure.tools.logging :refer [debug info error]]))
 
 (defn url-for-doc-id [url id]
   (str url "/document/" id))
