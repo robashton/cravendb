@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Cravendb by robashton</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="rainbow.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Cravendb</h1
+        <p class="header">A document database written in Clojure</p>
+        <h1 class="header">Docs</h1>
+        <nav>
+          <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/gettingstarted.html">Getting started</a></li>
+            <li><a href="/querying.html">Querying</a></li>
+          </ul>
+        </nav>
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/CravenDB/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/CravenDB/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/robashton/CravenDB">View On GitHub</a></li>
+        </ul>
+
+
+
+        <p><a href="https://travis-ci.org/robashton/CravenDB"><img src="https://travis-ci.org/robashton/CravenDB.png?branch=master" alt="Build Status"></a></p>
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/robashton">robashton</a></p>
+
+      </header>
+      <section>
+        <h1 id="querying">Querying</h1>
+<p>Craven automatically indexes content that goes into it using a set of heuristics based around size/types/etc. This means that arbitrary queries on the documents stored inside Craven should mostly be <em>relatively</em> fast.</p>
+<p>There is an ability to customise this process, but this is remaining a closed and undocumented API until it is requested for a good reason. This whole section is <em>definitely</em> subject to change, and can be considered as temporary at best.</p>
+<p>So we&#39;ve got a database called <em>instance</em>, and we&#39;ve put a load of documents in it which are permutations of this wonderful thing here...</p>
+<pre><code class="lang-clojure">{
+  :name &quot;Pinkie Pie&quot;
+  :description &quot;Pinkie Pie is the best pony ever and anybody who disagrees better think that about Rainbow Dash instead&quot;
+  :cutiemark &quot;Balloons&quot;
+  :colour :pink
+  :bestpony: true
+  :episodes 133
+  :catchphases [ &quot;this is the best day ever&quot; &quot;let&#39;s have a party&quot; ]
+}</code></pre>
+<p>There is a namespace to help build queries, bringing this in is usually a good idea.</p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">require</span> '<span class="collection">[cravendb.querylanguage <span class="attribute">:refer</span> <span class="attribute">:all</span>]</span>)</span></code></pre>
+<h3 id="our-first-query">Our first query</h3>
+<p><em>Let&#39;s find all the pink ponies</em></p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span>)</span></code></pre>
+<p><em>Let&#39;s find all the ponies that were in more than 10 episodes</em></p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">&gt;?</span> <span class="attribute">:episodes</span><span class="number"> 10</span>)</span>)</span></code></pre>
+<p><em>How about any pony with a catch-phrase with &quot;party&quot; in it</em></p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party))</span></span></span></code></pre>
+<p>We can combine queries and perform negations with the standard AND/OR/NOTs </p>
+<p><em>Pink ponies who know how to party</em></p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">AND</span> <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span> <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party)))</span></span></span></span></code></pre>
+<h3 id="a-complete-list-of-these-conditions">A complete list of these conditions</h3>
+<pre><code class="lang-clojure"><span class="comment">; Is k greater than v?</span>
+<span class="list">(<span class="title">&gt;?</span> <span class="collection">[k v]</span>)</span>
+<span class="comment">; Is k smaller than v?</span>
+<span class="list">(<span class="title">&lt;?</span> <span class="collection">[k v]</span>)</span> 
+<span class="comment">; Is k equal to v?</span>
+<span class="list">(<span class="title">=?</span> <span class="collection">[k v]</span>)</span> 
+<span class="comment">; Is k greater than or equal to v?</span>
+<span class="list">(<span class="title">&gt;=?</span> <span class="collection">[k v]</span>)</span> 
+<span class="comment">; is k smaller than or equal to v?</span>
+<span class="list">(<span class="title">&lt;=?</span> <span class="collection">[k v]</span>)</span> 
+<span class="comment">; Does k start with v?</span>
+<span class="list">(<span class="title">starts-with?</span> <span class="collection">[k v]</span>)</span> 
+<span class="comment">; Does k have the word 'v' in it?</span>
+<span class="list">(<span class="title">has-word?</span> <span class="collection">[k v]</span>)</span>
+<span class="comment">; Does k have a word starting with v?</span>
+<span class="list">(<span class="title">has-word-starting-with?</span> <span class="collection">[k v]</span>)</span>
+<span class="comment">; Does the collection k have value v?</span>
+<span class="list">(<span class="title">has-item?</span> <span class="collection">[k v]</span>)</span>
+<span class="comment">; Are all of these conditions true?</span>
+<span class="list">(<span class="title">AND</span> <span class="collection">[&amp; v]</span>)</span>
+<span class="comment">; Are any of these conditions true?</span>
+<span class="list">(<span class="title">OR</span> <span class="collection">[&amp; v]</span>)</span>
+<span class="comment">; This condition must not be true</span>
+<span class="list">(<span class="title">NOT</span> <span class="collection">[&amp; v]</span>)</span></code></pre>
+
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
