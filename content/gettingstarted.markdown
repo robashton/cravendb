@@ -118,4 +118,4 @@ In the same way above, a transaction will return 'nil' for documents that are ma
 
 The best bet is to load up the REPL and get a feel for how the transaction and database work together. Using the in-memory persistence is best for this.
 
-Once comfortable with these basic crud operations, we might want to go and look at [querying](/querying.html)
+Once comfortable with these basic crud operations, we might want to go and look at [querying](querying.html)
