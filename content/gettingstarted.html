@@ -17,6 +17,6 @@ I'll have it in a maven thingy, honest
 No matter how we use Craven, we need to create a handle to the database. This is designed to be used across the whole application for performing calls to the client (so created on application start-up, and thrown away on application tear-down).
 
 ```clojure
-(require 'cravendb.client :as c)
+(require 'cravendb.database :as database)
 ```
 
