@@ -38,14 +38,14 @@ There is a namespace to help build queries, bringing this in is usually a good i
 
 *How about any pony with a catch-phrase with "party" in it*
 ```clojure
-(db/query instance (has-word? :catchphrases "party))
+(db/query instance (has-word? :catchphrases "party"))
 ```
 
 We can combine queries and perform negations with the standard AND/OR/NOTs 
 
 *Pink ponies who know how to party*
 ```clojure
-(db/query instance (AND (=? :colour :pink) (has-word? :catchphrases "party)))
+(db/query instance (AND (=? :colour :pink) (has-word? :catchphrases "party")))
 ```
 
 ### A complete list of these conditions
