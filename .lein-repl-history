@@ -1,0 +1,29 @@
+exit
+c/pr4/exit
+exit
+clear
+exit
+(/ 119 13)
+(/ 119.0 13.0)
+(/ 13.0 119.0)
+exit
+jj
+exit
+majjkk:w
+jjkjjkkk! jjjjj:! gj
+exit
+(defn <3 (println "<3"))
+(defn <3 [] (println "<3"))
+<3
+(<3)
+(defn <3 [] ("<3"))
+(<3)
+(defn <3 [] "<3")
+(<3)
+exit
+jjjj
+jk
+exit
+(doseq [i v] nil (println "Foo"))
+(doseq [i nil] (println "Foo"))
+exit
