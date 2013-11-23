@@ -27,6 +27,7 @@
             <li><a href="./">Home</a></li>
             <li><a href="gettingstarted.html">Getting started</a></li>
             <li><a href="querying.html">Querying</a></li>
+            <li><a href="design.html">Background Info</a></li>
           </ul>
         </nav>
         <ul>
@@ -63,10 +64,10 @@
 <p><em>Let&#39;s find all the ponies that were in more than 10 episodes</em></p>
 <pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">&gt;?</span> <span class="attribute">:episodes</span><span class="number"> 10</span>)</span>)</span></code></pre>
 <p><em>How about any pony with a catch-phrase with &quot;party&quot; in it</em></p>
-<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party))</span></span></span></code></pre>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party"</span>)</span>)</span></code></pre>
 <p>We can combine queries and perform negations with the standard AND/OR/NOTs </p>
 <p><em>Pink ponies who know how to party</em></p>
-<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">AND</span> <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span> <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party)))</span></span></span></span></code></pre>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">AND</span> <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span> <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party"</span>)</span>)</span>)</span></code></pre>
 <h3 id="a-complete-list-of-these-conditions">A complete list of these conditions</h3>
 <pre><code class="lang-clojure"><span class="comment">; Is k greater than v?</span>
 <span class="list">(<span class="title">&gt;?</span> <span class="collection">[k v]</span>)</span>

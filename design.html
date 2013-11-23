@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Cravendb by robashton</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="rainbow.css">
+    <style>
+      
+    </style>
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">cravendb</h1
+        <p class="header">A document database written in Clojure</p>
+        <h1 class="header">Docs</h1>
+        <nav>
+          <ul>
+            <li><a href="./">Home</a></li>
+            <li><a href="gettingstarted.html">Getting started</a></li>
+            <li><a href="querying.html">Querying</a></li>
+            <li><a href="design.html">Background Info</a></li>
+          </ul>
+        </nav>
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/CravenDB/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/CravenDB/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/robashton/CravenDB">View On GitHub</a></li>
+        </ul>
+
+
+
+        <p><a href="https://travis-ci.org/robashton/cravendb"><img src="https://travis-ci.org/robashton/cravendb.png?branch=master" alt="Build Status"></a></p>
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/robashton">robashton</a></p>
+
+      </header>
+      <section>
+        <h1 id="details">Details</h1>
+<h3 id="consistency">Consistency</h3>
+<p>For the operations &quot;store/load/delete&quot; and any combination of those using the bulk transaction calls, the effects are atomic immediately visible on a single node. They will always retrieve the latest versions of that information from a single node. We could say that this was ACID but that might annoy some people because in a multi-node set-up it is all eventually consistent.</p>
+<p>On top of that, the secondary indexes used for querying are written as background operations meaning a query might not <em>always</em> return the latest results (for example under high write scenarios). They&#39;re pretty fast though.</p>
+<h3 id="concurrency">Concurrency</h3>
+<p>Each document written to a store has a vector clock associated with it, and this is used to track the history of that document. These are surfaced to the HTTP client as Etags and are available otherwise in the &quot;metadata&quot; associated with a document.</p>
+<p>Submitting a document with an out of date vector clock, or an unknown lineage will cause a conflict. This can happen under the following circumstances</p>
+<ul>
+<li>Document A is written to Server A at exactly the same time as Document A is written to Server A by the client (this is stupidly <em>rare</em> on most systems)</li>
+<li>Document A is written to Server A at the same time as Document A is written to Server B by a client, then replication occurs</li>
+<li>Document A is written to Server A but with an old Etag/Vclock</li>
+<li>etc</li>
+</ul>
+<p>A good description of vector clocks can be found on <a href="http://docs.basho.com/riak/latest/theory/concepts/Vector-Clocks/">Basho&#39;s site</a> and for all intents and purposes the use and behaviour of these clocks is identical except</p>
+<ul>
+<li>The client doesn&#39;t ever need to know about them unless it wants to be clear that it is updating a specific version of the document</li>
+<li>The server generates entity ids on a per-transaction basis (non-random)</li>
+</ul>
+<p>When writing to a server without specifying the Etag, the server will write using the latest version of the vector clock it knows about and thus preserve lineage.</p>
+<h3 id="distribution">Distribution</h3>
+<p>We&#39;re going with a CouchDB-ish model where writes are to a single server, and replication will occur eventually. There are plans to allow occasionally connected clients such as Clojurescript enabled browsers to be a part of this model and thus quorum writes wouldn&#39;t necessarily provide all that much on top of the experience.</p>
+<p>Replication can be any topology of servers pointing to other servers and at present is completely manual. Auto discovery is in the pipeline.</p>
+<h3 id="philosophy">Philosophy</h3>
+<p>We don&#39;t care too much about throughput (although writing slow code should be avoided), what we care about is a good out of the box developer experience and we will be pushing to make the ops experience amazing too. Every question or confused user should be considered a bug.</p>
+<h3 id="release">Release</h3>
+<p>Craven is still under development, and any documentation should be considered entirely transient.  That said - we have tried to make it obvious which APIs are for public consumption and playabouts <em>now</em> by adding docstrings and documentation on this site.</p>
+
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
