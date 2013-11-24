@@ -21,6 +21,11 @@
           "http://localhost:9000" 
           { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true}))) 
 
+#_ (with-full-setup 
+    (fn [instance]
+      (db/put-document instance "1" { :username "bob"} {})
+      (db/put-document instance "2" { :username "alice"} {})
+      (db/query instance {:filter "(= \"username\" \"bob\")" :wait true}))) 
 
 
 #_ (do (flatten (seq { :filter "blah" :foo "cake"})))

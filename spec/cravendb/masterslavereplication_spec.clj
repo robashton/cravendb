@@ -72,9 +72,9 @@
     "Updating an existing replicated document in master"
 
     (before
-      (c/put-document (:url @master) "ace-doc" { :hello "world"})
+      (c/put-document (:url @master) "ace-doc" { :hello "world"} )
       (@wait-for-replication)
-      (c/put-document (:url @master) "ace-doc" { :hello "dave"})
+      (c/put-document (:url @master) "ace-doc" { :hello "dave"} )
       (@wait-for-replication))
 
     (it "will cause the slave to contain the updated document"
@@ -84,9 +84,9 @@
     "Deleting an existing replicated document in master"
 
     (before
-      (c/put-document (:url @master) "ace-doc" { :hello "world"})
+      (c/put-document (:url @master) "ace-doc" { :hello "world"} )
       (@wait-for-replication)
-      (c/delete-document (:url @master) "ace-doc")
+      (c/delete-document (:url @master) "ace-doc" )
       (@wait-for-replication))
 
     (it "will no longer be available for retrieval in slave"

@@ -9,20 +9,20 @@
 (describe "writing a single document"
   (it "will generate no conflicts"
     (with-full-setup (fn [{:keys [storage] :as instance}]
-      (db/put-document instance "1" "hello world")                  
+      (db/put-document instance "1" "hello world" {})                  
        (should= 0 (count (docs/conflicts storage)))))))
 
 (describe "writing two documents in succession with no history specified"
   (it "will generate no conflicts"
   (with-full-setup (fn [{:keys [storage] :as instance}]
-    (db/put-document instance "1" "hello world")                  
-    (db/put-document instance "1" "hello world")                  
+    (db/put-document instance "1" "hello world" {} )                  
+    (db/put-document instance "1" "hello world" {})                  
     (should= 0 (count (docs/conflicts storage)))))))
 
 (describe "writing two documents, with valid history specified"
   (it "will generate no conflicts"
   (with-full-setup (fn [{:keys [storage] :as instance}]
-    (db/put-document instance "1" "hello world")                  
+    (db/put-document instance "1" "hello world" {})                  
     (db/put-document instance "1" "hello world" (docs/load-document-metadata storage "1"))
     (should= 0 (count (docs/conflicts storage)))))))
 
@@ -30,9 +30,9 @@
   (with-all 
     results
     (with-full-setup (fn [{:keys [storage] :as instance}]
-      (db/put-document instance "1" "hello world")
+      (db/put-document instance "1" "hello world" {})
         (let [old-meta (docs/load-document-metadata storage "1")]
-        (db/put-document instance "1" "hello world")   
+        (db/put-document instance "1" "hello world"  {})   
         (db/put-document instance "1" "hello bob" old-meta)   
         {
          :conflicts (docs/conflicts storage)
@@ -52,12 +52,12 @@
 (describe "Clearing the conflicts for a document"
   (with-all result
     (with-full-setup (fn [{:keys [storage] :as instance}]
-      (db/put-document instance "1" "hello world")
-      (db/put-document instance "2" "hello world")
+      (db/put-document instance "1" "hello world" {})
+      (db/put-document instance "2" "hello world" {})
       (let [old-meta-one (docs/load-document-metadata storage "1") 
             old-meta-two (docs/load-document-metadata storage "2")]
-        (db/put-document instance "1" "hello world")   
-        (db/put-document instance "2" "hello world")   
+        (db/put-document instance "1" "hello world" {})   
+        (db/put-document instance "2" "hello world" {})   
         (db/put-document instance "1" "hello bob" old-meta-one)   
         (db/put-document instance "2" "hello bob" old-meta-two)   
         (db/clear-conflicts instance "1")

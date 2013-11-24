@@ -63,7 +63,7 @@
         :handle-ok (fn [ctx] 
                      (standard-response 
                       ctx 
-                       (apply db/query instance (flatten (seq (get-in ctx [:request :params]))))))))
+                      (db/query instance (get-in ctx [:request :params]))))))
 
     ;; ANOTHER UWAGA!!
     (ANY "/conflicts" []

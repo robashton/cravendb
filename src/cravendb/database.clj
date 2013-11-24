@@ -8,8 +8,8 @@
     [this id]
     "Retrieves all the metadata associated with a document")
   (query 
-    [this & kvs]
-    "Queries the database with the options specified in & kvs
+    [this opts]
+    "Queries the database with the options specified in the map 'opts'
     The available options are
     :index \"default\" - The index to use for this query *advanced*
     :wait-duration 5   - How long to wait for the index to become non-stale (if wait is true)
@@ -46,5 +46,5 @@
     "Deletes an index and all associated data")
   (load-index 
     [this id]
-    "Retrieves an index from the databae by id"))
+    "Retrieves an index from the database by id"))
 

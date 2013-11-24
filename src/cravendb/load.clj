@@ -124,8 +124,8 @@
 
 #_ (docs/load-document (:storage instance) "blah-2")
 #_ (docs/load-document (:storage instance) "gp-1")
-#_ (db/put-document instance "blah-1" {:foo "bar"})
-#_ (client/put-document "http://localhost:9002" "blah-2" { :foo "baz"})
+#_ (db/put-document instance "blah-1" {:foo "bar"} {})
+#_ (client/put-document "http://localhost:9002" "blah-2" { :foo "baz"} {})
 #_ (client/get-document "http://localhost:9002" "gp-1")
 
 #_ (time (with-open [in-file (io/reader "input/epraccur.csv")]

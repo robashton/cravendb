@@ -1,13 +1,13 @@
 (ns cravendb.embedded
   (:require [cravendb.storage :as s]
             [cravendb.indexing :as indexing] 
-            [cravendb.query :as query] 
+            [cravendb.query :as q] 
             [cravendb.indexstore :as indexes] 
             [cravendb.indexengine :as ie] 
             [cravendb.documents :as docs]
             [cravendb.inflight :as inflight]
             [cravendb.vclock :as vclock]
-            [cravendb.databaseops :refer [DocumentDatabase]]
+            [cravendb.database :refer [DocumentDatabase]]
             [clojure.tools.logging :refer [info error debug]]))
 
 (def default-query { :index "default"
@@ -27,12 +27,13 @@
     (.close storage))
 
   (load-document-metadata [this id]
-      (debug "getting document metadata id " id)
-      (docs/load-document-metadata storage id))
+    (debug "getting document metadata id " id)
+    (docs/load-document-metadata storage id))
   
-  (query [this & kvs]
-    (debug "Querying for " kvs)
-    (query/execute storage index-engine (merge default-query (apply hash-map kvs))))
+  (query  
+    [this opts]
+    (debug "Querying for " opts)
+    (q/execute storage index-engine (merge default-query opts)))
 
   (clear-conflicts [this id]
     (with-open [tx (s/ensure-transaction storage)] 
@@ -92,8 +93,9 @@
 (defn open-storage [opts]
   (if (:path opts) (s/create-storage (:path opts)) (s/create-in-memory-storage)))
 
-(defn create [opts]
-  (let [storage (open-storage opts)
+(defn create [& kvs]
+  (let [opts (apply hash-map kvs)
+        storage (open-storage opts)
         index-engine (ie/create storage)]
     (ie/start index-engine) 
     (EmbeddedDatabase. 
