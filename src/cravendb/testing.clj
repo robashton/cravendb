@@ -5,7 +5,8 @@
             [cravendb.indexengine :as indexengine]
             [cravendb.storage :as s]
             [cravendb.http :as http]
-            [cravendb.database :as database]))
+            [cravendb.database :as db]
+            [cravendb.embedded :as embedded]))
       
 (defn clear-test-data []
   (fs/delete-dir "testdir"))
@@ -16,15 +17,16 @@
     (testfn db))
   (clear-test-data))
 
-(defn testing-path 
+(defn testing-path
   ([& v]
   (if (get (System/getenv) "IN_MEMORY")
     nil
     (apply str "testdir" v))))
 
+
 (defn with-full-setup [testfn]
   (clear-test-data)
-  (with-open [instance (database/create :path (testing-path))]
+  (with-open [instance (embedded/create :path (testing-path))]
     (testfn instance)))
 
 (defn inside-tx [testfn]
@@ -35,7 +37,7 @@
 
 (defn with-test-server [testfn]
   (clear-test-data)
-  (with-open [instance (database/create :path (testing-path))]
+  (with-open [instance (embedded/create :path (testing-path))]
     (try (let [server (run-server 
                    (http/create-http-server instance) 
                     { :port 9000 :join? false} )]
@@ -49,7 +51,7 @@
   ([] (start-server 8080))
   ([port & opts]
   (fs/delete-dir (str "testdir" port))
-  (let [instance (apply database/create :path (testing-path port) opts)] 
+  (let [instance (apply embedded/create :path (testing-path port) opts)] 
     {
     :port port
     :url (str "http://localhost:" port)
@@ -59,5 +61,5 @@
 
 (defn stop-server [info]
   ((:server info)) 
-  (.close (:instance info))
+  (db/close (:instance info))
   (fs/delete-dir (str "testdir" (:port info))))

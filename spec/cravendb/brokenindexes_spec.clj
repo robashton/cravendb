@@ -14,9 +14,9 @@
 
 (def write-three-documents 
   (fn [instance]
-    (db/put-document instance "doc-1" { :title "hello" :author "rob"})
-    (db/put-document instance "doc-2" { :title "morning" :author "vicky"})
-    (db/put-document instance "doc-3" { :title "goodbye" :author "james"})))
+    (db/put-document instance "doc-1" { :title "hello" :author "rob"} {})
+    (db/put-document instance "doc-2" { :title "morning" :author "vicky"} {})
+    (db/put-document instance "doc-3" { :title "goodbye" :author "james"} {})))
 
 (defn create-invalid-index []  
   {

@@ -73,7 +73,7 @@
           '({:username "bob"}) 
           (client/query 
             "http://localhost:9000" 
-            { :query "(= \"username\" \"bob\")" :index "by_username" :wait true}))))))
+            { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true}))))))
 
 
 (describe "Querying for a deleted document"
@@ -89,10 +89,10 @@
           "1" { :username "bob"})
         (client/query 
           "http://localhost:9000" 
-          { :query "(= \"username\" \"bob\")" :index "by_username" :wait true})    
+          { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true})    
         (client/delete-document "http://localhost:9000" "1" )
         (should= 0 
           (count 
             (client/query 
               "http://localhost:9000" 
-              { :query "(= \"username\" \"bob\")" :index "by_username" :wait true})))))))
+              { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true})))))))

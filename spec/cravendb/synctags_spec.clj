@@ -14,7 +14,7 @@
 
   (it "Will have an synctag greater than zero after committing a single document"
     (with-full-setup (fn [instance]
-      (db/put-document instance "1" "hello")
+      (db/put-document instance "1" "hello" {})
       (should 
         (< 0 (synctag-to-integer (s/last-synctag-in (:storage instance))))))))
 

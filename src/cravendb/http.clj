@@ -6,9 +6,9 @@
             [liberator.core :refer [resource]]
             [liberator.dev :refer [wrap-trace]]
             [cravendb.database :as db]
+            [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
-            [cravendb.core :refer [zero-synctag]]
-            )
+            [cravendb.core :refer [zero-synctag]])
 
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
@@ -43,8 +43,8 @@
         :exists? (fn [ctx] (resource-exists ctx #(db/load-document instance id) #(db/load-document-metadata instance id)))
         :available-media-types accepted-types
         :etag (fn [ctx] (synctag-from-metadata ctx))
-        :put! (fn [ctx] (db/put-document instance id (read-body ctx))) 
-        :delete! (fn [_] (db/delete-document instance id)) 
+        :put! (fn [ctx] (db/put-document instance id (read-body ctx) {}))  ; TODO: MEtadata
+        :delete! (fn [_] (db/delete-document instance id {}))  ; TODO: Metadata
         :handle-ok (fn [_] (standard-response _ (::resource _)))))
 
     (ANY "/index/:id" [id]
@@ -57,7 +57,7 @@
         :delete! (fn [_] (db/delete-index instance id)) 
         :handle-ok (fn [_] (standard-response _ (::resource _)))))
 
-    (ANY "/query/:index/:query" [index query]
+    (ANY "/query/:index/:filter" [index filter]
        (resource
         :available-media-types accepted-types
         :handle-ok (fn [ctx] 
@@ -102,7 +102,7 @@
     (handler/api db-routes)))
 
 (defn -main []
-  (with-open [instance (db/create :path "testdb")]
+  (with-open [instance (embedded/create :path "testdb")]
     (run-server 
       (create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true}) 
