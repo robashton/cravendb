@@ -3,6 +3,7 @@
   (:require [clojure.core.incubator :refer [dissoc-in]]
             [cravendb.memorystorage :as inmemory]
             [cravendb.levelstorage :as level]
+            [cravendb.storageops :as s]
             [cravendb.core :refer [zero-synctag integer-to-synctag synctag-to-integer]]))
 
 (def last-synctag-key "__last-synctag")
@@ -16,7 +17,7 @@
 (defn get-obj [ops id]
   (let [cached (get-in ops [:cache id])]
     (if (= cached :deleted) nil
-      (or cached (.from-db ops id)))))
+      (or cached (s/from-db ops id)))))
 
 (defn last-synctag-in
   [storage]
@@ -34,20 +35,20 @@
   (bootstrap-storage (level/create dir)))
 
 (defn get-iterator [storage]
-  (.open-iterator storage))
+  (s/open-iterator storage))
 
 (defn seek [iter value]
-  (.seek! iter value))
+  (s/seek! iter value))
 
 (defn commit! [tx]
-  (.commit! (store tx last-synctag-key 
+  (s/commit! (store tx last-synctag-key 
               (integer-to-synctag @(:last-synctag tx)))))
 
 (defn as-seq [iter]
-  (.as-seq iter))
+  (s/as-seq iter))
 
 (defn ensure-transaction [storage]
-  (assoc (.ensure-transaction storage)
+  (assoc (s/ensure-transaction storage)
          :last-synctag (:last-synctag storage)))
 
 (defn create-in-memory-storage []
