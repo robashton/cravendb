@@ -60,15 +60,15 @@
 <pre><code class="lang-clojure"><span class="list">(<span class="title">require</span> '<span class="collection">[cravendb.querylanguage <span class="attribute">:refer</span> <span class="attribute">:all</span>]</span>)</span></code></pre>
 <h3 id="our-first-query">Our first query</h3>
 <p><em>Let&#39;s find all the pink ponies</em></p>
-<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span>)</span></code></pre>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="attribute">:filter</span> <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span>)</span></code></pre>
 <p><em>Let&#39;s find all the ponies that were in more than 10 episodes</em></p>
-<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">&gt;?</span> <span class="attribute">:episodes</span><span class="number"> 10</span>)</span>)</span></code></pre>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="attribute">:filter</span> <span class="list">(<span class="title">&gt;?</span> <span class="attribute">:episodes</span><span class="number"> 10</span>)</span>)</span></code></pre>
 <p><em>How about any pony with a catch-phrase with &quot;party&quot; in it</em></p>
-<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party"</span>)</span>)</span></code></pre>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="attribute">:filter</span> <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party"</span>)</span>)</span></code></pre>
 <p>We can combine queries and perform negations with the standard AND/OR/NOTs </p>
 <p><em>Pink ponies who know how to party</em></p>
-<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="list">(<span class="title">AND</span> <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span> <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party"</span>)</span>)</span>)</span></code></pre>
-<h3 id="a-complete-list-of-these-conditions">A complete list of these conditions</h3>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance <span class="attribute">:filter</span> <span class="list">(<span class="title">AND</span> <span class="list">(<span class="title">=?</span> <span class="attribute">:colour</span> <span class="attribute">:pink</span>)</span> <span class="list">(<span class="title">has-word?</span> <span class="attribute">:catchphrases</span> <span class="string">"party"</span>)</span>)</span>)</span></code></pre>
+<h3 id="a-complete-list-of-the-conditions-we-can-filter-on">A complete list of the conditions we can filter on</h3>
 <pre><code class="lang-clojure"><span class="comment">; Is k greater than v?</span>
 <span class="list">(<span class="title">&gt;?</span> <span class="collection">[k v]</span>)</span>
 <span class="comment">; Is k smaller than v?</span>
@@ -93,6 +93,16 @@
 <span class="list">(<span class="title">OR</span> <span class="collection">[&amp; v]</span>)</span>
 <span class="comment">; This condition must not be true</span>
 <span class="list">(<span class="title">NOT</span> <span class="collection">[&amp; v]</span>)</span></code></pre>
+<p>The other options supported by <em>(db/query)</em> along with their default sare</p>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">db/query</span> instance   <span class="attribute">:index</span> <span class="string">"default"</span> <span class="comment">;; The index to use for this query</span>
+                     <span class="attribute">:wait-duration</span><span class="number"> 5</span> <span class="comment">;; How long to wait for the index to become non-stale (if wait is true)</span>
+                     <span class="attribute">:wait</span> <span class="literal">false</span>      <span class="comment">;; Whether to wait for the index to become non-stale</span>
+                     <span class="attribute">:filter</span> <span class="string">"*"</span>      <span class="comment">;; The filter to apply to the query (by default, everything)</span>
+                     <span class="attribute">:sort-order</span> <span class="attribute">:asc</span> <span class="comment">;; The default sort-order (ascending)</span>
+                     <span class="attribute">:sort-by</span> <span class="literal">nil</span>     <span class="comment">;; The field to sort by (default, by best-match)</span>
+                     <span class="attribute">:offset</span><span class="number"> 0</span>        <span class="comment">;; For paging, how many results to skip</span>
+                     <span class="attribute">:amount</span><span class="number"> 1000</span>     <span class="comment">;; For paging, how many results to request</span>
+)</span></code></pre>
 <h2 id="feedback">Feedback</h2>
 <ul>
 <li>Suggestions for things to add, please do!</li>

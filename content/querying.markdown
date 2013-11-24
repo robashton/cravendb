@@ -28,27 +28,27 @@ There is a namespace to help build queries, bringing this in is usually a good i
 
 *Let's find all the pink ponies*
 ```clojure
-(db/query instance (=? :colour :pink))
+(db/query instance :filter (=? :colour :pink))
 ```
 
 *Let's find all the ponies that were in more than 10 episodes*
 ```clojure
-(db/query instance (>? :episodes 10))
+(db/query instance :filter (>? :episodes 10))
 ```
 
 *How about any pony with a catch-phrase with "party" in it*
 ```clojure
-(db/query instance (has-word? :catchphrases "party"))
+(db/query instance :filter (has-word? :catchphrases "party"))
 ```
 
 We can combine queries and perform negations with the standard AND/OR/NOTs 
 
 *Pink ponies who know how to party*
 ```clojure
-(db/query instance (AND (=? :colour :pink) (has-word? :catchphrases "party")))
+(db/query instance :filter (AND (=? :colour :pink) (has-word? :catchphrases "party")))
 ```
 
-### A complete list of these conditions
+### A complete list of the conditions we can filter on
 
 ```clojure
 ; Is k greater than v?
@@ -75,6 +75,20 @@ We can combine queries and perform negations with the standard AND/OR/NOTs
 (OR [& v])
 ; This condition must not be true
 (NOT [& v])
+```
+
+The other options supported by *(db/query)* along with their default sare
+
+```clojure
+(db/query instance   :index "default" ;; The index to use for this query
+                     :wait-duration 5 ;; How long to wait for the index to become non-stale (if wait is true)
+                     :wait false      ;; Whether to wait for the index to become non-stale
+                     :filter "*"      ;; The filter to apply to the query (by default, everything)
+                     :sort-order :asc ;; The default sort-order (ascending)
+                     :sort-by nil     ;; The field to sort by (default, by best-match)
+                     :offset 0        ;; For paging, how many results to skip
+                     :amount 1000     ;; For paging, how many results to request
+)
 ```
 
 ## Feedback
