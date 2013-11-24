@@ -6,7 +6,8 @@
             [cravendb.storage :as s]
             [cravendb.http :as http]
             [cravendb.database :as db]
-            [cravendb.embedded :as embedded]))
+            [cravendb.embedded :as embedded]
+            [speclj.core :as spec]))
       
 (defn clear-test-data []
   (fs/delete-dir "testdir"))
@@ -22,7 +23,6 @@
   (if (get (System/getenv) "IN_MEMORY")
     nil
     (apply str "testdir" v))))
-
 
 (defn with-full-setup [testfn]
   (clear-test-data)
