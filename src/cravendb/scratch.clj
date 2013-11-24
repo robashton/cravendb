@@ -23,3 +23,4 @@
 
 
 
+#_ (do (flatten (seq { :filter "blah" :foo "cake"})))
