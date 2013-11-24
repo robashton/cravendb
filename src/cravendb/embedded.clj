@@ -1,4 +1,4 @@
-(ns cravendb.embeddeddatabase
+(ns cravendb.embedded
   (:require [cravendb.storage :as s]
             [cravendb.indexing :as indexing] 
             [cravendb.query :as query] 
