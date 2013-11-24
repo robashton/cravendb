@@ -20,7 +20,7 @@
   (str 
     url "/query/"
     (opts :index) "/"
-    (url-encode (opts :query))
+    (url-encode (opts :filter))
     (if (opts :wait) "?wait=true")))
 
 (defn to-db [data]

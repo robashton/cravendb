@@ -46,5 +46,5 @@
       (add-by-whatever-index instance) 
       (should-not-throw 
         (database/query instance
-          { :query "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"}))))))
+           :filter "*" :sort-order :desc :sort-by "whatever" :index "by_whatever"))))))
  

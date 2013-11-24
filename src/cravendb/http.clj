@@ -57,13 +57,13 @@
         :delete! (fn [_] (db/delete-index instance id)) 
         :handle-ok (fn [_] (standard-response _ (::resource _)))))
 
-    (ANY "/query/:index/:query" [index query]
+    (ANY "/query/:index/:filter" [index filter]
        (resource
         :available-media-types accepted-types
         :handle-ok (fn [ctx] 
                      (standard-response 
                       ctx 
-                      (db/query instance (get-in ctx [:request :params]))))))
+                       (apply db/query instance (flatten (seq (get-in ctx [:request :params]))))))))
 
     ;; ANOTHER UWAGA!!
     (ANY "/conflicts" []

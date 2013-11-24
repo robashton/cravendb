@@ -48,7 +48,7 @@
          (add-by-name-index instance)
          (should= "zebra"
           (first (map :name 
-            (database/query instance { :query (=? "name" "zebra") 
-                    :index "by_name" :wait true}))))))))
+                      (database/query instance  :filter (=? "name" "zebra") 
+                                      :index "by_name" :wait true))))))))
 
 
