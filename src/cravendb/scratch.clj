@@ -29,3 +29,12 @@
 
 
 #_ (do (flatten (seq { :filter "blah" :foo "cake"})))
+
+(defmacro foo [text & body]
+  `(do 
+    (println ~text)
+     ~@body))
+
+#_ (foo "sheeit" 
+     (println "this")
+     (println "that"))

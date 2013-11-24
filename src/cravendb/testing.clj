@@ -7,8 +7,10 @@
             [cravendb.http :as http]
             [cravendb.database :as db]
             [cravendb.embedded :as embedded]
+            [cravendb.remote :as remote]
             [speclj.core :as spec]))
       
+
 (defn clear-test-data []
   (fs/delete-dir "testdir"))
 
@@ -58,6 +60,26 @@
     :instance instance
     :server (run-server (http/create-http-server instance)
                         {:port port :join? false}) })))
+
+(defmacro with-remote [& body]
+  `(with-test-server 
+     (fn [] ~@body)))
+
+(defmacro multi [description & body]
+  `(spec/describe "wtf"
+    (spec/describe "embedded in-memory"
+      (spec/it ~description
+        (with-open [~'instance (embedded/create)] ~@body)))
+   (spec/describe "embedded on-disk"
+    (spec/it ~description
+    (with-open [~'instance (embedded/create :path "testdir")] ~@body))
+    (fs/delete-dir "testdir"))                
+    (spec/describe "remote"
+      (spec/it ~description
+        (with-remote
+          (with-open [~'instance (remote/create :href "http://localhost:9000")] ~@body))))))
+
+(macroexpand (multi "omg" (println "fuck"))) 
 
 (defn stop-server [info]
   ((:server info)) 
