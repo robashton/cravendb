@@ -52,15 +52,25 @@
 (def default-query { :index "default"
                      :wait-duration 5
                      :wait false
-                     :query "*"
+                     :filter "*"
                      :sort-order :asc
                      :sort-by nil
                      :offset 0
                      :amount 1000 })
 (defn query
-  [{:keys [storage index-engine]} params]
-  (debug "Querying for " params)
-  (query/execute storage index-engine (merge default-query params)))
+  "Queries the database with the options specified in & kvs
+  The available options are
+  :index \"default\" - The index to use for this query *advanced*
+  :wait-duration 5   - How long to wait for the index to become non-stale (if wait is true)
+  :wait false        - Whether to wait for the index to become non-stale
+  :filter \"*\"      - The filter to apply to the query (by default, everything)
+  :sort-order :asc   - The default sort-order (ascending)
+  :sort-by nil       - The field to sort by (default, by best-match)
+  :offset 0          - For paging, how many results to skip
+  :amount 1000       - For paging, how many results to request"
+  [{:keys [storage index-engine]} & kvs]
+  (debug "Querying for " kvs)
+  (query/execute storage index-engine (merge default-query (apply hash-map kvs))))
 
 (defn clear-conflicts [{:keys [storage]} id]
   (with-open [tx (s/ensure-transaction storage)] 

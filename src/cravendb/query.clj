@@ -16,7 +16,7 @@
   (fn [offset amount]
     (->> 
       (lucene/query reader 
-                    (:query opts) 
+                    (:filter opts) 
                     (+ offset amount) 
                     (:sort-by opts) 
                     (:sort-order opts)) 
