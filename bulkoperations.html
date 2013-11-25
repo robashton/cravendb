@@ -74,6 +74,15 @@
 <span class="list">(<span class="title">-&gt;</span> <span class="list">(<span class="title">t/open</span> instance)</span>
     <span class="list">(<span class="title">t/delete</span> <span class="string">"doc-1"</span>)</span>
     <span class="list">(<span class="title">t/load</span> <span class="string">"doc-1"</span>)</span>)</span></code></pre>
+<h3 id="more-than-one-change">More than one change</h3>
+<p>Obviously we can now do more than one change at a time, and this operation is atomic too.</p>
+<pre><code class="lang-clojure"><span class="comment">; This will return the document because it is part of the current transaction</span>
+<span class="list">(<span class="title">-&gt;</span> <span class="list">(<span class="title">t/open</span> instance)</span>
+    <span class="list">(<span class="title">t/store</span> <span class="string">"doc-1"</span> <span class="collection">{ <span class="attribute">:message</span> <span class="string">"hello world"</span> }</span>)</span>
+    <span class="list">(<span class="title">t/store</span> <span class="string">"doc-2"</span> <span class="collection">{ <span class="attribute">:message</span> <span class="string">"hello alice"</span> }</span>)</span>
+    <span class="list">(<span class="title">t/store</span> <span class="string">"doc-3"</span> <span class="collection">{ <span class="attribute">:message</span> <span class="string">"hello bob"</span> }</span>)</span>
+    <span class="list">(<span class="title">t/delete</span> <span class="string">"doc-4"</span>)</span>
+    <span class="list">(<span class="title">t/commit!</span>)</span></span></code></pre>
 <h3 id="playing-with-this">Playing with this</h3>
 <p>The best bet is to load up the REPL and get a feel for how the transaction and database work together. Using the in-memory persistence is best for this.</p>
 <p>Once comfortable with these basic crud operations, we might want to go and look at <a href="querying.html">querying</a></p>

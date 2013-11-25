@@ -57,6 +57,21 @@ In the same way above, a transaction will return 'nil' for documents that are ma
     (t/load "doc-1"))
 ```
 
+
+### More than one change
+
+Obviously we can now do more than one change at a time, and this operation is atomic too.
+
+```clojure
+; This will return the document because it is part of the current transaction
+(-> (t/open instance)
+    (t/store "doc-1" { :message "hello world" })
+    (t/store "doc-2" { :message "hello alice" })
+    (t/store "doc-3" { :message "hello bob" })
+    (t/delete "doc-4")
+    (t/commit!)
+```
+
 ### Playing with this
 
 The best bet is to load up the REPL and get a feel for how the transaction and database work together. Using the in-memory persistence is best for this.
