@@ -8,23 +8,6 @@
            [cravendb.remote :as remote]
            [cravendb.testing :refer :all]))
 
-(defmacro with-remote [& body]
-  `(with-test-server 
-     (fn [] ~@body)))
-
-(defmacro multi [description & body]
-  `(describe "with the various storage mediums"
-    (describe "embedded in-memory"
-      (it ~description
-        (with-open [~'instance (embedded/create)] ~@body)))
-   (describe "embedded on-disk"
-    (it ~description
-      (with-open [~'instance (embedded/create :path "testdir")] ~@body)
-      (fs/delete-dir "testdir")))                
-    (describe "remote"
-      (it ~description
-        (with-remote
-          (with-open [~'instance (remote/create :href "http://localhost:9000")] ~@body))))))
 
 (describe "Basic public API usage"
   (describe "Non existent documnts"
@@ -93,6 +76,10 @@
         (empty? (db/query instance { :filter "(= \"username\" \"bob\")" 
                                      :index "by_username" 
                                      :wait true}))))) 
+
+
+
+
 
 
           )

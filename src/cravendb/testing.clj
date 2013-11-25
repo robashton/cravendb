@@ -62,6 +62,25 @@
                         {:port port :join? false}) })))
 
 
+(defmacro with-remote [& body]
+  `(with-test-server 
+     (fn [] ~@body)))
+
+(defmacro multi [description & body]
+  `(spec/describe "with the various storage mediums"
+    (spec/describe "embedded in-memory"
+      (spec/it ~description
+        (with-open [~'instance (embedded/create)] ~@body)))
+   (spec/describe "embedded on-disk"
+    (spec/it ~description
+      (fs/delete-dir "testdir") 
+      (with-open [~'instance (embedded/create :path "testdir")] ~@body)
+      (fs/delete-dir "testdir")))                
+    (spec/describe "remote"
+      (spec/it ~description
+        (with-remote
+          (with-open [~'instance (remote/create :href "http://localhost:9000")] ~@body))))))
+
 (defn stop-server [info]
   ((:server info)) 
   (db/close (:instance info))
