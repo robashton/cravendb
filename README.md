@@ -15,6 +15,29 @@
  - http server for remote cluster use
  - embedded database for local development
 
+# Project page
+
+[http://robashton.github.io/cravendb/](http://robashton.github.io/cravendb/)
+
+# Repos
+
+### leiningen
+
+    [cravendb "0.1.0-SNAPSHOT"]
+
+### gradle
+
+compile "cravendb:cravendb:0.1.0-SNAPSHOT"
+
+
+### maven
+
+    <dependency>
+      <groupId>cravendb</groupId>
+      <artifactId>cravendb</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+    </dependency>
+
 # Instructions
 
 - Use the repl to explore

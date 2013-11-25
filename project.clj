@@ -1,4 +1,4 @@
-(defproject cravendb "0.1.0"
+(defproject cravendb "0.1.0-SNAPSHOT"
   :description "A clojure-oriented document-oriented database"
   :url "http://robashton.github.io/cravendb"
   :min-lein-version "2.2.0"
