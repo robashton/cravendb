@@ -66,6 +66,10 @@
   `(with-test-server 
      (fn [] ~@body)))
 
+(defmacro with-remote-instance [& body]
+  `(with-remote
+     (let [~'instance (remote/create :href "http://localhost:9000")] ~@body)))
+
 (defmacro multi [description & body]
   `(spec/describe "with the various storage mediums"
     (spec/describe "embedded in-memory"

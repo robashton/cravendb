@@ -28,7 +28,7 @@
               "text/html" (str "<p>" (pr-str data) "</p>"))})) 
 
 (defn read-metadata [ctx]
-  { :history  (get-in ctx [:headers "x-history"]) })
+  { :history  (get-in ctx [:request :headers "x-history"]) })
 
 (defn resource-exists [ctx rfn mfn]
   (if-let [resource (rfn)]
