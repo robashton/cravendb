@@ -2,22 +2,18 @@
 
 # CravenDB
 
-- A document database written in Clojure for learning purposes
-- It is based loosely on RavenDB's design
-- A rough to-do can be found in the file "todo.markdown"
+- A document database written in Clojure *for* Clojure
+- It was originally based on RavenDB's design
+- A rough to-do can be found in the file [todo.markdown](http://robashton.github.io/cravendb/)
 - So far we have
  - dynamic full-text queries against stored documents
  - custom indexes for advanced queries against stored documents
  - multi-document operations (transactional writes)
  - multi-master replication using vclocks for lineage checks
  - conflict-based concurrency control (when *strictly* necessary)
- - in-memory mode for fast testing
- - http server for remote cluster use
  - embedded database for local development
-
-# Project page
-
-[http://robashton.github.io/cravendb/](http://robashton.github.io/cravendb/)
+ - in-memory mode for fast testing
+ - http server(s) for production
 
 # Repos
 
