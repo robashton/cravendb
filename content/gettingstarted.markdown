@@ -10,7 +10,21 @@ This little getting started guide will focus on the first one, so we can get to 
 
 ### Getting it into your project
 
-I'll have it in a maven thingy, honest
+### leiningen
+
+    [cravendb "0.1.0-SNAPSHOT"]
+
+### gradle
+
+    compile "cravendb:cravendb:0.1.0-SNAPSHOT"
+
+### maven
+
+    <dependency>
+      <groupId>cravendb</groupId>
+      <artifactId>cravendb</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+    </dependency>
 
 ### "Connecting" to a database
 

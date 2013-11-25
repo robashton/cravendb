@@ -53,7 +53,16 @@
 </ul>
 <p>This little getting started guide will focus on the first one, so we can get to grips with &quot;how Craven works&quot;, the client API for the above scenarios are the same apart from the set-up.</p>
 <h3 id="getting-it-into-your-project">Getting it into your project</h3>
-<p>I&#39;ll have it in a maven thingy, honest</p>
+<h3 id="leiningen">leiningen</h3>
+<pre><code>[cravendb <span class="string">"0.1.0-SNAPSHOT"</span>]</code></pre>
+<h3 id="gradle">gradle</h3>
+<pre><code><span class="tag">compile</span> "<span class="tag">cravendb</span><span class="pseudo">:cravendb</span><span class="pseudo">:0</span><span class="class">.1</span><span class="class">.0-SNAPSHOT</span>"</code></pre>
+<h3 id="maven">maven</h3>
+<pre><code><span class="tag">&lt;<span class="title">dependency</span>&gt;</span>
+  <span class="tag">&lt;<span class="title">groupId</span>&gt;</span>cravendb<span class="tag">&lt;/<span class="title">groupId</span>&gt;</span>
+  <span class="tag">&lt;<span class="title">artifactId</span>&gt;</span>cravendb<span class="tag">&lt;/<span class="title">artifactId</span>&gt;</span>
+  <span class="tag">&lt;<span class="title">version</span>&gt;</span>0.1.0-SNAPSHOT<span class="tag">&lt;/<span class="title">version</span>&gt;</span>
+<span class="tag">&lt;/<span class="title">dependency</span>&gt;</span></code></pre>
 <h3 id="-connecting-to-a-database">&quot;Connecting&quot; to a database</h3>
 <p>No matter how we use Craven, we need to create a handle to the database. This is designed to be created once on application start-up and then used for the lifetime of the application.</p>
 <p>To create an in-memory database, we can use the code</p>
