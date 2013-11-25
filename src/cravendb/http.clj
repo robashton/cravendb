@@ -40,6 +40,10 @@
 (defn etag-from-metadata [ctx]
   (get-in ctx [::metadata :history]))
 
+(defn query-string [params m]
+  (into {} (filter #(not (nil? (second %1))) 
+                   (for [[k f] m] [k (if-let [v (params k)] (f v) nil)]))))
+
 (defn create-db-routes [instance]
   (routes
     (ANY "/document/:id" [id] 
@@ -68,7 +72,15 @@
         :handle-ok (fn [ctx] 
                      (standard-response 
                       ctx 
-                      (db/query instance (get-in ctx [:request :params])) {}))))
+                      (db/query instance 
+                                (merge { :filter filter :index index} 
+                                       (query-string (get-in ctx [:request :params]) {
+                                               :wait-duration #(Integer/parseInt %1)
+                                               :wait boolean
+                                               :sort-order symbol
+                                               :sort-by str
+                                               :offset #(Integer/parseInt %1)
+                                               :amount #(Integer/parseInt %1) }))) {}))))
 
     (ANY "/conflict/:id" [id]
       (resource

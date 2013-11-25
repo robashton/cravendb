@@ -19,12 +19,15 @@
 (defn url-for-stream [url synctag]
   (str url "/stream?synctag=" (or synctag "")))
 
+(defn query-string [m]
+  (apply str (interleave (for [[k v] m] (str (url-encode (name k)) "=" (url-encode (pr-str v)))) (repeat "&"))))
+
 (defn url-for-query [url opts]
-  (str 
+ (str 
     url "/query/"
     (opts :index) "/"
     (url-encode (opts :filter))
-    (if (opts :wait) "?wait=true")))
+    "?" (query-string (dissoc opts :index :filter))))
 
 (defn to-db [data]
   (pr-str data))

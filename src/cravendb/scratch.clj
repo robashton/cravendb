@@ -12,7 +12,6 @@
       (db/put-document instance "1" { :username "craig"} metadata))
       #spy/p (db/conflicts instance)
      (db/clear-conflicts instance "1")
-      #spy/p (db/conflicts instance)
-     )
+      #spy/p (db/conflicts instance))
 
 
