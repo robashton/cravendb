@@ -115,8 +115,9 @@
                 :headers default-headers))))
 
   (load-index-metadata [this id]
-    
-    )
+    (with-open [client (http/create-client)]
+      (read-metadata 
+        (http/HEAD client (url-for-index-id url id) :headers default-headers))))
 
   (delete-index [this id]
     (with-open [client (http/create-client)]
