@@ -68,7 +68,7 @@
   (load-document-metadata [this id]
     (with-open [client (http/create-client)]
       (read-metadata 
-        (http/GET client (url-for-doc-id url id) :headers default-headers))))
+        (http/HEAD client (url-for-doc-id url id) :headers default-headers))))
 
   (query [this opts]
     (with-open [client (http/create-client)]

@@ -44,7 +44,7 @@
   (routes
     (ANY "/document/:id" [id] 
       (resource
-        :allowed-methods [:put :get :delete]
+        :allowed-methods [:put :get :delete :head]
         :exists? (fn [ctx] (resource-exists ctx #(db/load-document instance id) #(db/load-document-metadata instance id)))
         :available-media-types accepted-types
         :etag (fn [ctx] (etag-from-metadata ctx))
@@ -54,7 +54,7 @@
 
     (ANY "/index/:id" [id]
       (resource
-        :allowed-methods [:put :get :delete]
+        :allowed-methods [:put :get :delete :head]
         :exists? (fn [ctx] (resource-exists ctx #(db/load-index instance id) #(db/load-index-metadata instance id)))
         :available-media-types accepted-types
         :etag (fn [ctx] (etag-from-metadata ctx))
