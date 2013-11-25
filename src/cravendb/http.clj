@@ -70,12 +70,22 @@
                       ctx 
                       (db/query instance (get-in ctx [:request :params])) {}))))
 
+    (ANY "/conflict/:id" [id]
+      (resource
+        :allowed-methods [:get :delete]
+        :available-media-types accepted-types
+        :delete! (fn [_] (db/clear-conflicts instance id))
+        :handle-ok (fn [ctx] 
+                     ; Naughty, not right at all
+                     (standard-response ctx (db/conflicts instance) {}))))
+
     ;; ANOTHER UWAGA!!
     (ANY "/conflicts" []
        (resource
         :available-media-types accepted-types
         :handle-ok (fn [ctx] 
                      (standard-response ctx (db/conflicts instance) {}))))
+
 
     (ANY "/bulk" []
       (resource

@@ -14,6 +14,8 @@
   (str url "/bulk"))
 (defn url-for-conflicts [url]
   (str url "/conflicts"))
+(defn url-for-conflict-id [url id]
+  (str url "/conflict/" id))
 (defn url-for-stream [url synctag]
   (str url "/stream?synctag=" (or synctag "")))
 
@@ -75,7 +77,10 @@
         (process-response
           (http/GET client (url-for-query url opts) :headers default-headers)))))
 
-  (clear-conflicts [this id])
+  (clear-conflicts [this id]
+    (with-open [client (http/create-client)]
+      (process-response 
+        (http/DELETE client (url-for-conflict-id url id) :headers default-headers))))
 
   (conflicts [this]
     (with-open [client (http/create-client)]
