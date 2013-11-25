@@ -3,8 +3,9 @@
             [clojure.edn :as edn]
             [compojure.route :as route]
             [compojure.handler :as handler]
-            [liberator.core :refer [resource]]
+            [liberator.core :refer [resource ]]
             [liberator.dev :refer [wrap-trace]]
+            [liberator.representation :refer [ring-response]]
             [cravendb.database :as db]
             [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
@@ -17,11 +18,17 @@
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
 
-(defn standard-response [ctx data]
-  (case (get-in ctx [:representation :media-type])
-    "text/plain" (pr-str data)
-    "application/edn" (pr-str data)
-    "text/html" (str "<p>" (pr-str data) "</p>"))) 
+(defn standard-response [ctx data metadata]
+  (ring-response 
+    {
+     :headers { "cravendb-metadata" (pr-str metadata)}
+     :body (case (get-in ctx [:representation :media-type])
+              "text/plain" (pr-str data)
+              "application/edn" (pr-str data)
+              "text/html" (str "<p>" (pr-str data) "</p>"))})) 
+
+(defn read-metadata [ctx]
+  (edn/read-string (or (get-in ctx [:request :headers "cravendb-metadata"]) "{}")) )
 
 (defn resource-exists [ctx rfn mfn]
   (if-let [resource (rfn)]
@@ -30,10 +37,8 @@
      ::metadata (mfn)}
     false))
 
-(defn synctag-from-metadata [ctx]
-  (get-in ctx [::metadata :synctag]))
-
-(defn craven-resource [])
+(defn etag-from-metadata [ctx]
+  (get-in ctx [::metadata :history]))
 
 (defn create-db-routes [instance]
   (routes
@@ -42,20 +47,20 @@
         :allowed-methods [:put :get :delete]
         :exists? (fn [ctx] (resource-exists ctx #(db/load-document instance id) #(db/load-document-metadata instance id)))
         :available-media-types accepted-types
-        :etag (fn [ctx] (synctag-from-metadata ctx))
-        :put! (fn [ctx] (db/put-document instance id (read-body ctx) {}))  ; TODO: MEtadata
-        :delete! (fn [_] (db/delete-document instance id {}))  ; TODO: Metadata
-        :handle-ok (fn [_] (standard-response _ (::resource _)))))
+        :etag (fn [ctx] (etag-from-metadata ctx))
+        :put! (fn [ctx] (db/put-document instance id (read-body ctx) (read-metadata ctx)))
+        :delete! (fn [_] (db/delete-document instance id (read-metadata _)))
+        :handle-ok (fn [_] (standard-response _ (::resource _) (::metadata _)))))
 
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete]
         :exists? (fn [ctx] (resource-exists ctx #(db/load-index instance id) #(db/load-index-metadata instance id)))
         :available-media-types accepted-types
-        :etag (fn [ctx] (synctag-from-metadata ctx))
+        :etag (fn [ctx] (etag-from-metadata ctx))
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
-        :handle-ok (fn [_] (standard-response _ (::resource _)))))
+        :handle-ok (fn [_] (standard-response _ (::resource _) (::metadata _) ) )))
 
     (ANY "/query/:index/:filter" [index filter]
        (resource
@@ -63,14 +68,21 @@
         :handle-ok (fn [ctx] 
                      (standard-response 
                       ctx 
-                      (db/query instance (get-in ctx [:request :params]))))))
+                      (db/query instance (get-in ctx [:request :params])) {}))))
+
+    (ANY "/conflict/:id" [id]
+      (resource
+        :allowed-methods [:delete]
+        :available-media-types accepted-types
+        :delete! (fn [_] (db/clear-conflicts instance id))))
 
     ;; ANOTHER UWAGA!!
     (ANY "/conflicts" []
        (resource
         :available-media-types accepted-types
         :handle-ok (fn [ctx] 
-                     (standard-response ctx (db/conflicts instance)))))
+                     (standard-response ctx (db/conflicts instance) {}))))
+
 
     (ANY "/bulk" []
       (resource
@@ -94,7 +106,8 @@
             ctx
             (stream/from-synctag 
               instance
-              (or (get-in ctx [:request :params :synctag]) (zero-synctag))))))))) 
+              (or (get-in ctx [:request :params :synctag]) (zero-synctag))) 
+            {})))))) 
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")

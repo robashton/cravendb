@@ -1,8 +1,7 @@
 (ns cravendb.brokenindexes-spec
   (:use [speclj.core]
         [cravendb.testing]
-        [cravendb.core]
-        )
+        [cravendb.core])
   (:require [cravendb.indexing :as indexing]
             [cravendb.documents :as docs]
             [cravendb.database :as db]
