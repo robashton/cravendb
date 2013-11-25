@@ -40,19 +40,34 @@
     nil
     (from-db (http/string input))))
 
+(defn interpret-headers [input]
+  (let [headers (http/headers input)] 
+    {
+     :history (headers "x-history")}))
+
 (defn process-response [response]
   (-> response
       http/await
       from-http))
 
+(defn process-headers [response]
+  (-> response
+      http/await
+      interpret-headers))
+
 (def default-headers { :accept "application/edn" })
+
+(defn extract-headers [metadata]
+  {
+   "x-history" (:history metadata) })
 
 (defrecord RemoteDatabase [url]
   DocumentDatabase
   (close [this])
   (load-document-metadata [this id]
-    
-    )
+    (with-open [client (http/create-client)]
+      (process-headers 
+        (http/GET client (url-for-doc-id url id) :headers default-headers))))
 
   (query [this opts]
     (with-open [client (http/create-client)]
@@ -71,12 +86,12 @@
   (put-document [this id document metadata]
     (with-open [client (http/create-client)]
     (process-response 
-      (http/PUT client (url-for-doc-id url id) :body (to-db document) :headers default-headers))))
+      (http/PUT client (url-for-doc-id url id) :body (to-db document) :headers (merge default-headers (extract-headers metadata))))))
 
   (delete-document [this id metadata]
     (with-open [client (http/create-client)]
       (process-response 
-        (http/DELETE client (url-for-doc-id url id) :headers default-headers))))
+        (http/DELETE client (url-for-doc-id url id) :headers (merge default-headers (extract-headers metadata))))))
 
   (load-document [this id]
     (with-open [client (http/create-client)]
@@ -94,7 +109,9 @@
       (http/PUT client (url-for-index-id url (:id index)) :body (to-db index) 
                 :headers default-headers))))
 
-  (load-index-metadata [this id])
+  (load-index-metadata [this id]
+    
+    )
 
   (delete-index [this id]
     (with-open [client (http/create-client)]
