@@ -23,8 +23,7 @@
 
 ### gradle
 
-compile "cravendb:cravendb:0.1.0-SNAPSHOT"
-
+    compile "cravendb:cravendb:0.1.0-SNAPSHOT"
 
 ### maven
 
