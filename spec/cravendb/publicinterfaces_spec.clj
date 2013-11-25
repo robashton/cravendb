@@ -2,99 +2,108 @@
   (require [cravendb.client :as client]
            [serializable.fn :as s]
            [speclj.core :refer :all]
+           [cravendb.database :as db]
+           [me.raynes.fs :as fs]
+           [cravendb.embedded :as embedded]
+           [cravendb.remote :as remote]
            [cravendb.testing :refer :all]))
 
-(describe "Basic client operations"
+(defmacro with-remote [& body]
+  `(with-test-server 
+     (fn [] ~@body)))
+
+(defmacro multi [description & body]
+  `(describe "with the various storage mediums"
+    (describe "embedded in-memory"
+      (it ~description
+        (with-open [~'instance (embedded/create)] ~@body)))
+   (describe "embedded on-disk"
+    (it ~description
+      (with-open [~'instance (embedded/create :path "testdir")] ~@body)
+      (fs/delete-dir "testdir")))                
+    (describe "remote"
+      (it ~description
+        (with-remote
+          (with-open [~'instance (remote/create :href "http://localhost:9000")] ~@body))))))
+
+(describe "Basic public API usage"
   (describe "Non existent documnts"
     (multi "will return nil"
-     (with-test-server (fn [] 
-      (-> 
-        (client/get-document "http://localhost:9000" "1337")
-        (should-be-nil))))))
+      (should-be-nil (db/load-document instance "1337"))))
 
-  (it "should be able to PUT and GET a document"
-    (with-test-server (fn [] 
-      (client/put-document "http://localhost:9000" "1" { :greeting "hello world"})
-      (->> (client/get-document "http://localhost:9000" "1")
-          (should== {:greeting "hello world"})))))
+  (describe "Round tripping the document"
+    (multi "will be able to retrieve the document"
+      (db/put-document instance "1" { :greeting "hello world"} {})
+      (should== 
+        {:greeting "hello world"} 
+        (db/load-document instance "1"))))
 
-  (it "be able to DELETE a document"
-    (with-test-server (fn [] 
-      (client/put-document "http://localhost:9000" "1" "hello world")
-      (client/delete-document "http://localhost:9000" "1")
-      (-> 
-        (client/get-document "http://localhost:9000" "1")
-        (should-be-nil))))))
+  (describe "Deleting a document"
+    (multi "will return nil for a deleted document"
+      (db/put-document instance "1" "hello world" {})
+      (db/delete-document instance "1" {})
+      (should-be-nil (db/load-document instance "1"))))
+          
+  (describe "round-tripping a clojure map"
+    (multi "will return the exact map"                                
+      (db/put-document instance "1" { :id 1 :text "hello world" } {})
+      (should== { :id 1 :text "hello world"}
+        (db/load-document instance "1"))))
 
-(describe "passing clojure structures as documents"
-  (it "should be able to put a map and retrieve it"
-    (with-test-server (fn []
-      (client/put-document "http://localhost:9000" "1" { :id 1 :text "hello world" })
-      (-> (client/get-document "http://localhost:9000" "1")
-          (should== { :id 1 :text "hello world"})))))
+  (describe "round-tripping a sequence"
+    (multi "will return the exact sequence"                                
+      (db/put-document instance "1" '(1 2 3 4) {})
+      (should== '(1 2 3 4)
+         (db/load-document instance "1"))))
 
-  (it "should be able to put a sequence and retrieve it"
-    (with-test-server (fn []
-      (client/put-document "http://localhost:9000" "1" '(1 2 3 4))
-      (-> (client/get-document "http://localhost:9000" "1")
-          (should== '(1 2 3 4))))))
+  (describe "round-tripping a vector"
+    (multi "will return the exact vector"                                
+      (db/put-document instance "1" [1 2 3 4] {})
+      (should== [1 2 3 4]
+        (db/load-document instance "1"))))
+       
+ (describe "round-tripping an index"
+  (multi "will be retrievable by id"
+    (db/put-index instance
+      { :id "by_username"
+        :map "(fn [doc] {\"username\" (:username doc)})" })
+    (should= "(fn [doc] {\"username\" (:username doc)})"
+      (:map (db/load-index instance "by_username")))))       
 
-  (it "should be able to put a vector and retrieve it"
-    (with-test-server (fn []
-      (client/put-document "http://localhost:9000" "1" [1 2 3 4])
-      (-> (client/get-document "http://localhost:9000" "1")
-          (should== [1 2 3 4]))))))
+  (describe "querying a custom index", 
+    (multi "will return documents matching the query"
+      (db/put-index instance
+        { :id  "by_username" 
+          :map "(fn [doc] {\"username\" (:username doc)})"})
+      (db/put-document instance "1" { :username "bob"} {}) 
+      (db/put-document instance "2" { :username "alice"} {})
+      (should== '({:username "bob"}) 
+        (db/query instance
+          { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true})))) 
 
-(describe "Creating an index on the server", 
-  (it "will be retrievable once on the server"
-    (with-test-server 
-      (fn []
-        (client/put-index 
-          "http://localhost:9000" 
-          "by_username" 
-          "(fn [doc] {\"username\" (:username doc)})")
-        (should=
-          "(fn [doc] {\"username\" (:username doc)})"
-          (:map (client/get-index "http://localhost:9000" "by_username")))))))
-
-(describe "Querying an index on the server", 
-  (it "will return documents matching the query"
-    (with-test-server 
-      (fn []
-        (client/put-index 
-          "http://localhost:9000" 
-          "by_username" 
-          "(fn [doc] {\"username\" (:username doc)})")
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "bob"})
-        (client/put-document 
-          "http://localhost:9000" 
-          "2" { :username "alice"})
-        (should== 
-          '({:username "bob"}) 
-          (client/query 
-            "http://localhost:9000" 
-            { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true}))))))
+  (describe "querying for a deleted document"
+    (multi "will return no results"
+      (db/put-index instance
+       { :id "by_username" 
+         :map "(fn [doc] {\"username\" (:username doc)})"})
+      (db/put-document instance "1" { :username "bob"} {})
+      (db/query instance { :index "by_username" :wait true })    
+      (db/delete-document instance "1" {})
+      (should
+        (empty? (db/query instance { :filter "(= \"username\" \"bob\")" 
+                                     :index "by_username" 
+                                     :wait true}))))) 
 
 
-(describe "Querying for a deleted document"
-  (it "will return no results"
-     (with-test-server 
-      (fn []
-        (client/put-index 
-          "http://localhost:9000" 
-          "by_username" 
-          "(fn [doc] {\"username\" (:username doc)})")
-        (client/put-document 
-          "http://localhost:9000" 
-          "1" { :username "bob"})
-        (client/query 
-          "http://localhost:9000" 
-          { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true})    
-        (client/delete-document "http://localhost:9000" "1" )
-        (should= 0 
-          (count 
-            (client/query 
-              "http://localhost:9000" 
-              { :filter "(= \"username\" \"bob\")" :index "by_username" :wait true})))))))
+          )
+
+  
+
+
+
+
+
+
+
+
+
