@@ -70,7 +70,8 @@ Obviously this means we can run our application in a with-open block quite happi
 
 Basic operations supported by our database can be found in the namespace *(cravendb.database)* although most of the time we won't be using this; each operation in this namespace is atomic and syncrhonous in nature.
 
-Documents can be any valid Clojure object (strings, lists, sequences, maps, etc), the id is always a string.
+- The id is always a string (below, this is *doc-1*)
+- Documents can be any valid Clojure object (strings, lists, sequences, maps, etc) - they should all round-trip happily
 
 ### Storing a document
 
