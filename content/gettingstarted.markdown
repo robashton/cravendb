@@ -16,26 +16,25 @@ I'll have it in a maven thingy, honest
 
 No matter how we use Craven, we need to create a handle to the database. This is designed to be created once on application start-up and then used for the lifetime of the application.
 
-```clojure
-(require '[cravendb.database :as db])
-```
-
 To create an in-memory database, we can use the code
 
 ```clojure
-(def instance (db/create))
+(require '[cravendb.embedded :as embedded])
+(def instance (embedded/create))
 ```
 
-To create a database that is backed to disk
+To create an embedded database that is backed to disk
 
 ```
-(def instance (db/create :path "somedb"))
+(require '[cravendb.embedded :as embedded])
+(def instance (embedded/create :path "/some/path"))
 ```
 
 And to create a database that is talking to a remote server
 
 ```
-(def instance (db/create :href "http://localhost:8000"))
+(require '[cravendb.remote :as remote])
+(def instance (remote/create :href "http://localhost:8000"))
 ```
 
 Beyond this, everything described is the same regardless. The in-memory storage is primarily so that tests can be ran quickly and so that we can try things out in the REPL without worrying about making a mess.
@@ -49,73 +48,42 @@ This instance is "closeable", and should be closed at the end of the application
 Obviously this means we can run our application in a with-open block quite happily
 
 ```
-(with-open [instance (db/create :path "somepath")]
+(with-open [instance (embedded/create :path "somepath")]
   (our-app-code instance))
 ```
 
-### Round-tripping our first document
+## Basic operations
 
-While there are a pile of methods in the db namespace we *could* use to play with this database, they are not really meant to be used in the application.
+Basic operations supported by our database can be found in the namespace *(cravendb.database)* although most of the time we won't be using this; each operation in this namespace is atomic and syncrhonous in nature.
 
-What we have is the notion of a "transaction", which is supposed to be used in per "unit of work" in the application (so potentially per request or whatever)
+Documents can be any valid Clojure object (strings, lists, sequences, maps, etc), the id is always a string.
 
-```clojure
-  (require '[cravendb.transaction :as t])
-```
-
-We can open a transaction by passing in the instance we created earlier
-
-```
-(def tx (t/open instance))
-```
-
-To save a document to the datastore, we'd chain a collection of calls to this transaction. Documents can be any valid clojure structure, with nested maps and lists and sequences and symbols and things will carry on working tickety boo.
+### Storing a document
 
 ```clojure
-; Opens a transaction, stores a document and commits the transaction
-  (-> (t/open instance)
-      (t/store "doc-1" { :message "hello world" })
-      (t/commit!))
+(require '[cravendb.database :as db])
+
+; PUT /document/doc-1 
+(db/put-document instance "doc-1" { :hello "bob" :address { :street "jekyll street" } })
 ```
 
-
-As can be seen, the transaction itself is immutable, and all the methods that perform an operation simply return a new version of the transaction with the operation attached to it.
-
-Loading a document from the transaction is quite simple too
- 
-```clojure
-; Assuming we have a transaction called tx, this will load our saved document
-  (t/load tx "doc-1")
-``` 
-
-The transaction will attempt to show the current state of the world *as if the transaction was already committed*, this means that uncommitted documents that are a part of this transaction will be returned from 'load' calls.
+### Loading a document
 
 ```clojure
-; This will return the document because it is part of the current transaction
-(-> (t/open instance)
-    (t/store "doc-1" { :message "hello world" })
-    (t/load "doc-1"))
+(require '[cravendb.database :as db])
+
+; GET /document/doc-1 
+(db/load-document instance "doc-1")
 ```
 
 ### Deleting a document
 
 ```clojure
-(-> (t/open instance)
-    (t/delete "doc-1")
-    (t/commit!))
+(require '[cravendb.database :as db])
+
+; DELETE /document/doc-1
+(db/delete-document instance "doc-1")
 ```
 
-In the same way above, a transaction will return 'nil' for documents that are marked as deleted as part of this transaction.
+Next, we might want to look at [Bulk operations](./bulkoperations.html)
 
-```clojure
-; This will return nil because the document is deleted in this transaction
-(-> (t/open instance)
-    (t/delete "doc-1")
-    (t/load "doc-1"))
-```
-
-### Playing with this
-
-The best bet is to load up the REPL and get a feel for how the transaction and database work together. Using the in-memory persistence is best for this.
-
-Once comfortable with these basic crud operations, we might want to go and look at [querying](querying.html)

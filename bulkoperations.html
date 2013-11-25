@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>cravendb by robashton</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="rainbow.css">
+    <style>
+      
+    </style>
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">cravendb</h1>
+        <p class="header">A document database written in Clojure</p>
+        <h1 class="header">Docs</h1>
+        <nav>
+          <ul>
+            <li><a href="./">Home</a></li>
+            <li><a href="gettingstarted.html">Getting started</a></li>
+            <li><a href="bulkoperations.html">Bulk operations</a></li>
+            <li><a href="querying.html">Querying</a></li>
+            <li><a href="design.html">Technical overview</a></li>
+          </ul>
+        </nav>
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/cravendb/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/robashton/cravendb/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/robashton/cravendb">View On GitHub</a></li>
+        </ul>
+
+
+
+        <p><a href="https://travis-ci.org/robashton/cravendb"><img src="https://travis-ci.org/robashton/cravendb.png?branch=master" alt="Build Status"></a></p>
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/robashton">robashton</a></p>
+
+      </header>
+      <section>
+        <h1 id="bulk-operations">Bulk operations</h1>
+<p>While there are a pile of methods in the <em>cravendb.database</em> namespace we <em>could</em> use to play with this database, they are not really going to be used by most clients.</p>
+<p>What we have is the notion of a &quot;transaction&quot;, which is supposed to be used in per &quot;unit of work&quot; in the application (so per request or user action or whatever.)</p>
+<p>We can open a transaction by passing in the <a href="./gettingstarted.html">instance we created</a> - either <em>embedded</em> or <em>remote</em> it doesn&#39;t matter...</p>
+<pre><code><span class="list">(<span class="title">require</span> '<span class="collection">[cravendb.transaction <span class="attribute">:as</span> t]</span>)</span>
+
+<span class="list">(<span class="title"><span class="built_in">def</span></span> tx <span class="list">(<span class="title">t/open</span> instance)</span>)</span></code></pre>
+<p>To save a document to the datastore, we&#39;d chain a collection of calls to this transaction. Documents can be any valid clojure structure, with nested maps and lists and sequences and symbols and things will carry on working tickety boo.</p>
+<pre><code class="lang-clojure"><span class="comment">; Opens a transaction, stores a document and commits the transaction</span>
+  <span class="list">(<span class="title">-&gt;</span> <span class="list">(<span class="title">t/open</span> instance)</span>
+      <span class="list">(<span class="title">t/store</span> <span class="string">"doc-1"</span> <span class="collection">{ <span class="attribute">:message</span> <span class="string">"hello world"</span> }</span>)</span>
+      <span class="list">(<span class="title">t/commit!</span>)</span>)</span></code></pre>
+<p>As can be seen, the transaction itself is immutable, and all the methods that perform an operation simply return a new version of the transaction with the operation attached to it.</p>
+<p>Loading a document from the transaction is quite simple too</p>
+<pre><code class="lang-clojure"><span class="comment">; Assuming we have a transaction called tx, this will load our saved document</span>
+  <span class="list">(<span class="title">t/load</span> tx <span class="string">"doc-1"</span>)</span></code></pre>
+<p>The transaction will attempt to show the current state of the world <em>as if the transaction was already committed</em>, this means that uncommitted documents that are a part of this transaction will be returned from &#39;load&#39; calls.</p>
+<pre><code class="lang-clojure"><span class="comment">; This will return the document because it is part of the current transaction</span>
+<span class="list">(<span class="title">-&gt;</span> <span class="list">(<span class="title">t/open</span> instance)</span>
+    <span class="list">(<span class="title">t/store</span> <span class="string">"doc-1"</span> <span class="collection">{ <span class="attribute">:message</span> <span class="string">"hello world"</span> }</span>)</span>
+    <span class="list">(<span class="title">t/load</span> <span class="string">"doc-1"</span>)</span>)</span></code></pre>
+<h3 id="deleting-a-document">Deleting a document</h3>
+<pre><code class="lang-clojure"><span class="list">(<span class="title">-&gt;</span> <span class="list">(<span class="title">t/open</span> instance)</span>
+    <span class="list">(<span class="title">t/delete</span> <span class="string">"doc-1"</span>)</span>
+    <span class="list">(<span class="title">t/commit!</span>)</span>)</span></code></pre>
+<p>In the same way above, a transaction will return &#39;nil&#39; for documents that are marked as deleted as part of this transaction.</p>
+<pre><code class="lang-clojure"><span class="comment">; This will return nil because the document is deleted in this transaction</span>
+<span class="list">(<span class="title">-&gt;</span> <span class="list">(<span class="title">t/open</span> instance)</span>
+    <span class="list">(<span class="title">t/delete</span> <span class="string">"doc-1"</span>)</span>
+    <span class="list">(<span class="title">t/load</span> <span class="string">"doc-1"</span>)</span>)</span></code></pre>
+<h3 id="playing-with-this">Playing with this</h3>
+<p>The best bet is to load up the REPL and get a feel for how the transaction and database work together. Using the in-memory persistence is best for this.</p>
+<p>Once comfortable with these basic crud operations, we might want to go and look at <a href="querying.html">querying</a></p>
+
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+	<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-11207442-15', 'robashton.github.io');
+  ga('send', 'pageview');
+
+</script>	
+  </body>
+</html>
