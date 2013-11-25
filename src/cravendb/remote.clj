@@ -19,15 +19,11 @@
 (defn url-for-stream [url synctag]
   (str url "/stream?synctag=" (or synctag "")))
 
-(defn query-string [m]
-  (apply str (interleave (for [[k v] m] (str (url-encode (name k)) "=" (url-encode (pr-str v)))) (repeat "&"))))
-
 (defn url-for-query [url opts]
  (str 
     url "/query/"
     (opts :index) "/"
-    (url-encode (opts :filter))
-    "?" (query-string (dissoc opts :index :filter))))
+    (url-encode (opts :filter))))
 
 (defn to-db [data]
   (pr-str data))
@@ -77,7 +73,9 @@
     (with-open [client (http/create-client)]
       (force-into-list
         (process-response
-          (http/GET client (url-for-query url opts) :headers default-headers)))))
+          (http/GET client (url-for-query url opts) 
+                    :headers default-headers
+                    :query (dissoc opts :filter :index))))))
 
   (clear-conflicts [this id]
     (with-open [client (http/create-client)]
