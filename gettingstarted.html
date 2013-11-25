@@ -82,7 +82,10 @@
   <span class="list">(<span class="title">our-app-code</span> instance)</span>)</span></code></pre>
 <h2 id="basic-operations">Basic operations</h2>
 <p>Basic operations supported by our database can be found in the namespace <em>(cravendb.database)</em> although most of the time we won&#39;t be using this; each operation in this namespace is atomic and syncrhonous in nature.</p>
-<p>Documents can be any valid Clojure object (strings, lists, sequences, maps, etc), the id is always a string.</p>
+<ul>
+<li>The id is always a string (below, this is <em>doc-1</em>)</li>
+<li>Documents can be any valid Clojure object (strings, lists, sequences, maps, etc) - they should all round-trip happily</li>
+</ul>
 <h3 id="storing-a-document">Storing a document</h3>
 <pre><code class="lang-clojure"><span class="list">(<span class="title">require</span> '<span class="collection">[cravendb.database <span class="attribute">:as</span> db]</span>)</span>
 
