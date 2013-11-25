@@ -1,10 +1,10 @@
-[![Build Status](https://travis-ci.org/robashton/CravenDB.png?branch=master)](https://travis-ci.org/robashton/CravenDB)
+[![Build Status](https://travis-ci.org/robashton/cravendb.png?branch=master)](https://travis-ci.org/robashton/cravendb)
 
 # CravenDB
 
 - A document database written in Clojure *for* Clojure
 - It was originally based on RavenDB's design
-- A rough to-do can be found in the file [todo.markdown](http://robashton.github.io/cravendb/)
+- A rough to-do can be found in the file [todo.markdown](https://github.com/robashton/cravendb/blob/master/todo.markdown)
 - So far we have
  - dynamic full-text queries against stored documents
  - custom indexes for advanced queries against stored documents
