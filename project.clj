@@ -1,4 +1,6 @@
 (defproject cravendb "0.0.0"
+  :description "A clojure-oriented document-oriented database"
+  :url "http://robashton.github.io/cravendb"
   :min-lein-version "2.2.0"
   ;;:global-vars {*warn-on-reflection* true}
   :dependencies [[org.clojure/clojure "1.5.1"]

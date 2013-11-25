@@ -31,8 +31,7 @@
   (edn/read-string (or (get-in ctx [:request :headers "cravendb-metadata"]) "{}")) )
 
 (defn resource-exists [ctx rfn mfn]
-  (if-let [resource (rfn)]
-    {
+  (if-let [resource (rfn)] {
      ::resource resource
      ::metadata (mfn)}
     false))
@@ -132,4 +131,3 @@
       (create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true}) 
     (debug "Shutting down")))
-
