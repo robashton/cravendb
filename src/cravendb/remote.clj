@@ -44,31 +44,30 @@
 
 (defn interpret-headers [input]
   (let [headers (http/headers input)] 
-    {
-     :history (headers "x-history")}))
+    (edn/read-string (or (headers "cravendb-metadata") "{}"))))
 
+(defn extract-headers [metadata]
+  {  "cravendb-metadata" (pr-str metadata)
+     "etag" (:history metadata) } )
+   
 (defn process-response [response]
   (-> response
       http/await
       from-http))
 
-(defn process-headers [response]
+(defn read-metadata [response]
   (-> response
       http/await
       interpret-headers))
 
 (def default-headers { :accept "application/edn" })
 
-(defn extract-headers [metadata]
-  {
-   "x-history" (:history metadata) })
-
 (defrecord RemoteDatabase [url]
   DocumentDatabase
   (close [this])
   (load-document-metadata [this id]
     (with-open [client (http/create-client)]
-      (process-headers 
+      (read-metadata 
         (http/GET client (url-for-doc-id url id) :headers default-headers))))
 
   (query [this opts]

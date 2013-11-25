@@ -21,14 +21,14 @@
 (defn standard-response [ctx data metadata]
   (ring-response 
     {
-     :headers { "x-history" (:history metadata) "x-synctag" (:synctag metadata)}
+     :headers { "cravendb-metadata" (pr-str metadata)}
      :body (case (get-in ctx [:representation :media-type])
               "text/plain" (pr-str data)
               "application/edn" (pr-str data)
               "text/html" (str "<p>" (pr-str data) "</p>"))})) 
 
 (defn read-metadata [ctx]
-  { :history  (get-in ctx [:request :headers "x-history"]) })
+  (edn/read-string (or (get-in ctx [:request :headers "cravendb-metadata"]) "{}")) )
 
 (defn resource-exists [ctx rfn mfn]
   (if-let [resource (rfn)]
@@ -72,12 +72,9 @@
 
     (ANY "/conflict/:id" [id]
       (resource
-        :allowed-methods [:get :delete]
+        :allowed-methods [:delete]
         :available-media-types accepted-types
-        :delete! (fn [_] (db/clear-conflicts instance id))
-        :handle-ok (fn [ctx] 
-                     ; Naughty, not right at all
-                     (standard-response ctx (db/conflicts instance) {}))))
+        :delete! (fn [_] (db/clear-conflicts instance id))))
 
     ;; ANOTHER UWAGA!!
     (ANY "/conflicts" []
