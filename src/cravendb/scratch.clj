@@ -20,5 +20,13 @@
 
 #_ (db/query instance { :index "default" :filter (=? :name "pinkie pie") })
 #_ (db/query instance { :index "default" :filter (starts-with? :name "pinkie") })
+#_ (db/query instance { :index "default" :filter (starts-with? :name "pinkie") })
+
+
+
+
+
+
 #_ (db/query instance { :index "default" :filter (=? :favourite-things "cakes") })
+
 

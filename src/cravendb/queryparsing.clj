@@ -16,7 +16,8 @@
     Wildcard = '*'
     Whitespace = #'\\s+'
     <Function> = <'('>  (LessThanCall | GreaterThanCall | GreaterThanOrEqualCall | LessThanOrEqualCall | 
-                            AndCall | OrCall | EqualsCall | NotCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
+                            HasWordCall | HasWordStartingWithCall | AndCall | OrCall | EqualsCall | 
+                            NotCall | NotEqualsCall | ContainsCall | StartsWithCall )  <')'>   
     <Argument> = (Function | LiteralValue | Wildcard)
 
     AndCall = <'and'> (<Whitespace>* Argument)*
@@ -28,6 +29,9 @@
     GreaterThanCall = <'>'> <Whitespace> FieldName <Whitespace> LiteralValue
     LessThanOrEqualCall = <'<='> <Whitespace> FieldName <Whitespace> LiteralValue
     GreaterThanOrEqualCall = <'>='> <Whitespace> FieldName <Whitespace> LiteralValue
+    StartsWithCall = <'starts-with'> <Whitespace> FieldName <Whitespace> LiteralValue
+    HasWordCall = <'has-word'> <Whitespace> FieldName <Whitespace> LiteralValue
+    HasWordStartingWithCall = <'has-word-starting-with'> <Whitespace> FieldName <Whitespace> LiteralValue
     StartsWithCall = <'starts-with'> <Whitespace> FieldName <Whitespace> LiteralValue
     NotEqualsCall = <'not='> <Whitespace> FieldName <Whitespace> LiteralValue
     ContainsCall = <'contains'> <Whitespace> FieldName <Whitespace> StringValue
@@ -46,6 +50,12 @@
 (defn create-starts-with-clause [[field-type field-name] [value-type value-value]]
   (case value-type
     :StringValue (PrefixQuery. (Term. (str field-name "_full") value-value))))
+
+(defn create-has-word-clause [[field-type field-name] [value-type value-value]]
+  (TermQuery. (Term. (str field-name "_full") value-value)))
+
+(defn create-has-word-starting-with-clause [[field-type field-name] [value-type value-value]]
+  (PrefixQuery. (Term. (str field-name "_full") value-value)))
 
 (defn create-less-than-clause [[field-type field-name] [value-type value-value]]
   (case value-type
@@ -93,6 +103,8 @@
      :GreaterThanOrEqualCall create-greater-than-or-equal-clause
      :LessThanOrEqualCall create-less-than-or-equal-clause
      :StartsWithCall create-starts-with-clause
+     :HasWordCall create-has-word-clause
+     :HasWordStartingWithCall create-has-word-starting-with-clause
      :Wildcard create-wildcard
      :AndCall create-and-call
      :OrCall create-or-call
