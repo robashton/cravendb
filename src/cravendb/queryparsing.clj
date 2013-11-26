@@ -10,7 +10,6 @@
            (org.apache.lucene.document Document Field Field$Store Field$Index 
                                       TextField IntField FloatField StringField)))
 
-
 (def query-parser 
   (insta/parser
     "S = (Function | Wildcard) 
