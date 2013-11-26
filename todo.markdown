@@ -26,11 +26,13 @@
 
 - Look at schemas to help with indexing (joins/aggregations)
 - Failed tasks
+- Use quickcheck or whatever to validate query support 
+- Use quickcheck or whatever to validate replication and storage
+- Allow streaming of queries to the very end
 
 ### Pending tasks
 
 - Client should be handling HTTP results properly
-- Need some tests for three-way replication checking etc
 - Automatic peer discovery
 - Use long-polling for replication/streaming
  - can probably do this with events from database
