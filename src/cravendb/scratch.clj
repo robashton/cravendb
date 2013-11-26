@@ -3,15 +3,22 @@
   (:require [cravendb.database :as db]
             [cravendb.transaction :as t]
             [cravendb.testing :refer :all]
+            [cravendb.embedded :as embedded]
+            [org.httpkit.server :refer [run-server]]
+            [cravendb.http :as http]
+            [cravendb.transaction :as t]
+            [cravendb.querylanguage :refer :all]
             [cravendb.client :as client]))
 
-#_ (with-remote-instance 
-     (db/put-document instance "1" { :username "bob"} {})
-     (let [metadata (db/load-document-metadata instance "1" )] 
-      (db/put-document instance "1" { :username "alice"} {})
-      (db/put-document instance "1" { :username "craig"} metadata))
-      #spy/p (db/conflicts instance)
-     (db/clear-conflicts instance "1")
-      #spy/p (db/conflicts instance))
+#_ (def instance (embedded/create))
 
+#_ (-> (t/open instance)
+     (t/store "pinkie" { :name "pinkie pie" :favourite-things [ "pies" "cakes" "flowers"]})
+     (t/store "rainbow" { :name "Rainbow Dash" :favourite-things [ "rainbows" "clouds" "flowers"]})
+     (t/store "derpy" { :name "Derpy Hooves" :favourite-things [ "muffins"]})
+     (t/commit!))
+
+#_ (db/query instance { :index "default" :filter (=? :name "pinkie pie") })
+#_ (db/query instance { :index "default" :filter (starts-with? :name "pinkie") })
+#_ (db/query instance { :index "default" :filter (=? :favourite-things "cakes") })
 

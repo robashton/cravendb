@@ -4,6 +4,7 @@
   (:import 
            (org.apache.lucene.index Term)
            (org.apache.lucene.search TermQuery NumericRangeQuery PrefixQuery
+                                     PhraseQuery
                                      BooleanQuery BooleanClause  BooleanClause$Occur
                                      MatchAllDocsQuery)
            (org.apache.lucene.document Document Field Field$Store Field$Index 
@@ -34,18 +35,18 @@
     <LiteralValue> = (NumericValue | StringValue)
     <FieldName> =  (StringValue | Symbol)
     Symbol =  #':([a-zA-Z]+)'
-    StringValue = <'\"'> #'[a-zA-Z]+' <'\"'>
+    StringValue = <'\"'> #'([^\"]|\\\\\")+' <'\"'>
     NumericValue = #'[0-9]+' "
   ))
 
 (defn create-equals-clause [[field-type field-name] [value-type value-value] ]
   (case value-type
-    :StringValue (TermQuery. (Term. field-name value-value))
+    :StringValue (TermQuery. (Term. (str field-name "_plain") value-value))
     :NumericValue (NumericRangeQuery/newIntRange field-name (Integer/parseInt value-value) (Integer/parseInt value-value) true true) ))
 
 (defn create-starts-with-clause [[field-type field-name] [value-type value-value]]
   (case value-type
-    :StringValue (PrefixQuery. (Term. field-name value-value))))
+    :StringValue (PrefixQuery. (Term. (str field-name "_full") value-value))))
 
 (defn create-less-than-clause [[field-type field-name] [value-type value-value]]
   (case value-type
