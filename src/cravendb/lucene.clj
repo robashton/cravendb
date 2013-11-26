@@ -27,11 +27,14 @@
   (close [this] 
     (.close directory)))
 
+(defn string-to-lucene [k v]
+  [(StringField. (str k "_plain") v Field$Store/NO)
+   (TextField. (str k "_full") v Field$Store/NO)])
+
 (defn map-to-lucene 
   ([k v]
    (cond
-    (and (string? v) (< (.length v) 10)) (StringField. k v Field$Store/NO) 
-    (and (string? v) (>= (.length v) 10)) (TextField. k v Field$Store/NO) 
+    (string? v) (string-to-lucene k v ) 
     (integer? v) (IntField. (str k) (int v) Field$Store/NO)
     (float? v) (FloatField. (str k) (float v) Field$Store/NO)
     (decimal? v) (FloatField. (str k) (bigdec v) Field$Store/NO)
@@ -75,7 +78,7 @@
                                 (SortField$Type/STRING)
                                 (if (= sort-order :asc) false true))) 
                        (Sort.))
-      result (.search searcher query amount sort-options)
+      result (.search searcher #spy/p query amount sort-options)
       scoredocs (.scoreDocs result)
       docs (for [x (range 0 (count scoredocs))] 
               (.doc searcher (.doc (aget scoredocs x))))]

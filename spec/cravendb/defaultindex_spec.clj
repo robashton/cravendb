@@ -15,7 +15,8 @@
   (db/put-document instance "docs-2" { "name" "aardvark" "description" "the aardvaark has a lot of a's in his name, kinda silly really" "number" 500} {})
   (db/put-document instance "docs-3" { "name" "giraffe" "description" "the giraffe looks a bit silly with its big long neck" "number" 100} {})
   (db/put-document instance "docs-4" { "name" "anteater" "description" "the anteater has a stupid looking long nose" "number" 50} {})
-  (db/put-document instance "docs-5" { :name "Air" :album "Talkie Walkie"} {}))
+  (db/put-document instance "docs-5" { :name "Air" :album "Talkie Walkie"} {})
+  (db/put-document instance "docs-6" { :name "pinkie pie"} {}) )
 
 
 (defn extract-name-from-result [results]
@@ -47,6 +48,13 @@
           (extract-name-from-result 
             (db/query instance {:index "default" :filter (has-word? "description" "horse")}) )))))
           
+   (it "will exact match when spaces exist"
+     (with-full-setup
+      (fn [{:keys [storage index-engine] :as instance}]
+        (add-standard-data-set instance)
+        (should= "pinkie pie" 
+          (:name (first (db/query instance  { :wait true :filter (=? :name "pinkie pie")})))))))
+       
     (it "will do partial-word-based matching on long strings"
      (with-full-setup
       (fn [{:keys [storage index-engine] :as instance}]
