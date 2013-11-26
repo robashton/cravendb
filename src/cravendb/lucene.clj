@@ -78,7 +78,7 @@
                                 (SortField$Type/STRING)
                                 (if (= sort-order :asc) false true))) 
                        (Sort.))
-      result (.search searcher query amount sort-options)
+      result (.search searcher #spy/p query amount sort-options)
       scoredocs (.scoreDocs result)
       docs (for [x (range 0 (count scoredocs))] 
               (.doc searcher (.doc (aget scoredocs x))))]

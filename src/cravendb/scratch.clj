@@ -11,6 +11,7 @@
             [cravendb.client :as client]))
 
 #_ (def instance (embedded/create))
+#_ (.close instance)
 
 #_ (-> (t/open instance)
      (t/store "pinkie" { :name "pinkie pie" :favourite-things [ "pies" "cakes" "flowers"]})
@@ -23,10 +24,6 @@
 #_ (db/query instance { :index "default" :filter (starts-with? :name "pinkie") })
 
 
-
-
-
-
-#_ (db/query instance { :index "default" :filter (=? :favourite-things "cakes") })
+#_ (db/query instance { :index "default" :filter (has-item? :favourite-things "cakes") })
 
 

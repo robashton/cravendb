@@ -37,7 +37,7 @@
     ContainsCall = <'contains'> <Whitespace> FieldName <Whitespace> StringValue
     <LiteralValue> = (NumericValue | StringValue)
     <FieldName> =  (StringValue | Symbol)
-    Symbol =  #':([a-zA-Z]+)'
+    Symbol =  #':([^\\s])+'
     StringValue = <'\"'> #'([^\"]|\\\\\")+' <'\"'>
     NumericValue = #'[0-9]+' "
   ))
