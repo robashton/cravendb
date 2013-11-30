@@ -9,7 +9,9 @@
             [cravendb.database :as db]
             [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
-            [cravendb.core :refer [zero-synctag]])
+            [cravendb.core :refer [zero-synctag]]
+            [ring.middleware.resource :as r]
+            [ring.middleware.file-info :as f])
 
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
@@ -17,6 +19,8 @@
 (defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
+
+(def root (str (System/getProperty "user.dir") "/public"))
 
 (defn standard-response [ctx data metadata]
   (ring-response 
@@ -45,6 +49,8 @@
 
 (defn create-db-routes [instance]
   (routes
+    
+    
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete :head]
@@ -118,7 +124,9 @@
             (stream/from-synctag 
               instance
               (or (get-in ctx [:request :params :synctag]) (zero-synctag))) 
-            {})))))) 
+            {}))))
+    (route/files "/admin/" { :root "admin"} ))) 
+
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
