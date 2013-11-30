@@ -4,13 +4,14 @@
             [cravendb.transaction :as t]
             [cravendb.testing :refer :all]
             [cravendb.embedded :as embedded]
+            [cravendb.remote :as remote]
             [org.httpkit.server :refer [run-server]]
             [cravendb.http :as http]
             [cravendb.transaction :as t]
             [cravendb.querylanguage :refer :all]
             [cravendb.client :as client]))
 
-#_ (def instance (embedded/create))
+#_ (def instance (remote/create :href "http://localhost:8081"))
 #_ (.close instance)
 
 #_ (-> (t/open instance)

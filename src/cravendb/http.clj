@@ -130,4 +130,4 @@
     (run-server 
       (create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true}) 
-    (debug "Shutting down")))
+    (debug "Shutting down mofo")))
