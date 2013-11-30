@@ -125,6 +125,7 @@
               instance
               (or (get-in ctx [:request :params :synctag]) (zero-synctag))) 
             {}))))
+
     (route/files "/admin/" { :root "admin"} ))) 
 
 

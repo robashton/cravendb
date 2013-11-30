@@ -4,7 +4,8 @@
   :min-lein-version "2.2.0"
   ;;:global-vars {*warn-on-reflection* true}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [clj-http "0.7.6"]
+                 [org.clojure/core.async "0.1.256.0-1bf8cf-alpha"] 
+                 [org.clojure/clojurescript "0.0-2080"]
                  [ring/ring-core "1.1.7"]
                  [org.clojure/data.csv "0.1.2"] ;; For load  purposes
                  [com.cemerick/url "0.1.0"]
@@ -15,14 +16,12 @@
                  [serializable-fn "1.1.3"]
                  [clojurewerkz/vclock "1.0.0"]
                  [clj-time "0.6.0"]
-                 [org.clojure/tools.nrepl "0.2.3"]
                  [org.fusesource.leveldbjni/leveldbjni-all "1.7"]
                  [me.raynes/fs "1.4.4"]
                  [http.async.client "0.5.2"]
                  [org.clojure/tools.logging "0.2.6"]
                  [org.slf4j/slf4j-log4j12 "1.6.6"]
                  [org.clojure/core.incubator "0.1.3"]
-                 [org.clojure/core.async "0.1.0-SNAPSHOT"]
                  [org.apache.lucene/lucene-core "4.4.0"]
                  [org.apache.lucene/lucene-queryparser "4.4.0"]
                  [org.apache.lucene/lucene-analyzers-common "4.4.0"]
@@ -32,12 +31,21 @@
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :profiles {:dev {
                    :dependencies [[speclj "2.7.2"]
-                                  [speclj-growl "1.0.0-SNAPSHOT"]
-                                  [speclj-growl "2.1.0"]
                                   [spyscope "0.1.3"]
                                   [redl "0.2.0"] ]}
              }
-  :plugins [[speclj "2.7.2"]]
+  :plugins [[speclj "2.7.2"]
+            [lein-cljsbuild "1.0.1-SNAPSHOT"] ]
+
+  :cljsbuild { 
+    :builds [{:id "admin"
+              :source-paths ["src-cljs"]
+              :compiler {
+                :output-to "admin/admin.js"
+                :output-dir "admin/out"
+                :optimizations :none
+                :source-map true}}]} 
+  
   :main cravendb.http
   :test-paths ["spec/"])
 
