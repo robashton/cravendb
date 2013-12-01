@@ -9,7 +9,9 @@
             [cravendb.database :as db]
             [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
-            [cravendb.core :refer [zero-synctag]])
+            [cravendb.core :refer [zero-synctag integer-to-synctag]]
+            [ring.middleware.resource :as r]
+            [ring.middleware.file-info :as f])
 
   (:use compojure.core
         [clojure.tools.logging :only (info error debug)]))
@@ -18,10 +20,14 @@
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
 
-(defn standard-response [ctx data metadata]
+(def root (str (System/getProperty "user.dir") "/public"))
+
+(defn standard-response [ctx data metadata & headers]
   (ring-response 
     {
-     :headers { "cravendb-metadata" (pr-str metadata)}
+     :headers (merge 
+                { "cravendb-metadata" (pr-str metadata)}
+                (apply hash-map headers))
      :body (case (get-in ctx [:representation :media-type])
               "text/plain" (pr-str data)
               "application/edn" (pr-str data)
@@ -45,6 +51,8 @@
 
 (defn create-db-routes [instance]
   (routes
+    
+    
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete :head]
@@ -108,7 +116,7 @@
     ;; a giant blob (UWAGA!!)
     (ANY "/stream" []
       (resource
-        :allowed-methods [:get]
+        :allowed-methods [:get :head]
         :exists? true
         :available-media-types accepted-types
         :handle-ok 
@@ -118,7 +126,11 @@
             (stream/from-synctag 
               instance
               (or (get-in ctx [:request :params :synctag]) (zero-synctag))) 
-            {})))))) 
+            {}
+            "last-synctag" (integer-to-synctag @(get-in instance [:storage :last-synctag])) ))))
+
+    (route/files "/admin/" { :root "admin"} ))) 
+
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
@@ -130,4 +142,4 @@
     (run-server 
       (create-http-server instance) 
       { :port (Integer/parseInt (or (System/getenv "PORT") "8080")) :join? true}) 
-    (debug "Shutting down")))
+    (debug "Shutting down mofo")))

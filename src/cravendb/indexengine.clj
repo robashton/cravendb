@@ -1,12 +1,12 @@
 (ns cravendb.indexengine
   (:use [cravendb.core]
        [clojure.pprint]
-       [clojure.core.async] 
        [clojure.tools.logging :only (info debug error)])
   (:import (java.io File File PushbackReader IOException FileNotFoundException ))
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
            [clojure.core.incubator :refer [dissoc-in]]
+           [clojure.core.async :refer [<! >! <!! put! chan go close! ]]
            [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
