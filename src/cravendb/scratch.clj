@@ -11,7 +11,9 @@
             [cravendb.querylanguage :refer :all]
             [cravendb.client :as client]))
 
-#_ (def instance (remote/create :href "http://localhost:8081"))
+#_ (def server (run-server (http/create-http-server (embedded/create)) { :port 8001 :join? false }))
+#_ (server)
+#_ (def instance (remote/create :href "http://localhost:8001"))
 #_ (.close instance)
 
 #_ (-> (t/open instance)
