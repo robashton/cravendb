@@ -6,6 +6,7 @@
             [cravendb.embedded :as embedded]
             [cravendb.remote :as remote]
             [org.httpkit.server :refer [run-server]]
+            [clojure.core.async :refer [<! >! <!! put! chan go close! ]]
             [cravendb.http :as http]
             [cravendb.transaction :as t]
             [cravendb.querylanguage :refer :all]
@@ -20,8 +21,7 @@
 
 #_ (-> (t/open instance)
      (t/store "pinkie" { :name "pinkie pie" :favourite-things [ "pies" "cakes" "flowers"]})
-     (t/store "rainbow" { :name "Rainbow Dash" :favourite-things [ "rainbows" "clouds" "flowers"]})
-     (t/store "derpy" { :name "Derpy Hooves" :favourite-things [ "muffins"]})
+     (t/store "rainbow" { :name "Rainbow Dash" :favourite-things [ "rainbows" "clouds" "flowers"]}) (t/store "derpy" { :name "Derpy Hooves" :favourite-things [ "muffins"]})
      (t/commit!))
 
 #_ (-> (t/open instance)
@@ -40,19 +40,4 @@
 #_ (db/query instance { :index "default" :filter (has-item? :favourite-things "cakes") })
 
 
-(def headers "Date: Sun, 01 Dec 2013 12:15:17 GMT
-Server: http-kit
-Cravendb-Metadata: {}
-Last-Synctag: 000000000000000000000000000003
-Content-Length: 799
-Vary: Accept
-Content-Type: application/edn
-")
 
-(defn as-symbol [k]
-  (keyword (clojure.string/replace (clojure.string/lower-case k) #" " "-")))
-
-(defn headers-map [headers] (into {} (->>
-           (clojure.string/split headers #"\n") 
-           (map (fn [v] (clojure.string/split v #":" 2))) 
-           (map (fn [[k v]] [(as-symbol k) (clojure.string/trim v)])))))
