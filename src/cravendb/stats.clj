@@ -8,29 +8,27 @@
 
 (defn add-event [clump ev]
   (-> clump
-    (update-in [ev :total] safe-inc)
-    (update-in [ev :running] safe-inc)))
+    (update-in [:events ev :total] safe-inc)
+    (update-in [:events ev :running] safe-inc)))
 
 (defn seconds-since-last-collect [clump]
   (dt/in-seconds (dt/interval (:last-aggregate clump) (dt/now) )))
 
-(defn snapshot [clump]
+(defn snapshot [{:keys [events] :as clump}]
   (let [divider (seconds-since-last-collect clump)] 
     (into {}
-      (for [[k v] clump]
-        [k (:running (/ v divider))]))))
+      (for [[k v] events]
+        [k (float (/ (:running v) divider))]))))
 
-(defn reset [clump]
- (-> (reduce (fn [s [k v]] 
-          (assoc-in s [k :running] 0)) 
-        clump clump)
-   (assoc :last-aggregate (dt/now))))
+(defn reset [{:keys [events] :as clump}]
+ (-> (assoc clump :events 
+            (reduce (fn [s [k v]] (assoc-in s [k :running] 0)) 
+        events events))
+     (assoc :last-aggregate (dt/now))))
 
 (defn aggregate [clump]
   (if (>= (seconds-since-last-collect clump) 1) 
-    (-> clump
-      (assoc :snapshot (snapshot clump))
-      reset)
+    (reset (assoc clump :snapshot (snapshot clump)))
     clump))
 
 (defn append-ev [clump ev]
@@ -46,14 +44,6 @@
 
 (defn notify [ch ev]
   (go (put! ch ev)))
-
-(defn total [k]
-
-  )
-
-(defn per-second [k]
-  
-  )
 
 (defn create []
   (let [commands (chan)]
