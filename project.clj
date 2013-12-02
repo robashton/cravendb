@@ -5,7 +5,6 @@
   ;;:global-vars {*warn-on-reflection* true}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/core.async "0.1.256.0-1bf8cf-alpha"] 
-                 [org.clojure/clojurescript "0.0-2080"]
                  [ring/ring-core "1.1.7"]
                  [org.clojure/data.csv "0.1.2"] ;; For load  purposes
                  [com.cemerick/url "0.1.0"]
@@ -26,7 +25,11 @@
                  [org.apache.lucene/lucene-queryparser "4.4.0"]
                  [org.apache.lucene/lucene-analyzers-common "4.4.0"]
                  [org.clojure/data.codec "0.1.0"]
-                 [org.apache.lucene/lucene-highlighter "4.4.0"]]
+                 [org.apache.lucene/lucene-highlighter "4.4.0"]
+                 
+                 ;; This is for the admin UI
+                 [org.clojure/clojurescript "0.0-2080"]
+                 [prismatic/dommy "0.1.1"] ]
 
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
   :profiles {:dev {
