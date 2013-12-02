@@ -12,5 +12,5 @@
       (fn [e] (put! out e)))
     out))
 
-(rd/stream-into nil)
+(rd/stream-into (dom/getElement "recent-documents"))
 
