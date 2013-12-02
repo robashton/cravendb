@@ -1,5 +1,7 @@
 (ns cravendb.stats
-    (:require [clojure.core.async :refer [<! >! <!! put! chan go close! ]]))
+    (:require [clojure.core.async :refer [<! >! <!! put! chan go close! timeout ]]
+              [clojure.tools.logging :refer [info error debug]]  
+              [clj-time.core :as dt]))
 
 (defn safe-inc [v]
  (if v (inc v) 1))
@@ -9,39 +11,44 @@
     (update-in [ev :total] safe-inc)
     (update-in [ev :running] safe-inc)))
 
+(defn seconds-since-last-collect [clump]
+  (dt/in-seconds (dt/interval (:last-aggregate clump) (dt/now) )))
+
 (defn snapshot [clump]
-  (into {}
-    (for [[k v] clump]
-      [k (:running v)])))
+  (let [divider (seconds-since-last-collect clump)] 
+    (into {}
+      (for [[k v] clump]
+        [k (:running (/ v divider))]))))
+
+(defn reset [clump]
+ (-> (reduce (fn [s [k v]] 
+          (assoc-in s [k :running] 0)) 
+        clump clump)
+   (assoc :last-aggregate (dt/now))))
 
 (defn aggregate [clump]
-  (-> clump
-    (assoc :snapshot (snapshot clump))))
+  (if (>= (seconds-since-last-collect clump) 1) 
+    (-> clump
+      (assoc :snapshot (snapshot clump))
+      reset)
+    clump))
 
+(defn append-ev [clump ev]
+  (-> 
+    (add-event ev)
+    (aggregate)))
 
-(-> {}
-  (add-event :index)
-  (add-event :index)
-  (add-event :index)
-  aggregate
-  )
-
-(update-in {} [:blah :total] #(if %1 inc 0))
-
-(defn go-stats-loop [commands]
+(defn go-stats-loop [in]
   (go
-    (loop [clump {}]
-      (if-let [{:keys [cmd data]} (<! commands)]
-        (recur (case cmd
-                 :notify (add-event clump data)
-                 :tick (aggregate clump))))))) 
+    (loop [clump { :last-aggregate (dt/now)}]
+      (if-let [ev (<! in)]
+        (recur (append-ev clump ev))))))
 
-(defn notify [k]
-  
-  )
+(defn notify [ch ev]
+  (go (put! ch ev)))
 
 (defn total [k]
-  
+
   )
 
 (defn per-second [k]
@@ -49,5 +56,6 @@
   )
 
 (defn create []
-
-  )
+  (let [commands (chan)]
+    (go-stats-loop commands)
+    commands))

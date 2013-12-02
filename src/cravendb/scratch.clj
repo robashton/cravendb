@@ -39,6 +39,5 @@
 
 #_ (db/query instance { :index "default" :filter (has-item? :favourite-things "cakes") })
 
-)
 
 
