@@ -9,4 +9,6 @@ goog.addDependency("../cljs/core/async/impl/dispatch.js", ['cljs.core.async.impl
 goog.addDependency("../cljs/core/async/impl/channels.js", ['cljs.core.async.impl.channels'], ['cljs.core.async.impl.buffers', 'cljs.core', 'cljs.core.async.impl.dispatch', 'cljs.core.async.impl.protocols']);
 goog.addDependency("../cljs/core/async/impl/timers.js", ['cljs.core.async.impl.timers'], ['cljs.core', 'cljs.core.async.impl.channels', 'cljs.core.async.impl.dispatch', 'cljs.core.async.impl.protocols']);
 goog.addDependency("../cljs/core/async.js", ['cljs.core.async'], ['cljs.core.async.impl.ioc_helpers', 'cljs.core.async.impl.buffers', 'cljs.core', 'cljs.core.async.impl.channels', 'cljs.core.async.impl.dispatch', 'cljs.core.async.impl.protocols', 'cljs.core.async.impl.timers']);
-goog.addDependency("../admin/core.js", ['admin.core'], ['cljs.core', 'goog.net.Jsonp', 'goog.dom', 'clojure.string', 'cljs.reader', 'cljs.core.async', 'goog.events', 'goog.Uri']);
+goog.addDependency("../admin/http.js", ['admin.http'], ['cljs.core', 'goog.net.Jsonp', 'clojure.string', 'cljs.reader', 'cljs.core.async', 'goog.Uri']);
+goog.addDependency("../admin/recent_documents.js", ['admin.recent_documents'], ['cljs.core', 'goog.dom', 'admin.http', 'cljs.core.async', 'goog.events']);
+goog.addDependency("../admin/core.js", ['admin.core'], ['cljs.core', 'goog.dom', 'admin.http', 'cljs.core.async', 'goog.events', 'admin.recent_documents']);
