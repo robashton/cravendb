@@ -39,20 +39,4 @@
 
 #_ (db/query instance { :index "default" :filter (has-item? :favourite-things "cakes") })
 
-(def d1 [2 3 5])
-(def d2 [200 100 50])
-
-(defn avg1 []
-  (/ (reduce + d1) (count d1)))
-
-(defn avg2 []
-  (/ (reduce + d2) (count d2)) )
-
-(defn cumulative []
-  (float (/ (+ (avg1) (avg2)) 2)))
-
-(defn real []
-  (let [all (concat d1 d2)]
-      (/ (reduce + all) (count all))))
-
-
+#_ (http/send-data { :foo "bar"})

@@ -1,5 +1,5 @@
 (ns cravendb.http
-  (:require [org.httpkit.server :refer [run-server]]
+  (:require [org.httpkit.server :refer [run-server with-channel send! on-close]]
             [clojure.edn :as edn]
             [compojure.route :as route]
             [compojure.handler :as handler]
@@ -19,7 +19,7 @@
 (defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
-
+(def channel-hub (atom {}))
 (def root (str (System/getProperty "user.dir") "/public"))
 
 (defn standard-response [ctx data metadata & headers]
@@ -109,6 +109,13 @@
         :available-media-types ["application/edn"]
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))
+
+    (ANY "/stats" []
+      (fn [request] 
+        (with-channel request channel
+        (swap! channel-hub assoc channel request)
+        (on-close channel (fn [status]
+        (swap! channel-hub dissoc channel))))))
     
     ;; This will be probably a long polling thing
     ;; where I keep pumping data out as I get it
@@ -131,6 +138,11 @@
 
     (route/files "/admin/" { :root "admin"} ))) 
 
+(defn send-data [data]
+ (doseq [channel (keys @channel-hub)]
+   (send! channel {:status 200
+                   :headers {"Content-Type" "application/json; charset=utf-8"}
+                   :body data}))) 
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
