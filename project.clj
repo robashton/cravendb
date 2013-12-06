@@ -36,6 +36,8 @@
                    :dependencies [[speclj "2.7.2"]
                                   [spyscope "0.1.3"]
                                   [redl "0.2.0"] ]}
+                    :injections  [(require 'spyscope.core)
+                                  (require '[redl complete core])]
              }
   :plugins [[speclj "2.7.2"]
             [lein-cljsbuild "1.0.1-SNAPSHOT"] ]

@@ -41,4 +41,37 @@
     out))
 
 
+(defn longpoll 
+  ([url] (let [out (chan)] (longpoll url out) out))
+  ([url out]
+   (let [req (js/XMLHttpRequest.)]
+     (.open req "GET" url true) 
+     (aset req "onreadystatechange" 
+      (fn [] 
+        (go 
+          (let [readyState (. req -readyState) 
+                status (. req -status)]
+        (cond
+          (and (= readyState 4) (= status 200)) (>! out (<! (parsed-response req)))
+          (and (= readyState 4) (> 0 status)) (longpoll url out))
+        (.send req)))))
+     (.send req))))
 
+;function longPoll() {
+;
+;  var xhr = createXHR(); // Creates an XmlHttpRequestObject
+;  xhr.open('GET', 'LongPollServlet', true);
+;  xhr.onreadystatechange = function () {
+;    if (xhr.readyState == 4) {
+;
+;        if (xhr.status == 200) {
+;            ...
+;        }
+;
+;        if (xhr.status > 0) {
+;            longPoll();
+;        }
+;    }
+;  }
+;  xhr.send(null);
+;}

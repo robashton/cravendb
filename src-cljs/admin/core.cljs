@@ -12,5 +12,12 @@
       (fn [e] (put! out e)))
     out))
 
-(rd/stream-into (dom/getElement "recent-documents"))
+; (rd/stream-into (dom/getElement "recent-documents"))
 
+
+(go (let [out (http/longpoll "/stats")]
+      (loop []
+        (if-let [data (<! out)]
+          (do
+            (.log js/console (clj->js data))
+            (recur))))))
