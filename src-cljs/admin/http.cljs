@@ -23,7 +23,8 @@
                    :status (. req -status)
                    :status-text (. req -statusText)
                    :headers (headers-map (.getAllResponseHeaders req))
-                   }))out))
+                   }))
+    out))
 
 (defn http-request-ready-change [req out]
   (fn [v]
@@ -49,6 +50,6 @@
      (aset req "onreadystatechange" 
       (fn [] 
         (let [readyState (. req -readyState) status (. req -status)]
-          (if (and (= readyState 4) (= status 200)) (go (>! out (<! (parsed-response req)))))
+          (if (and (= readyState 4) (= status 200)) (go (>! out (:body (<! (parsed-response req))))))
           (if (and (= readyState 4) (< 0 status)) (longpoll url out)))))
      (.send req))))
