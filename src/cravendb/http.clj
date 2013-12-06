@@ -19,7 +19,6 @@
 (defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
-(def channel-hub (atom {}))
 (def root (str (System/getProperty "user.dir") "/public"))
 
 (defn standard-response [ctx data metadata & headers]
@@ -110,17 +109,7 @@
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))
 
-    (ANY "/stats" []
-      (fn [request] 
-        (with-channel request channel
-        (swap! channel-hub assoc channel request)
-        (on-close channel (fn [status]
-        (swap! channel-hub dissoc channel))))))
-    
-    ;; This will be probably a long polling thing
-    ;; where I keep pumping data out as I get it
-    ;; For now it will just return EVERYTHING in
-    ;; a giant blob (UWAGA!!)
+    (ANY "/stats" [] (push/start (stats/listen-channel stats)))
     (ANY "/stream" []
       (resource
         :allowed-methods [:get :head]
@@ -138,11 +127,7 @@
 
     (route/files "/admin/" { :root "admin"} ))) 
 
-(defn send-data [data]
- (doseq [channel (keys @channel-hub)]
-   (send! channel {:status 200
-                   :headers {"Content-Type" "application/json; charset=utf-8"}
-                   :body data}))) 
+
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
