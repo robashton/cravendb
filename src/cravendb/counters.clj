@@ -1,4 +1,4 @@
-(ns cravendb.stats
+(ns cravendb.counters
     (:require [clojure.core.async :refer [<! >! <!! put! chan go close! timeout mult tap ]]
               [clojure.tools.logging :refer [info error debug]]  
               [clj-time.core :as dt]))
