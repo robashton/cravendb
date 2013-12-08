@@ -103,6 +103,7 @@
         ifh (inflight/create storage (or (:server-id opts) "root"))]
     (ie/start index-engine) 
     (stats/consume stats-engine (tap (:events ifh) (chan)))
+    (stats/consume stats-engine (tap (:events index-engine) (chan)))
     (EmbeddedDatabase. 
       storage 
       index-engine 

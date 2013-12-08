@@ -6,7 +6,7 @@
   (:require [cravendb.lucene :as lucene]
            [cravendb.storage :as s]
            [clojure.core.incubator :refer [dissoc-in]]
-           [clojure.core.async :refer [<! >! <!! put! chan go close! ]]
+           [clojure.core.async :refer [<! >! <!! put! chan go close! mult ]]
            [me.raynes.fs :as fs]
            [cravendb.indexstore :as indexes]
            [cravendb.defaultindexes :as di]
@@ -67,12 +67,14 @@
   (assoc engine
     :indexes (initial-indexes db)))
 
-(defn go-index-some-stuff [{:keys [db indexes command-channel]}]
+(defn go-index-some-stuff [{:keys [db out indexes command-channel]}]
   (go 
     (info "indexing stuff for indexes" (map (comp :id val) indexes))
     (loop [num-indexed 1] 
       (if (> num-indexed 0) 
-        (recur (indexing/index-documents! db (map val indexes)))))
+        (do
+          (go (put! out [:indexed num-indexed]))
+          (recur (indexing/index-documents! db (map val indexes))))))
     (info "done indexing stuff")
     (>! command-channel { :cmd :notify-finished-indexing})))
 
@@ -179,13 +181,19 @@
   (<!! @event-loop)
   (info "finished doing everything"))
 
-(defrecord EngineHandle [db command-channel event-loop]
+(defrecord EngineHandle [db out events command-channel event-loop]
   java.io.Closeable
   (close [this]
     (stop this)))
 
 (defn create [db] 
-  (EngineHandle. db (chan) (atom nil)))
+  (let [out (chan)
+        events (mult out)] (EngineHandle. 
+                             db 
+                             out
+                             events
+                             (chan) 
+                             (atom nil))))
 
 (defn notify-of-work [engine]
   (put! (:command-channel engine) {:cmd :schedule-indexing}))

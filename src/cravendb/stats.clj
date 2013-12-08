@@ -4,8 +4,8 @@
               [clj-time.core :as dt]))
 
 
-(defn safe-inc [v]
-  (if v (inc v) 1))
+(defn safe-inc [v a]
+  (if v (+ v a) a))
 
 (defn seconds-since-last-collect [stats]
   (dt/in-seconds (dt/interval (:last-collect stats) (dt/now))))
@@ -35,17 +35,21 @@
 (defn command [{:keys [commands]} cmd]
   (go (>! commands cmd)))
 
-(defn append [counter ev]
-  (command counter
+(defn append 
+  ([counter ev] (append counter ev 1))
+  ([counter ev am] 
+   (command counter
     (fn [stats]
-    (update-in stats [:rolling ev] safe-inc))))
+    (update-in stats [:rolling ev] safe-inc am)))))
 
 (defn consume [counter in]
   (go
     (loop []
       (if-let [ev (<! in)]
         (do
-          (append counter ev)
+          (if (coll? ev) 
+            (apply append counter ev)
+            (append counter ev))
           (recur))))))
 
 (defn start [] 
