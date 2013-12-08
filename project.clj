@@ -27,7 +27,7 @@
                  [org.clojure/data.codec "0.1.0"]
                  [org.apache.lucene/lucene-highlighter "4.4.0"]
                  
-                 ;; This is for the admin UI
+                 ;; This is for the admin UI (urgh)
                  [org.clojure/clojurescript "0.0-2080"]
                  [prismatic/dommy "0.1.1"] ]
 

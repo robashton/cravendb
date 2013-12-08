@@ -1,5 +1,6 @@
 (ns cravendb.http
   (:require [org.httpkit.server :refer [run-server with-channel send! on-close]]
+            [clojure.core.async :refer [mult tap chan]]
             [clojure.edn :as edn]
             [compojure.route :as route]
             [compojure.handler :as handler]
@@ -9,6 +10,7 @@
             [cravendb.database :as db]
             [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
+            [cravendb.push :as push]
             [cravendb.core :refer [zero-synctag integer-to-synctag]]
             [ring.middleware.resource :as r]
             [ring.middleware.file-info :as f])
@@ -109,7 +111,7 @@
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))
 
-    (ANY "/stats" [] (push/start (stats/listen-channel stats)))
+    (ANY "/stats" [] (push/start (tap (get-in instance [:counters :events]) (chan))))
     (ANY "/stream" []
       (resource
         :allowed-methods [:get :head]
@@ -126,8 +128,6 @@
             "last-synctag" (integer-to-synctag @(get-in instance [:storage :last-synctag])) ))))
 
     (route/files "/admin/" { :root "admin"} ))) 
-
-
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")

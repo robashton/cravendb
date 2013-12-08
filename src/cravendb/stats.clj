@@ -1,5 +1,5 @@
 (ns cravendb.stats
-    (:require [clojure.core.async :refer [<! >! <!! put! chan go close! timeout mult ]]
+    (:require [clojure.core.async :refer [<! >! <!! put! chan go close! timeout mult tap ]]
               [clojure.tools.logging :refer [info error debug]]  
               [clj-time.core :as dt]))
 
@@ -20,6 +20,7 @@
 (defn collect [stats out]
   (if (>= (seconds-since-last-collect stats) 1)
     (do
+      (info "collecting stats")
       (go (put! out (snapshot stats)))
       (-> stats
         (dissoc :rolling)
@@ -44,8 +45,10 @@
 
 (defn start [] 
   (let [cmd (chan)
-        events (chan)] {
+        in (chan)
+        events (mult in)
+        ] {
    :commands cmd
    :events events
-   :loop (go-coordinate cmd events) }))
+   :loop (go-coordinate cmd in) }))
 
