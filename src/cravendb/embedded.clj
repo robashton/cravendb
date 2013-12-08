@@ -8,6 +8,8 @@
             [cravendb.inflight :as inflight]
             [cravendb.vclock :as vclock]
             [cravendb.database :refer [DocumentDatabase]]
+            [cravendb.stats :as stats]
+            [clojure.core.async :refer [chan tap]]
             [clojure.tools.logging :refer [info error debug]]))
 
 (def default-query { :index "default"
@@ -19,7 +21,7 @@
                      :offset 0
                      :amount 1000 })
 
-(defrecord EmbeddedDatabase [storage index-engine ifh]
+(defrecord EmbeddedDatabase [storage index-engine ifh counters]
   DocumentDatabase
   (close [this] 
     (ie/stop index-engine)
@@ -96,7 +98,14 @@
 (defn create [& kvs]
   (let [opts (apply hash-map kvs)
         storage (open-storage opts)
-        index-engine (ie/create storage)]
+        index-engine (ie/create storage)
+        stats-engine (stats/start) 
+        ifh (inflight/create storage (or (:server-id opts) "root"))]
     (ie/start index-engine) 
+    (stats/consume stats-engine (tap (:events ifh) (chan)))
+    (stats/consume stats-engine (tap (:events index-engine) (chan)))
     (EmbeddedDatabase. 
-      storage index-engine (inflight/create storage (or (:server-id opts) "root")))))
+      storage 
+      index-engine 
+      ifh
+      stats-engine)))

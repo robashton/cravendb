@@ -1,11 +1,11 @@
 (ns cravendb.stats
-    (:require [clojure.core.async :refer [<! >! <!! put! chan go close! timeout mult ]]
+    (:require [clojure.core.async :refer [<! >! <!! put! chan go close! timeout mult tap ]]
               [clojure.tools.logging :refer [info error debug]]  
               [clj-time.core :as dt]))
 
 
-(defn safe-inc [v]
-  (if v (inc v) 1))
+(defn safe-inc [v a]
+  (if v (+ v a) a))
 
 (defn seconds-since-last-collect [stats]
   (dt/in-seconds (dt/interval (:last-collect stats) (dt/now))))
@@ -20,6 +20,7 @@
 (defn collect [stats out]
   (if (>= (seconds-since-last-collect stats) 1)
     (do
+      (info "collecting stats")
       (go (put! out (snapshot stats)))
       (-> stats
         (dissoc :rolling)
@@ -34,18 +35,28 @@
 (defn command [{:keys [commands]} cmd]
   (go (>! commands cmd)))
 
-(defn append [counter ev]
-  (command counter
+(defn append 
+  ([counter ev] (append counter ev 1))
+  ([counter ev am] 
+   (command counter
     (fn [stats]
-    (update-in stats [:rolling ev] safe-inc))))
+    (update-in stats [:rolling ev] safe-inc am)))))
 
-(defn listen-channel [counter]
-  (mult (:events counter)))
+(defn consume [counter in]
+  (go
+    (loop []
+      (if-let [ev (<! in)]
+        (do
+          (if (coll? ev) 
+            (apply append counter ev)
+            (append counter ev))
+          (recur))))))
 
 (defn start [] 
   (let [cmd (chan)
-        events (chan)] {
+        in (chan)
+        events (mult in)] {
    :commands cmd
    :events events
-   :loop (go-coordinate cmd events) }))
+   :loop (go-coordinate cmd in) }))
 

@@ -4,6 +4,7 @@
             [cravendb.transaction :as t]
             [cravendb.testing :refer :all]
             [cravendb.embedded :as embedded]
+            [cravendb.stats :as stats]
             [cravendb.remote :as remote]
             [org.httpkit.server :refer [run-server]]
             [clojure.core.async :refer [<! >! <!! put! chan go close! timeout ]]
@@ -12,7 +13,7 @@
             [cravendb.querylanguage :refer :all]
             [cravendb.client :as client]))
 
-#_ (def embedded-instance (embedded/create))
+#_ ([clojure.tools.logging :refer [info error debug]]def embedded-instance (embedded/create))
 
 #_ (def server (run-server (http/create-http-server embedded-instance) { :port 8001 :join? false }))
 #_ (server)
@@ -39,20 +40,6 @@
 
 #_ (db/query instance { :index "default" :filter (has-item? :favourite-things "cakes") })
 
-(def d1 [2 3 5])
-(def d2 [200 100 50])
+#_ (http/send-data { :foo "bar"})
 
-(defn avg1 []
-  (/ (reduce + d1) (count d1)))
-
-(defn avg2 []
-  (/ (reduce + d2) (count d2)) )
-
-(defn cumulative []
-  (float (/ (+ (avg1) (avg2)) 2)))
-
-(defn real []
-  (let [all (concat d1 d2)]
-      (/ (reduce + all) (count all))))
-
-
+#_ (stats/append (:counters embedded-instance) :foo)

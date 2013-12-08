@@ -1,5 +1,6 @@
 (ns cravendb.http
-  (:require [org.httpkit.server :refer [run-server]]
+  (:require [org.httpkit.server :refer [run-server with-channel send! on-close]]
+            [clojure.core.async :refer [mult tap chan]]
             [clojure.edn :as edn]
             [compojure.route :as route]
             [compojure.handler :as handler]
@@ -9,6 +10,7 @@
             [cravendb.database :as db]
             [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
+            [cravendb.push :as push]
             [cravendb.core :refer [zero-synctag integer-to-synctag]]
             [ring.middleware.resource :as r]
             [ring.middleware.file-info :as f])
@@ -19,7 +21,6 @@
 (defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
 
 (def accepted-types ["application/edn" "text/plain" "text/html"])
-
 (def root (str (System/getProperty "user.dir") "/public"))
 
 (defn standard-response [ctx data metadata & headers]
@@ -109,11 +110,8 @@
         :available-media-types ["application/edn"]
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))
-    
-    ;; This will be probably a long polling thing
-    ;; where I keep pumping data out as I get it
-    ;; For now it will just return EVERYTHING in
-    ;; a giant blob (UWAGA!!)
+
+    (ANY "/stats" [] (push/start (tap (get-in instance [:counters :events]) (chan))))
     (ANY "/stream" []
       (resource
         :allowed-methods [:get :head]
@@ -130,7 +128,6 @@
             "last-synctag" (integer-to-synctag @(get-in instance [:storage :last-synctag])) ))))
 
     (route/files "/admin/" { :root "admin"} ))) 
-
 
 (defn create-http-server [instance]
   (info "Setting up the bomb")
