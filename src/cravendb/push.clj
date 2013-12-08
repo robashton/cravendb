@@ -3,12 +3,12 @@
             [clojure.tools.logging :refer [info error debug]]
             [org.httpkit.server :refer [with-channel send! on-close]]))
 
-(defn push-to [clients #spy/p data]
+(defn push-to [clients data]
   (doseq [channel clients]
     (send! channel {
                     :status 200
                     :headers {"Content-Type" "application/edn"}
-                    :body data})))
+                    :body (pr-str data)})))
 
 (defn start 
   [in]

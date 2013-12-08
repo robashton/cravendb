@@ -11,10 +11,8 @@
   (dt/in-seconds (dt/interval (:last-collect stats) (dt/now))))
 
 (defn snapshot [stats]
-  (for [[k v] (:rolling stats)]
-    {
-     :per-second (float (/ v (seconds-since-last-collect stats)))
-     :stat k }))
+  (into {} (for [[k v] (:rolling stats)]
+    {k (float (/ v (seconds-since-last-collect stats)))})))
 
 (defn collect [stats out]
   (if (>= (seconds-since-last-collect stats) 1)

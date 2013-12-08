@@ -12,15 +12,31 @@
       (fn [e] (put! out e)))
     out))
 
-#_ (rd/stream-into (dom/getElement "recent-documents"))
+(rd/stream-into (dom/getElement "recent-documents"))
 
+(def chart (atom nil))
+(def seconds (atom 0))
+(defn charty-chart 
+  []
+  (swap! chart 
+         (fn [v]
+           (if v v
+             (let [svg (dimple.newSvg. "#indexing-activity" 590 400)
+                   chart (dimple.chart. svg [])]
+               (.addCategoryAxis chart "x" "second")
+               (.addCategoryAxis chart "y" "doc-added")
+               (.addSeries chart nil dimple.plot.bar)
+               chart)))))
 
 (defn update-chart [items]
- (.log js/console (clj->js items)))
+ (let [chart (charty-chart)]
+   (aset chart "data" items)
+   (.draw chart)))
 
 (go (let [out (http/longpoll "/stats")]
       (loop [history ()]
         (if-let [data (<! out)]
-          (let [current (take 1000 (conj history data))]
+          (let [current (take 1000 (conj history (assoc data "second" (swap! seconds inc))))]
             (update-chart current)
             (recur current))))))
+
