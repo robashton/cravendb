@@ -40,14 +40,18 @@
     (fn [stats]
     (update-in stats [:rolling ev] safe-inc))))
 
-(defn listen-channel [counter]
-  (mult (:events counter)))
+(defn consume [counter in]
+  (go
+    (loop []
+      (if-let [ev (<! in)]
+        (do
+          (append counter ev)
+          (recur))))))
 
 (defn start [] 
   (let [cmd (chan)
         in (chan)
-        events (mult in)
-        ] {
+        events (mult in)] {
    :commands cmd
    :events events
    :loop (go-coordinate cmd in) }))

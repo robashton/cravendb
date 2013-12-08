@@ -1,11 +1,19 @@
 (ns cravendb.inflight
   (:require [cravendb.vclock :as v]
             [cravendb.documents :as docs]
+            [clojure.core.async :refer [chan go mult put!]]
             [clojure.core.incubator :refer [dissoc-in]]
             [cravendb.storage :as s]))
 
 (defn create [db server-id]
-  { :server-id server-id :db db :tx-count (atom 0) :in-flight (atom {})})
+  (let [out (chan)
+        events (mult out)] {
+        :server-id server-id 
+        :db db 
+        :out out
+        :events events
+        :tx-count (atom 0) 
+        :in-flight (atom {})}))
     
 (defn open 
   ([handle] (open handle :client))
@@ -125,17 +133,29 @@
                                            :id id 
                                            :metadata metadata })))
  
-(defn write-operation [tx {:keys [status request id document metadata]}] 
+(defn write-operation [{:keys [tx out] :as acc} {:keys [status request id document metadata]}] 
   (case [status request]
     [:skip :doc-add] tx
     [:skip :doc-delete] tx
-    [:write :doc-add] (docs/store-document tx id document metadata)
-    [:write :doc-delete] (docs/delete-document tx id metadata)
-    [:conflict :doc-add] (docs/store-conflict tx id document metadata)
-    [:conflict :doc-delete] (docs/store-conflict tx id :deleted metadata)))
+    [:write :doc-add] 
+    (do
+      (go (put! out :doc-added))
+      (assoc acc :tx (docs/store-document tx id document metadata)))
+    [:write :doc-delete] 
+    (do
+      (go (put! out :doc-deleted))
+      (assoc acc :tx (docs/delete-document tx id metadata)))
+    [:conflict :doc-add] 
+    (do
+      (go (put! out :doc-added))
+      (assoc acc :tx (docs/store-conflict tx id document metadata)))
+    [:conflict :doc-delete] 
+    (do
+      (go (put! out :doc-deleted))
+      (assoc acc :tx (docs/store-conflict tx id :deleted metadata)))))
 
 ;; For calling once a transaction is actually committed
-(defn complete! [{:keys [in-flight]} txid]
+(defn complete! [{:keys [in-flight out]} txid]
   (let [{:keys [tx ops]} (get-in @in-flight [:transactions txid])] 
-    (s/commit! (reduce write-operation tx (map val ops))))
+    (s/commit! (:tx (reduce write-operation {:tx tx :out out} (map val ops)))))
   (swap! in-flight (clean-up txid)))
