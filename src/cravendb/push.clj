@@ -3,6 +3,13 @@
             [clojure.tools.logging :refer [info error debug]]
             [org.httpkit.server :refer [with-channel send! on-close]]))
 
+(defn push-to [clients #spy/p data]
+  (doseq [channel clients]
+    (send! channel {
+                    :status 200
+                    :headers {"Content-Type" "application/edn"}
+                    :body data})))
+
 (defn start 
   [in]
   (let [hub (atom {})]
@@ -10,11 +17,7 @@
       (if-let [data (<! in)] 
         (do
           (info "Pushing stats to clients")
-          (doseq [channel (keys @hub)]
-          (send! channel {
-                   :status 200
-                   :headers {"Content-Type" "application/json; charset=utf-8"}
-                   :body data}))
+          (push-to (keys @hub) data)
           (recur)))))
     (fn [request] 
         (with-channel request channel

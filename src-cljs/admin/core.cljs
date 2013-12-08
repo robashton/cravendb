@@ -12,12 +12,15 @@
       (fn [e] (put! out e)))
     out))
 
-; (rd/stream-into (dom/getElement "recent-documents"))
+#_ (rd/stream-into (dom/getElement "recent-documents"))
 
+
+(defn update-chart [items]
+ (.log js/console (clj->js items)))
 
 (go (let [out (http/longpoll "/stats")]
-      (loop []
+      (loop [history ()]
         (if-let [data (<! out)]
-          (do
-            (.log js/console (clj->js data))
-            (recur))))))
+          (let [current (take 1000 (conj history data))]
+            (update-chart current)
+            (recur current))))))

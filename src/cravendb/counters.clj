@@ -14,8 +14,7 @@
   (for [[k v] (:rolling stats)]
     {
      :per-second (float (/ v (seconds-since-last-collect stats)))
-     :stat k 
-  }))
+     :stat k }))
 
 (defn collect [stats out]
   (if (>= (seconds-since-last-collect stats) 1)
