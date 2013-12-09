@@ -4,7 +4,7 @@
             [cravendb.transaction :as t]
             [cravendb.testing :refer :all]
             [cravendb.embedded :as embedded]
-            [cravendb.stats :as stats]
+            [cravendb.counters :as counters]
             [cravendb.remote :as remote]
             [org.httpkit.server :refer [run-server]]
             [clojure.core.async :refer [<! >! <!! put! chan go close! timeout ]]
@@ -13,7 +13,9 @@
             [cravendb.querylanguage :refer :all]
             [cravendb.client :as client]))
 
-#_ ([clojure.tools.logging :refer [info error debug]]def embedded-instance (embedded/create))
+
+
+#_ (def embedded-instance (embedded/create))
 
 #_ (def server (run-server (http/create-http-server embedded-instance) { :port 8001 :join? false }))
 #_ (server)
@@ -42,4 +44,4 @@
 
 #_ (http/send-data { :foo "bar"})
 
-#_ (stats/append (:counters embedded-instance) :foo)
+#_ (counters/append (:counters embedded-instance) :foo)

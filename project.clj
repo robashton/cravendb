@@ -26,21 +26,16 @@
                  [org.apache.lucene/lucene-analyzers-common "4.4.0"]
                  [org.clojure/data.codec "0.1.0"]
                  [org.apache.lucene/lucene-highlighter "4.4.0"]
+
+                 [speclj "2.7.2"]
                  
                  ;; This is for the admin UI (urgh)
                  [org.clojure/clojurescript "0.0-2080"]
                  [prismatic/dommy "0.1.1"] ]
 
   :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}
-  :profiles {:dev {
-                   :dependencies [[speclj "2.7.2"]
-                                  [spyscope "0.1.3"]
-                                  [redl "0.2.0"] ]}
-                    :injections  [(require 'spyscope.core)
-                                  (require '[redl complete core])]
-             }
   :plugins [[speclj "2.7.2"]
-            [lein-cljsbuild "1.0.1-SNAPSHOT"] ]
+            [lein-cljsbuild "1.0.1-SNAPSHOT"]]
 
   :cljsbuild { 
     :builds [{:id "admin"

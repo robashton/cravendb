@@ -8,7 +8,7 @@
             [cravendb.inflight :as inflight]
             [cravendb.vclock :as vclock]
             [cravendb.database :refer [DocumentDatabase]]
-            [cravendb.stats :as stats]
+            [cravendb.counters :as counters]
             [clojure.core.async :refer [chan tap]]
             [clojure.tools.logging :refer [info error debug]]))
 
@@ -99,13 +99,9 @@
   (let [opts (apply hash-map kvs)
         storage (open-storage opts)
         index-engine (ie/create storage)
-        stats-engine (stats/start) 
+        c (counters/start) 
         ifh (inflight/create storage (or (:server-id opts) "root"))]
     (ie/start index-engine) 
-    (stats/consume stats-engine (tap (:events ifh) (chan)))
-    (stats/consume stats-engine (tap (:events index-engine) (chan)))
-    (EmbeddedDatabase. 
-      storage 
-      index-engine 
-      ifh
-      stats-engine)))
+    (counters/consume c (tap (:events ifh) (chan)))
+    (counters/consume c (tap (:events index-engine) (chan)))
+    (EmbeddedDatabase.  storage index-engine ifh c)))
