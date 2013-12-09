@@ -163,7 +163,7 @@
           last-synctag (oldest-synctag 
             (conj (map #(indexes/get-last-indexed-synctag-for-index tx (:id %1)) valid-indexes) 
                   synctag))] 
-      (->> (take 10000 (docs/iterate-synctags-after iter last-synctag)) 
+      (->> (take 500 (docs/iterate-synctags-after iter last-synctag)) 
         (index-docs tx valid-indexes)
         (process-mapped-documents tx valid-indexes pulsefn)))) )
 

@@ -65,7 +65,7 @@
   )
 
 (defn add-sequential-doc-to-transaction [{:keys [tx instance prefix id total] :as state} item]
-  (if (= 0 (mod total 1000))
+  (if (= 0 (mod total 250))
     (do
       (info "Flushing after" total)
       (t/commit! tx)
@@ -99,5 +99,5 @@
           :total 0
           :prefix "gp"
       }
-      (take 5000 (map gp-row (csv/read-csv in-file))))))))
+                    (map gp-row (csv/read-csv in-file)))))))
 
