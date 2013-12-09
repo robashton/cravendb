@@ -12,7 +12,7 @@
       (fn [e] (put! out e)))
     out))
 
-(rd/stream-into (dom/getElement "recent-documents"))
+#_ (rd/stream-into (dom/getElement "recent-documents"))
 
 (def chart (atom nil))
 (def seconds (atom 0))
@@ -30,7 +30,7 @@
 
 (defn update-chart [items]
  (let [chart (charty-chart)]
-   (aset chart "data" items)
+   (aset chart "data" (clj->js items))
    (.draw chart)))
 
 (go (let [out (http/longpoll "/stats")]

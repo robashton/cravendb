@@ -15,26 +15,6 @@
 
 
 
-
-#_ (def embedded-instance (embedded/create))
-#_ (def server (run-server (http/create-http-server embedded-instance) { :port 8001 :join? false }))
-
-
-#_ (def instance (remote/create :href "http://localhost:8001"))
-
-
-#_ (db/put-document instance "doc-1" { :foo "bar"} {})
-#_ (db/load-document instance "doc-1"  )
-
-#_ (-> (t/open instance)
-     (t/store "doc-2" { :name "mark" :category "evidently my superior"})
-     (t/store "doc-3" { :name "mathias" :category "fun"})
-     (t/commit!))
-
-
-
-
-
 #_ (def embedded-instance (embedded/create))
 
 #_ (def server (run-server (http/create-http-server embedded-instance) { :port 8001 :join? false }))
