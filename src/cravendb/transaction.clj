@@ -59,4 +59,3 @@
   "Starts a transaction ready for working with"
   [{:keys [href] :as instance}] 
   { :href href :instance instance})
-p
