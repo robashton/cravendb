@@ -23,9 +23,11 @@
            (if v v
              (let [svg (dimple.newSvg. "#indexing-activity" 590 400)
                    chart (dimple.chart. svg [])]
-               (.addCategoryAxis chart "x" "second")
-               (.addCategoryAxis chart "y" "doc-added")
-               (.addSeries chart nil dimple.plot.bar)
+               (.addOrderRule 
+                 (.addCategoryAxis chart "x" (clj->js ["second" "metric"])) "second")
+               (.addMeasureAxis chart "y" "amount")
+               (.addLegend chart 65, 10, 510, 20, "right");
+               (.addSeries chart "metric" dimple.plot.bar)
                chart)))))
 
 (defn update-chart [items]
@@ -33,10 +35,23 @@
    (aset chart "data" (clj->js items))
    (.draw chart)))
 
+(defn munge-data [data]
+  (let [sec (swap! seconds inc)]
+    [ {
+       "second" sec
+       "metric" "docs added"
+       "amount" (:doc-added data)
+       }
+     {
+      "second" sec
+      "metric" "docs indexed"
+      "amount" (:indexed data)
+      } ]))
+
 (go (let [out (http/longpoll "/stats")]
       (loop [history ()]
         (if-let [data (<! out)]
-          (let [current (take 1000 (conj history (assoc data "second" (swap! seconds inc))))]
+          (let [current (take 1000 (apply conj history (munge-data data)))]
             (update-chart current)
             (recur current))))))
 
