@@ -32,6 +32,7 @@
 
 (defn update-chart [items]
  (let [chart (charty-chart)]
+   (.log js/console (clj->js items))
    (aset chart "data" (clj->js items))
    (.draw chart)))
 
@@ -40,12 +41,12 @@
     [ {
        "second" sec
        "metric" "docs added"
-       "amount" (:doc-added data)
+       "amount" (or (:doc-added data) 0)
        }
      {
       "second" sec
       "metric" "docs indexed"
-      "amount" (:indexed data)
+      "amount" (or (:indexed data) 0)
       } ]))
 
 (go (let [out (http/longpoll "/stats")]

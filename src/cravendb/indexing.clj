@@ -96,8 +96,7 @@
         (update-in [:stats index-id :errors] conj (ex-expand (:__exception mapped)))))
     (update-in [:max-synctag] (partial newest-synctag synctag))
     (update-in [:doc-count] inc)
-    (update-in [:stats index-id :total-docs] inc)
-    ((:pulsefn output))))
+    (update-in [:stats index-id :total-docs] inc)))
 
 (defn create-index-stats [i]
   [(:id i) 
@@ -107,21 +106,18 @@
      :errors ()
     }])
 
-(defn process-mapped-documents [tx compiled-indexes pulsefn results] 
+(defn process-mapped-documents [tx compiled-indexes results] 
   (debug "About to reduce")
-  (pulsefn 
-    (reduce process-mapped-document 
+  (reduce process-mapped-document 
           {:writers (into {} (map (juxt :id :writer) compiled-indexes)) 
            :stats (into {} (map create-index-stats compiled-indexes))
            :max-synctag (last-indexed-synctag tx) 
            :tx tx 
            :doc-count 0
-           :pulsefn pulsefn
-           } results)
-    true))
+           } results))
 
-(defn mark-index-as-failed-maybe [tx index-id stats]
-  (if (> (/ (:error-count stats) (:total-docs stats)) 0.8)
+(defn mark-index-as-failed-maybe [tx index-id {:keys [total-docs error-count] :as stats}]
+  (if (and (> total-docs 100) (> (/ error-count total-docs) 0.8))
     (do
       (error "marking index as failed" index-id)
       (indexes/mark-failed tx index-id stats)) 
@@ -135,45 +131,41 @@
       (mark-index-as-failed-maybe (get writer 0) (stats (get writer 0))))))
 
 (defn finish-map-process! 
-  ([output] (finish-map-process! output false))
-  ([{:keys [writers max-synctag tx doc-count stats] :as output} force-flush]
-  (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do 
-      (debug "Flushing main map process at " doc-count max-synctag)
-      (-> (:tx (reduce finish-map-process-for-writer!
-                       {:tx tx :max-synctag max-synctag :stats stats} writers))
-        (s/store last-indexed-synctag-key max-synctag)
-        (s/store last-index-doc-count-key doc-count)
-        (s/commit!))))
-   output))
+  [{:keys [writers max-synctag tx doc-count stats] :as output}]
+  (do 
+    (debug "Flushing main map process at " doc-count max-synctag)
+    (-> (:tx (reduce finish-map-process-for-writer!
+                     {:tx tx :max-synctag max-synctag :stats stats} writers))
+      (s/store last-indexed-synctag-key max-synctag)
+      (s/store last-index-doc-count-key doc-count)
+      (s/commit!)))
+  output)
 
 (defn finish-partial-map-process! 
-  ([output] (finish-partial-map-process! output false))
-  ([{:keys [writers max-synctag tx doc-count stats] :as output} force-flush]
-  (if (and (< 0 doc-count) (or force-flush (= 0 (mod doc-count 1000))))
-    (do (debug "Flushing chaser process at " doc-count max-synctag)
-      (s/commit! 
-        (:tx (reduce finish-map-process-for-writer! 
-               {:tx tx :max-synctag max-synctag :stats stats} writers)))))
-    output))
+  [{:keys [writers max-synctag tx doc-count stats] :as output}]
+  (do (debug "Flushing chaser process at " doc-count max-synctag)
+    (s/commit! 
+      (:tx (reduce finish-map-process-for-writer! 
+                   {:tx tx :max-synctag max-synctag :stats stats} writers)))))
 
-(defn index-documents-from-synctag! [tx indexes synctag pulsefn]
+(defn index-documents-from-synctag! [tx indexes synctag]
   (with-open [iter (s/get-iterator tx)] 
     (let [valid-indexes (filter #(not (indexes/is-failed tx (:id %1))) indexes)
           last-synctag (oldest-synctag 
             (conj (map #(indexes/get-last-indexed-synctag-for-index tx (:id %1)) valid-indexes) 
                   synctag))] 
-      (->> (take 10000 (docs/iterate-synctags-after iter last-synctag)) 
+      (->> (take 1000 (docs/iterate-synctags-after iter last-synctag)) 
         (index-docs tx valid-indexes)
-        (process-mapped-documents tx valid-indexes pulsefn)))) )
+        (process-mapped-documents tx valid-indexes)))) )
 
 (defn index-catchup! [db index]
   (with-open [tx (s/ensure-transaction db)]
     (let [last-synctag (indexes/get-last-indexed-synctag-for-index tx (:id index))]
-      (:doc-count (index-documents-from-synctag! tx [index] last-synctag finish-partial-map-process!)))))
+      (:doc-count 
+        (finish-partial-map-process! (index-documents-from-synctag! tx [index] last-synctag))))))
 
 (defn index-documents! [db compiled-indexes]
   (with-open [tx (s/ensure-transaction db)]
     (:doc-count
-      (index-documents-from-synctag! tx compiled-indexes (last-indexed-synctag tx) 
-                                     finish-map-process!))))
+      (finish-map-process! 
+        (index-documents-from-synctag! tx compiled-indexes (last-indexed-synctag tx))))))

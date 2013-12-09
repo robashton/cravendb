@@ -3,17 +3,16 @@
        [clojure.tools.logging :only (info error debug)] )
    (:require [clojure.data.csv :as csv]
             [me.raynes.fs :as fs]
-            [ring.adapter.jetty :refer [run-jetty]]
             [clojure.java.io :as io]
             [clojure.string :refer [trim]]
             [cravendb.http :as http]
-            [cravendb.clienttransaction :as trans]
-            [cravendb.client :as client]
+            [cravendb.transaction :as t]
+            [cravendb.remote :as remote]
             [cravendb.storage :as storage]
             [cravendb.documents :as docs]
             [cravendb.query :as query]
             [cravendb.indexengine :as indexengine]
-            [cravendb.database :as db]))
+             ))
 
 (defn read-float [in i]
   (Float/parseFloat (get in i)))
@@ -65,84 +64,40 @@
    }
   )
 
-(defn add-sequential-doc-to-transaction [{:keys [tx prefix id total] :as state} item]
-  (if (= 0 (mod total 1000))
+(defn add-sequential-doc-to-transaction [{:keys [tx instance prefix id total] :as state} item]
+  (if (= 0 (mod total 250))
     (do
       (info "Flushing after" total)
-      (trans/commit! tx)
+      (t/commit! tx)
       (-> state
-        (assoc :tx (trans/store-document 
-                     (trans/start "http://localhost:9002") 
-                     (str prefix "-" id) item))       
+        (assoc :tx (t/store (t/open instance) (str prefix "-" id) item))       
         (assoc :id (inc id)) 
         (assoc :total (inc total))))
     (do
       (-> state
-        (assoc :tx (trans/store-document tx (str prefix "-" id) item))       
+        (assoc :tx (t/store tx (str prefix "-" id) item))       
         (assoc :id (inc id)) 
         (assoc :total (inc total))))))
 
-(defn import-prescriptions []
-  (time (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
-     (trans/commit! (:tx (reduce add-sequential-doc-to-transaction {
-        :tx (trans/start "http://localhost:9002")
-        :id 0
-        :total 0
-        :prefix "scrips"
-       }
-      (map prescription-row (csv/read-csv in-file))))))))
+;(defn import-prescriptions []
+;  (time (with-open [in-file (io/reader "input/prescriptions/adhd/part-00000")]
+;     (t/commit! (:tx (reduce add-sequential-doc-to-transaction {
+;        :tx (t/open "http://localhost:9002")
+;        :id 0
+;        :total 0
+;        :prefix "scrips"
+;       }
+;      (map prescription-row (csv/read-csv in-file))))))))
+;
+#_ (time (with-open [in-file (io/reader "input/epraccur.csv")
+                     instance (remote/create :href "http://localhost:8001") ]
+     (t/commit!
+       (:tx (reduce add-sequential-doc-to-transaction {
+          :tx (t/open instance) 
+          :id 0
+          :instance instance
+          :total 0
+          :prefix "gp"
+      }
+                    (map gp-row (csv/read-csv in-file)))))))
 
-(defn insertindex []
-  (client/put-index "http://localhost:9002" 
-                     "by_practice" 
-                     "(fn [doc] (if (:practice doc) { \"practice\" (:practice doc) } nil ))")) 
-
-#_ (def instance (do
-                   (fs/delete-dir "testdb") 
-                   (db/create "testdb")))
-
-#_ (def server (run-jetty 
-     (http/create-http-server instance)
-    { :port (Integer/parseInt (or (System/getenv "PORT") "9002")) :join? false}))
-
-#_ (do
-     (.stop server)
-     (.close instance))
-
-#_ (map :name (db/query instance
-                 { 
-                  :query "*"
-                  :amount 10
-                  }
-                 )) 
-#_ (client/put-index 
-          "http://localhost:9002" 
-          "by_username" 
-          "(fn [doc] {\"username\" (:username doc)})")
-
-#_ (client/get-index "http://localhost:9002" "by_username") 
-
-#_ (docs/load-document (:storage instance) "blah-2")
-#_ (docs/load-document (:storage instance) "gp-1")
-#_ (db/put-document instance "blah-1" {:foo "bar"} {})
-#_ (client/put-document "http://localhost:9002" "blah-2" { :foo "baz"} {})
-#_ (client/get-document "http://localhost:9002" "gp-1")
-
-#_ (time (with-open [in-file (io/reader "input/epraccur.csv")]
-     (trans/commit! (:tx (reduce add-sequential-doc-to-transaction {
-        :tx (trans/start "http://localhost:9002") 
-        :id 0
-        :total 0
-        :prefix "gp"
-     }
-      (take 5000 (map gp-row (csv/read-csv in-file))))))))
-
-#_ (with-open [reader (.open-reader engine "by_practice")]
-  ((.query reader { :query "*:*"})))
-
-
-#_ (client/query "http://localhost:8080" {
-                                          :index "by_practice"
-                                          :query "practice:E83030"
-                                          :wait true
-                                          })
