@@ -143,10 +143,11 @@
 
 (defn finish-partial-map-process! 
   [{:keys [writers max-synctag tx doc-count stats] :as output}]
-  (do (debug "Flushing chaser process at " doc-count max-synctag)
-    (s/commit! 
-      (:tx (reduce finish-map-process-for-writer! 
-                   {:tx tx :max-synctag max-synctag :stats stats} writers)))))
+  (debug "Flushing chaser process at " doc-count max-synctag)
+  (s/commit! 
+    (:tx (reduce finish-map-process-for-writer! 
+                 {:tx tx :max-synctag max-synctag :stats stats} writers)))
+  output)
 
 (defn index-documents-from-synctag! [tx indexes synctag]
   (with-open [iter (s/get-iterator tx)] 

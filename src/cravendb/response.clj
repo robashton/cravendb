@@ -1,66 +1,23 @@
-(ns cravendb.http
-  (:require [org.httpkit.server :refer [run-server with-channel send! on-close]]
-            [clojure.core.async :refer [mult tap chan]]
-            [clojure.edn :as edn]
+(ns cravendb.routes
+  (:require [clojure.core.async :refer [tap chan]]
             [compojure.route :as route]
-            [compojure.handler :as handler]
-            [liberator.core :refer [resource ]]
+            [liberator.core :refer [resource]]
             [liberator.dev :refer [wrap-trace]]
             [liberator.representation :refer [ring-response]]
             [cravendb.database :as db]
-            [cravendb.embedded :as embedded]
             [cravendb.stream :as stream]
             [cravendb.push :as push]
             [cravendb.core :refer [zero-synctag integer-to-synctag]]
-            [ring.middleware.resource :as r]
-            [ring.middleware.file-info :as f])
+            [clojure.tools.logging :refer (info error debug)])
+            [cravendb.http :as http]
+  (:use compojure.core))
 
-  (:use compojure.core
-        [clojure.tools.logging :only (info error debug)]))
-
-(defn read-body [ctx] (edn/read-string (slurp (get-in ctx [:request :body]))))
-
-(def accepted-types ["application/edn" "text/plain" "text/html"])
-(def root (str (System/getProperty "user.dir") "/public"))
-
-(defn standard-response [ctx data metadata & headers]
-  (ring-response 
-    {
-     :headers (merge 
-                { "cravendb-metadata" (pr-str metadata)}
-                (apply hash-map headers))
-     :body (case (get-in ctx [:representation :media-type])
-              "text/plain" (pr-str data)
-              "application/edn" (pr-str data)
-              "text/html" (str "<p>" (pr-str data) "</p>"))})) 
-
-(defn read-metadata [ctx]
-  (edn/read-string (or (get-in ctx [:request :headers "cravendb-metadata"]) "{}")) )
-
-(defn resource-exists [ctx rfn mfn]
-  (if-let [resource (rfn)] {
-     ::resource resource
-     ::metadata (mfn)}
-    false))
-
-(defn etag-from-metadata [ctx]
-  (get-in ctx [::metadata :history]))
-
-(defn query-string [params m]
-  (into {} (filter #(not (nil? (second %1))) 
-                   (for [[k f] m] [k (if-let [v (params k)] (f v) nil)]))))
-
-(defn create-routes [instance]
+(defn create [instance]
   (routes
-    
-    
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete :head]
-        :exists? (fn [ctx] (resource-exists 
-                             ctx 
-                             #(db/load-document instance id) 
-                             #(db/load-document-metadata instance id)))
+        :exists? (fn [ctx] (resource-exists ctx #(db/load-document instance id) #(db/load-document-metadata instance id)))
         :available-media-types accepted-types
         :etag (fn [ctx] (etag-from-metadata ctx))
         :put! (fn [ctx] (db/put-document instance id (read-body ctx) (read-metadata ctx)))
@@ -70,10 +27,7 @@
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete :head]
-        :exists? (fn [ctx] (resource-exists 
-                             ctx 
-                             #(db/load-index instance id) 
-                             #(db/load-index-metadata instance id)))
+        :exists? (fn [ctx] (resource-exists ctx #(db/load-index instance id) #(db/load-index-metadata instance id)))
         :available-media-types accepted-types
         :etag (fn [ctx] (etag-from-metadata ctx))
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
@@ -87,14 +41,14 @@
                      (standard-response 
                       ctx 
                       (db/query instance 
-                        (merge { :filter filter :index index} 
-                          (query-string (get-in ctx [:request :params]) {
-                            :wait-duration #(Integer/parseInt %1)
-                            :wait boolean
-                            :sort-order symbol
-                            :sort-by str
-                            :offset #(Integer/parseInt %1)
-                            :amount #(Integer/parseInt %1) }))) {}))))
+                                (merge { :filter filter :index index} 
+                                       (query-string (get-in ctx [:request :params]) {
+                                               :wait-duration #(Integer/parseInt %1)
+                                               :wait boolean
+                                               :sort-order symbol
+                                               :sort-by str
+                                               :offset #(Integer/parseInt %1)
+                                               :amount #(Integer/parseInt %1) }))) {}))))
 
     (ANY "/conflict/:id" [id]
       (resource
@@ -136,7 +90,4 @@
 
     (route/files "/admin/" { :root "admin"} ))) 
 
-(defn create-http-server [instance]
-  (info "Setting up the bomb")
-  (let [db-routes (create-routes instance)]
-    (handler/api db-routes)))
+
