@@ -11,15 +11,18 @@
                     :body (pr-str data)})))
 
 (defn start 
-  [in]
-  (let [hub (atom {})]
-    (go (loop []
-      (if-let [data (<! in)] 
-        (do
-          (info "Pushing stats to clients")
-          (push-to (keys @hub) data)
-          (recur)))))
+  ([in] (start (fn [req] nil) in))
+  ([immediate in]
+    (let [hub (atom {})]
+      (go (loop []
+        (if-let [data (<! in)] 
+          (do
+            (info "Pushing stats to clients")
+            (push-to (keys @hub) data)
+            (recur)))))
     (fn [request] 
+      (if-let [response (immediate request)]
+        response
         (with-channel request channel
           (swap! hub assoc channel request)
-          (on-close channel (fn [status] (swap! hub dissoc channel)))))))
+          (on-close channel (fn [status] (swap! hub dissoc channel)))))))))
