@@ -17,7 +17,7 @@
       (go (loop []
         (if-let [data (<! in)] 
           (do
-            (info "Pushing stats to clients")
+            (info "Pushing data to clients")
             (push-to (keys @hub) data)
             (recur)))))
     (fn [request] 
