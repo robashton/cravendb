@@ -50,6 +50,8 @@
   (into {} (filter #(not (nil? (second %1))) 
                    (for [[k f] m] [k (if-let [v (params k)] (f v) nil)]))))
 
+3
+
 (defn create-routes [instance]
   (routes
     (ANY "/document/:id" [id] 

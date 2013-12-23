@@ -22,6 +22,12 @@
 
 # TODO
 
+### Doing right now
+
+- Use long-polling for replication/streaming
+ - can probably do this with events from database
+ - can then use this for pushing indexing tasks too
+
 ### Immediate issues
 
 - Look at schemas to help with indexing (joins/aggregations)
@@ -29,7 +35,6 @@
 - Use quickcheck or whatever to validate query support 
 - Use quickcheck or whatever to validate replication and storage
 - PROFILE PROFILE PROFILE PROFILE PROFILE
-- Allow streaming of queries to the very end
 - I think the way I currently write synctags mean we could
   - Skip the indexing of documents during high write scenarios
   - Skip the replication of documents during high write scenarios
@@ -43,9 +48,7 @@
 
 - Client should be handling HTTP results properly
 - Automatic peer discovery
-- Use long-polling for replication/streaming
- - can probably do this with events from database
- - can then use this for pushing indexing tasks too
+- Allow streaming of queries to the very end
 
 ### Pending debt/questions/bugs
 

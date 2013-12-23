@@ -21,8 +21,7 @@
             (push-to (keys @hub) data)
             (recur)))))
     (fn [request] 
-      (if-let [immediate-response (immediate request)]
-        immediate-response
+      (if-let [immediate-response (immediate request)] immediate-response
         (with-channel request channel
           (swap! hub assoc channel request)
           (on-close channel (fn [status] (swap! hub dissoc channel)))))))))
