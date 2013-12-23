@@ -7,6 +7,7 @@
 
 -  push/start should therefore take in a function that takes in a request and returns the resource available *now*
 -  push/start should handle the return result of that much like we already do (standard-response)
+    - Can I use the new library that was released to help with this? Liberator Templates??
 
 
 - In the case of stats, that's just 'whatever is available right now'
