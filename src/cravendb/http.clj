@@ -64,7 +64,6 @@
         :put! (fn [ctx] (db/put-document instance id (read-body ctx) (read-metadata ctx)))
         :delete! (fn [_] (db/delete-document instance id (read-metadata _)))
         :handle-ok (fn [_] (standard-response _ (::resource _) (::metadata _)))))
-
     (ANY "/index/:id" [id]
       (resource
         :allowed-methods [:put :get :delete :head]
@@ -77,7 +76,6 @@
         :put! (fn [ctx] (db/put-index instance (merge { :id id } (read-body ctx))))
         :delete! (fn [_] (db/delete-index instance id)) 
         :handle-ok (fn [_] (standard-response _ (::resource _) (::metadata _) ) )))
-
     (ANY "/query/:index/:filter" [index filter]
        (resource
         :available-media-types accepted-types
@@ -93,30 +91,24 @@
                             :sort-by str
                             :offset #(Integer/parseInt %1)
                             :amount #(Integer/parseInt %1) }))) {}))))
-
     (ANY "/conflict/:id" [id]
       (resource
         :allowed-methods [:delete]
         :available-media-types accepted-types
         :delete! (fn [_] (db/clear-conflicts instance id))))
-
     ;; ANOTHER UWAGA!!
     (ANY "/conflicts" []
        (resource
         :available-media-types accepted-types
         :handle-ok (fn [ctx] 
                      (standard-response ctx (db/conflicts instance) {}))))
-
-
     (ANY "/bulk" []
       (resource
         :allowed-methods [:post]
         :available-media-types ["application/edn"]
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))
-
     (ANY "/stats" [] (push/start (tap (get-in instance [:counters :events]) (chan))))
-
     (ANY "/stream" []
       (resource
         :allowed-methods [:get :head]
