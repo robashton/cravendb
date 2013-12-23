@@ -21,6 +21,10 @@
 
 - Conflicts need to work the same way (currently they don't)
 - Are conflicts sorted by synctag? They should really be sorted by synctag
+  - No, they're sorted by doc-id/synctag
+  - Can we just swap those?
+  - No - cos then we'd not have an index by doc-id
+  - We need to index both ways
 - Then we can stream conflicts the same way we handle streaming of written data
 
 
