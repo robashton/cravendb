@@ -28,6 +28,7 @@
 - Failed tasks
 - Use quickcheck or whatever to validate query support 
 - Use quickcheck or whatever to validate replication and storage
+- PROFILE PROFILE PROFILE PROFILE PROFILE
 - Allow streaming of queries to the very end
 - I think the way I currently write synctags mean we could
   - Skip the indexing of documents during high write scenarios
