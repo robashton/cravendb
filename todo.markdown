@@ -29,6 +29,14 @@
 - Use quickcheck or whatever to validate query support 
 - Use quickcheck or whatever to validate replication and storage
 - Allow streaming of queries to the very end
+- I think the way I currently write synctags mean we could
+  - Skip the indexing of documents during high write scenarios
+  - Skip the replication of documents during high write scenarios
+  - The former I can fix by constantly updating a 'lowest indexed synctag'
+  - The latter .... Perhaps explicit support in the streaming endpoints
+    - That will mean registering a subscription and keeping a lowest streamed synctag around
+    - How do I clean subscriptions up? (I don't? Can stick in actual storage? Caching though? Sounds complected)
+
 
 ### Pending tasks
 
