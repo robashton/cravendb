@@ -52,8 +52,6 @@
 
 (defn create-routes [instance]
   (routes
-    
-    
     (ANY "/document/:id" [id] 
       (resource
         :allowed-methods [:put :get :delete :head]
@@ -125,14 +123,9 @@
         :exists? true
         :available-media-types accepted-types
         :handle-ok 
-        (fn [ctx]
-          (standard-response 
-            ctx
-            (stream/from-synctag 
-              instance
-              (or (get-in ctx [:request :params :synctag]) (zero-synctag))) 
-            {}
-            "last-synctag" (integer-to-synctag @(get-in instance [:storage :last-synctag])) ))))
+        (push/start #(stream/from-synctag instance (or (get-in %1 [:request :params :synctag]) 
+                                                       (zero-synctag))) 
+                   (tap (get-in instance [:counters :events]) (chan)))))
 
     (route/files "/admin/" { :root "admin"} ))) 
 
@@ -140,3 +133,10 @@
   (info "Setting up the bomb")
   (let [db-routes (create-routes instance)]
     (handler/api db-routes)))
+
+  ;; This needs to be returned from the stream resourc
+  ;; (fn [ctx]
+  ;;        (standard-response 
+  ;;          ctx
+  ;;          {}
+  ;;          "last-synctag" (integer-to-synctag @(get-in instance [:storage :last-synctag])))) 
