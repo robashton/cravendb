@@ -12,11 +12,15 @@
 - In the case of stats, that's just 'whatever is available right now'
 - In the case of streaming, that's
     - Anything available from zero-synctag/synctag passed in
+    - stream/from-synctag needs to return nil if nothing is available
     - Maximum of 1000 at a time for example
     - If nothing is available, then we should hook the event from the database 
         - these are the events 'ifh' send out, ideally 'tx-committed'
         - Then we can invoke that first fn again and it'll return something by now
 
 
+- Conflicts need to work the same way (currently they don't)
+- Are conflicts sorted by synctag? They should really be sorted by synctag
+- Then we can stream conflicts the same way we handle streaming of written data
 
 
