@@ -15,4 +15,4 @@
   (with-open [iter (s/get-iterator (:storage instance))] 
     (doall
       (map (partial expand-document instance) 
-        (take 1024 (docs/iterate-synctags-after iter synctag))))))
+        (take 1024 (docs/iterate-synctags-after iter #spy/p synctag))))))

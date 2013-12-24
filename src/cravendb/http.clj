@@ -112,7 +112,7 @@
         :handle-ok "OK"))
     (ANY "/stats" [] (push/start (tap (get-in instance [:counters :events]) (chan))))
     (ANY "/stream" []
-         (push/start #(stream/from-synctag instance (or (get-in %1 [:request :params :synctag]) 
+         (push/start #(stream/from-synctag instance (or (get-in %1 [:params :synctag]) 
                                                         (zero-synctag))) 
                      (tap (get-in instance [:counters :events]) (chan))))
 
