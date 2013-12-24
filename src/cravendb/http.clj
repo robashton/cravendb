@@ -112,14 +112,9 @@
         :handle-ok "OK"))
     (ANY "/stats" [] (push/start (tap (get-in instance [:counters :events]) (chan))))
     (ANY "/stream" []
-      (resource
-        :allowed-methods [:get :head]
-        :exists? true
-        :available-media-types accepted-types
-        :handle-ok 
-        (push/start #(stream/from-synctag instance (or (get-in %1 [:request :params :synctag]) 
-                                                       (zero-synctag))) 
-                   (tap (get-in instance [:counters :events]) (chan)))))
+         (push/start #(stream/from-synctag instance (or (get-in %1 [:request :params :synctag]) 
+                                                        (zero-synctag))) 
+                     (tap (get-in instance [:counters :events]) (chan))))
 
     (route/files "/admin/" { :root "admin"} ))) 
 
