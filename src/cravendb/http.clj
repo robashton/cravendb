@@ -111,10 +111,8 @@
         :post! (fn [ctx] (pr-str (db/bulk instance (read-body ctx))))
         :handle-ok "OK"))
     (ANY "/stats" [] (push/start (tap (get-in instance [:counters :events]) (chan))))
-    (ANY "/stream" []
-         (push/start #(stream/from-synctag instance (or (get-in %1 [:params :synctag]) 
-                                                        (zero-synctag))) 
-                     (tap (get-in instance [:counters :events]) (chan))))
+    (ANY "/stream" [] (push/start #(stream/from-synctag instance (or (get-in %1 [:params :synctag]) (zero-synctag))) 
+                        (tap (get-in instance [:counters :events]) (chan))))
 
     (route/files "/admin/" { :root "admin"} ))) 
 
