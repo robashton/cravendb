@@ -158,4 +158,5 @@
 (defn complete! [{:keys [in-flight out]} txid]
   (let [{:keys [tx ops]} (get-in @in-flight [:transactions txid])] 
     (s/commit! (:tx (reduce write-operation {:tx tx :out out} (map val ops)))))
-  (swap! in-flight (clean-up txid)))
+  (swap! in-flight (clean-up txid))
+  (go (put! out :commited)))
